@@ -1,0 +1,39 @@
+# ── Dependencies ──────────────────────────────────────────
+node_modules/
+
+# ── Build output ──────────────────────────────────────────
+dist/
+dist-ssr/
+
+# ── Environment variables ────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Editor / IDE ─────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS generated ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ── Logs ─────────────────────────────────────────────────
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Testing ──────────────────────────────────────────────
+coverage/
+
+# ── Supabase local ───────────────────────────────────────
+.supabase/
+
+# ── Misc ─────────────────────────────────────────────────
+*.local
+*.tsbuildinfo

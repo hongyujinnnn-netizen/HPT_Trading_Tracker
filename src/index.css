@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: #0A0C0E;
+    color: #EDEAE3;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+}
+
+.font-mono-num {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #131619;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #262B30;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #C9A227;
+}
+
+/* Custom glass / dark terminal card styling */
+.terminal-card {
+  background: #131619;
+  border: 1px solid #1E2226;
+  border-radius: 0.5rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.terminal-card:hover {
+  border-color: #262B30;
+}
+
+.gold-glow {
+  box-shadow: 0 0 15px rgba(201, 162, 39, 0.15);
+}
+
+.profit-glow {
+  box-shadow: 0 0 15px rgba(63, 168, 140, 0.15);
+}
+
+.loss-glow {
+  box-shadow: 0 0 15px rgba(193, 80, 46, 0.15);
+}

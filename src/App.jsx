@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import {
   LayoutDashboard,
   Plus,
@@ -18,6 +18,7 @@ import {
   ArrowRight,
   X,
   ListOrdered,
+  Menu,
 } from 'lucide-react';
 import { TradeProvider, useTrade } from './context/TradeContext';
 import { TickerBar } from './components/TickerBar';
@@ -102,6 +103,8 @@ function AppContent() {
     dismissToast,
   } = useTrade();
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   if (authLoading) {
     return <AppSplash />;
   }
@@ -133,7 +136,7 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-[#0A0C0E] text-[#EDEAE3] font-body">
+    <div className="min-h-screen w-full flex flex-col bg-[#0A0C0E] text-[#EDEAE3] font-body relative">
       {/* Top Banner: Demo Mode Warning */}
       {isDemoMode && (
         <div className="px-4 py-2 bg-[#2A2311] border-b border-[#C9A227]/40 flex items-center justify-between text-xs font-mono-num text-[#C9A227]">
@@ -175,8 +178,109 @@ function AppContent() {
         </div>
       )}
 
+      {/* Mobile Slide-Out Drawer & Backdrop Overlay */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex animate-fade-in">
+          {/* Dark Glass Backdrop Overlay */}
+          <div
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 bg-[#0A0C0E]/80 backdrop-blur-sm transition-opacity"
+          />
+
+          {/* Slide Drawer Panel */}
+          <div className="relative w-72 max-w-[85vw] bg-[#1B1F23] border-r border-[#262B30] flex flex-col h-full z-10 shadow-2xl">
+            {/* Drawer Header */}
+            <div className="px-5 py-4 flex items-center justify-between border-b border-[#262B30]">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-[#C9A227] flex items-center justify-center font-display font-extrabold text-[#0A0C0E] text-base gold-glow">
+                  TP
+                </div>
+                <div>
+                  <div className="text-sm font-bold font-display tracking-tight text-[#EDEAE3]">TradePulse Gold</div>
+                  <div className="text-[10px] font-mono-num text-[#8B8D91]">XAU/USD Journal</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-1.5 rounded-lg text-[#8B8D91] hover:text-[#EDEAE3] hover:bg-[#131619] transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Navigation List */}
+            <nav className="flex-1 py-3 space-y-1 px-3 overflow-y-auto">
+              {NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const isActive = activePage === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => {
+                      setActivePage(item.key);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                      isActive
+                        ? 'bg-[#2A2311] text-[#C9A227] border-l-2 border-[#C9A227]'
+                        : 'text-[#8B8D91] hover:text-[#EDEAE3] hover:bg-[#131619]'
+                    }`}
+                  >
+                    <Icon size={18} className={isActive ? 'text-[#C9A227]' : 'text-[#8B8D91]'} />
+                    <span className="flex-1 text-left">{item.label}</span>
+                    {item.key === 'history' && (
+                      <span className="text-[10px] font-mono-num bg-[#131619] px-2 py-0.5 rounded text-[#5A5D61]">
+                        {trades.length}
+                      </span>
+                    )}
+                    {item.key === 'pendingorders' && activeOrderCount > 0 && (
+                      <span className="text-[10px] font-mono-num bg-[#2A2311] px-2 py-0.5 rounded text-[#C9A227] border border-[#C9A227]/30">
+                        {activeOrderCount}
+                      </span>
+                    )}
+                    {isActive && <ChevronRight size={14} className="text-[#C9A227]" />}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Drawer Footer */}
+            <div className="p-4 border-t border-[#262B30] text-xs text-[#5A5D61] space-y-2">
+              {userSession ? (
+                <div className="space-y-2">
+                  <div className="p-2.5 rounded-lg bg-[#131619] border border-[#262B30] space-y-1">
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#3FA88C]">
+                      <Cloud size={13} />
+                      <span className="truncate">{userSession.user.email}</span>
+                    </div>
+                    <div className="text-[10px] text-[#5A5D61]">Row-Level Security Active</div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      signOut();
+                    }}
+                    className="w-full py-2 rounded-lg bg-[#1F1412] hover:bg-[#4A2A1E] text-[#E68A6E] font-semibold text-xs flex items-center justify-center gap-2 transition-colors border border-[#4A2A1E]"
+                  >
+                    <LogOut size={13} /> Sign Out
+                  </button>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-lg bg-[#2A2311]/50 border border-[#C9A227]/30 text-xs text-[#C9A227] font-semibold flex items-center gap-2">
+                  <Sparkles size={14} /> Demo Preview Mode
+                </div>
+              )}
+              <div className="flex items-center gap-1.5 text-[#8B8D91] text-[11px] pt-1">
+                <Shield size={12} className="text-[#3FA88C]" /> Supabase Cloud &amp; RLS Verified
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 flex min-h-0">
-        {/* Sidebar */}
+        {/* Desktop Sidebar */}
         <aside className="w-60 shrink-0 hidden md:flex flex-col bg-[#1B1F23] border-r border-[#262B30] select-none">
           {/* Brand Header */}
           <div className="px-5 py-4 flex items-center justify-between border-b border-[#262B30]">
@@ -256,14 +360,78 @@ function AppContent() {
 
         {/* Main Content Area */}
         <div className="flex-1 min-w-0 flex flex-col">
-          <TickerBar />
-          <main className="flex-1 p-4 md:p-6 overflow-x-hidden">
+          <TickerBar
+            onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
+            mobileMenuOpen={mobileMenuOpen}
+          />
+          <main className="flex-1 p-3 sm:p-4 md:p-6 pb-24 md:pb-6 overflow-x-hidden">
             <Suspense fallback={<PageFallback />}>
               {renderPage()}
             </Suspense>
           </main>
         </div>
       </div>
+
+      {/* Modern Bottom Docked Navigation Bar for Mobile */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#131619] border-t border-[#262B30] px-2 h-16 flex items-center justify-around shadow-2xl">
+        <button
+          onClick={() => setActivePage('dashboard')}
+          className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 rounded-lg text-[10px] font-mono-num font-medium transition-all ${
+            activePage === 'dashboard' ? 'text-[#C9A227]' : 'text-[#8B8D91] hover:text-[#EDEAE3]'
+          }`}
+        >
+          <LayoutDashboard size={20} className={activePage === 'dashboard' ? 'text-[#C9A227]' : 'text-[#8B8D91]'} />
+          <span>Dashboard</span>
+        </button>
+
+        <button
+          onClick={() => setActivePage('pendingorders')}
+          className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 rounded-lg text-[10px] font-mono-num font-medium transition-all relative ${
+            activePage === 'pendingorders' ? 'text-[#C9A227]' : 'text-[#8B8D91] hover:text-[#EDEAE3]'
+          }`}
+        >
+          <div className="relative">
+            <ListOrdered size={20} className={activePage === 'pendingorders' ? 'text-[#C9A227]' : 'text-[#8B8D91]'} />
+            {activeOrderCount > 0 && (
+              <span className="absolute -top-1.5 -right-2.5 w-4 h-4 rounded-full bg-[#C9A227] text-[#0A0C0E] text-[9px] font-bold flex items-center justify-center border border-[#0A0C0E]">
+                {activeOrderCount}
+              </span>
+            )}
+          </div>
+          <span>Orders</span>
+        </button>
+
+        {/* Center Action Button: + Add Trade */}
+        <div className="flex-1 flex justify-center items-center">
+          <button
+            onClick={() => setActivePage('add')}
+            className={`flex items-center justify-center w-11 h-11 rounded-full bg-[#C9A227] text-[#0A0C0E] font-bold shadow-lg shadow-[#C9A227]/40 active:scale-95 transition-all ${
+              activePage === 'add' ? 'ring-2 ring-[#EDEAE3] ring-offset-2 ring-offset-[#131619]' : ''
+            }`}
+            title="Add Trade"
+          >
+            <Plus size={24} />
+          </button>
+        </div>
+
+        <button
+          onClick={() => setActivePage('history')}
+          className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 rounded-lg text-[10px] font-mono-num font-medium transition-all ${
+            activePage === 'history' ? 'text-[#C9A227]' : 'text-[#8B8D91] hover:text-[#EDEAE3]'
+          }`}
+        >
+          <History size={20} className={activePage === 'history' ? 'text-[#C9A227]' : 'text-[#8B8D91]'} />
+          <span>Journal</span>
+        </button>
+
+        <button
+          onClick={() => setMobileMenuOpen(true)}
+          className="flex flex-col items-center justify-center gap-1 flex-1 py-1 rounded-lg text-[10px] font-mono-num font-medium text-[#8B8D91] hover:text-[#EDEAE3] transition-all"
+        >
+          <Menu size={20} className="text-[#8B8D91]" />
+          <span>Menu</span>
+        </button>
+      </nav>
 
       {/* Modals */}
       <TradeModal trade={selectedTrade} onClose={() => setSelectedTrade(null)} />

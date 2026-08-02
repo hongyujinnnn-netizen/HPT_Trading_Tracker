@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Bell, Zap, Cloud, Sparkles, LogOut, Activity, AlertTriangle, Radio, Clock } from 'lucide-react';
+import { TrendingUp, Bell, Zap, Cloud, Sparkles, LogOut, Activity, AlertTriangle, Radio, Clock, Menu, X } from 'lucide-react';
 import { Pill } from './Pill';
 import { useTrade } from '../context/TradeContext';
 import { tradeRepository } from '../services/tradeRepository';
 import { supabase } from '../services/supabaseClient';
 import { getCurrentGoldSession } from '../utils/sessionDetector';
 
-export function TickerBar() {
+export function TickerBar({ onToggleMobileMenu, mobileMenuOpen }) {
   const { userSession, signOut, isDemoMode } = useTrade();
 
   const [price, setPrice] = useState(2431.20);
@@ -160,8 +160,18 @@ export function TickerBar() {
   };
 
   return (
-    <header className="flex items-center justify-between px-5 py-2.5 bg-[#1B1F23] border-b border-[#262B30]">
-      <div className="flex items-center gap-5">
+    <header className="flex items-center justify-between px-3 md:px-5 py-2.5 bg-[#1B1F23] border-b border-[#262B30]">
+      <div className="flex items-center gap-3 md:gap-5">
+        {/* Mobile Menu Toggle Button */}
+        {onToggleMobileMenu && (
+          <button
+            onClick={onToggleMobileMenu}
+            className="md:hidden p-1.5 rounded-lg bg-[#131619] border border-[#262B30] text-[#C9A227] hover:bg-[#2A2311] transition-colors focus:outline-none"
+            aria-label="Toggle Navigation Menu"
+          >
+            {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        )}
         <div className="flex items-center gap-2.5">
           <span className={`w-2 h-2 rounded-full ${isStale ? 'bg-[#C9A227]' : 'bg-[#3FA88C] animate-pulse'}`} />
           <span className="text-sm font-bold font-mono-num text-[#EDEAE3]">XAU/USD</span>

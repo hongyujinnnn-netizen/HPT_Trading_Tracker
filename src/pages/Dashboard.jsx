@@ -4,6 +4,7 @@ import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { useTrade } from '../context/TradeContext';
 import { StatCard } from '../components/StatCard';
 import { SectionLabel } from '../components/SectionLabel';
+import { Pill } from '../components/Pill';
 import { DailyPnLCalendar } from '../components/DailyPnLCalendar';
 import { WinLossSplit } from '../components/WinLossSplit';
 import { INITIAL_EQUITY_CURVE } from '../utils/mockData';

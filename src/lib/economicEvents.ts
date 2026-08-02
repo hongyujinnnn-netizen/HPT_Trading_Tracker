@@ -45,7 +45,7 @@ export async function getEconomicEvents({
     .select('id, event_time, title, currency, impact, note')
     .gte('event_time', from)
     .lte('event_time', to)
-    .order('event_time', { ascending: true });
+    .order('event_time', { ascending: false });
 
   if (error) {
     console.error('[economicEvents] query error:', error);

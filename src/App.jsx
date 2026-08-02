@@ -17,6 +17,7 @@ import {
   Sparkles,
   ArrowRight,
   X,
+  ListOrdered,
 } from 'lucide-react';
 import { TradeProvider, useTrade } from './context/TradeContext';
 import { TickerBar } from './components/TickerBar';
@@ -24,6 +25,7 @@ import { TradeModal } from './components/TradeModal';
 import { ImportModal } from './components/ImportModal';
 import { AuthModal } from './components/AuthModal';
 import { AuthGate } from './components/AuthGate';
+import { OrderToast } from './components/OrderToast';
 
 // Code Splitting with React.lazy() to reduce initial bundle chunk size
 const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
@@ -35,10 +37,12 @@ const RiskCalculator = lazy(() => import('./pages/RiskCalculator').then((m) => (
 const MarketNews = lazy(() => import('./pages/MarketNews').then((m) => ({ default: m.MarketNews })));
 const MistakeCenter = lazy(() => import('./pages/MistakeCenter').then((m) => ({ default: m.MistakeCenter })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
+const PendingOrders = lazy(() => import('./pages/PendingOrders').then((m) => ({ default: m.PendingOrders })));
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'add', label: 'Add Trade', icon: Plus },
+  { key: 'pendingorders', label: 'Pending Orders', icon: ListOrdered },
   { key: 'history', label: 'Trade History', icon: History },
   { key: 'analytics', label: 'Analytics', icon: TrendingUp },
   { key: 'strategy', label: 'Strategy Comparison', icon: GitCompare },
@@ -93,6 +97,9 @@ function AppContent() {
     isAuthModalOpen,
     setIsAuthModalOpen,
     trades,
+    pendingOrders,
+    orderToasts,
+    dismissToast,
   } = useTrade();
 
   if (authLoading) {
@@ -104,10 +111,16 @@ function AppContent() {
     return <AuthGate />;
   }
 
+  // Count active + pending orders for badge
+  const activeOrderCount = (pendingOrders || []).filter(
+    (o) => o.status === 'pending' || o.status === 'active'
+  ).length;
+
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard': return <Dashboard />;
       case 'add': return <AddTrade />;
+      case 'pendingorders': return <PendingOrders />;
       case 'history': return <TradeHistory />;
       case 'analytics': return <Analytics />;
       case 'strategy': return <StrategyCompare />;
@@ -200,6 +213,11 @@ function AppContent() {
                       {trades.length}
                     </span>
                   )}
+                  {item.key === 'pendingorders' && activeOrderCount > 0 && (
+                    <span className="text-[10px] font-mono-num bg-[#2A2311] px-1.5 py-0.5 rounded text-[#C9A227] border border-[#C9A227]/30">
+                      {activeOrderCount}
+                    </span>
+                  )}
                   {isActive && <ChevronRight size={13} className="text-[#C9A227]" />}
                 </button>
               );
@@ -251,6 +269,9 @@ function AppContent() {
       <TradeModal trade={selectedTrade} onClose={() => setSelectedTrade(null)} />
       <ImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+
+      {/* Order Toast Notifications */}
+      <OrderToast toasts={orderToasts || []} onDismiss={dismissToast} />
     </div>
   );
 }
@@ -262,4 +283,3 @@ export default function App() {
     </TradeProvider>
   );
 }
-

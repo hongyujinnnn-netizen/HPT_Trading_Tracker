@@ -102,7 +102,7 @@ export const supabaseStore = {
       const { data, error } = await supabase
         .from('economic_events')
         .select('*')
-        .order('event_time', { ascending: true });
+        .order('event_time', { ascending: false });
 
       if (error) {
         console.error('Supabase getEconomicEvents error:', error);
@@ -371,5 +371,86 @@ export const supabaseStore = {
       .subscribe();
 
     return channel;
+  },
+
+  // ── Pending Orders CRUD ──────────────────────────────────────────
+
+  async getActiveOrders() {
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('pending_orders')
+        .select('*')
+        .in('status', ['pending', 'active'])
+        .order('created_at', { ascending: false });
+      if (error) { console.error('getActiveOrders error:', error); return []; }
+      return data || [];
+    } catch (e) { console.error('Failed to fetch active orders:', e); return []; }
+  },
+
+  async getAllOrders() {
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('pending_orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) { console.error('getAllOrders error:', error); return []; }
+      return data || [];
+    } catch (e) { console.error('Failed to fetch all orders:', e); return []; }
+  },
+
+  async createPendingOrder(orderData, userId) {
+    if (!supabase || !userId) return null;
+    try {
+      const row = {
+        user_id: userId,
+        symbol: 'XAUUSD',
+        order_type: orderData.orderType,
+        status: 'pending',
+        entry_price: parseFloat(orderData.entryPrice),
+        stop_loss: parseFloat(orderData.stopLoss),
+        take_profit: parseFloat(orderData.takeProfit),
+        lot_size: parseFloat(orderData.lotSize) || 0.1,
+        strategy: orderData.strategy || null,
+        session: orderData.session || null,
+        notes: orderData.notes || null,
+        expires_at: orderData.expiresAt || null,
+      };
+      const { data, error } = await supabase
+        .from('pending_orders')
+        .insert([row])
+        .select()
+        .single();
+      if (error) { console.error('createPendingOrder error:', error); return null; }
+      return data;
+    } catch (e) { console.error('Failed to create pending order:', e); return null; }
+  },
+
+  async updateOrderStatus(orderId, updates) {
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('pending_orders')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', orderId)
+        .select()
+        .single();
+      if (error) { console.error('updateOrderStatus error:', error); return null; }
+      return data;
+    } catch (e) { console.error('Failed to update order status:', e); return null; }
+  },
+
+  async cancelOrder(orderId) {
+    return this.updateOrderStatus(orderId, {
+      status: 'cancelled',
+      closed_at: new Date().toISOString(),
+    });
+  },
+
+  async linkOrderToTrade(orderId, tradeId) {
+    return this.updateOrderStatus(orderId, {
+      resulting_trade_id: tradeId,
+    });
   }
 };

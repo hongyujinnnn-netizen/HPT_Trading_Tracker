@@ -182,5 +182,47 @@ export const tradeRepository = {
       return supabaseStore.subscribeToGoldPrice(onNewSnapshot);
     }
     return null;
+  },
+
+  // ── Pending Orders ──────────────────────────────────────────────
+
+  async getActiveOrders() {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) return await supabaseStore.getActiveOrders();
+    }
+    return [];
+  },
+
+  async getAllOrders() {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) return await supabaseStore.getAllOrders();
+    }
+    return [];
+  },
+
+  async createPendingOrder(orderData) {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) return await supabaseStore.createPendingOrder(orderData, session.user.id);
+    }
+    return null;
+  },
+
+  async updateOrderStatus(orderId, updates) {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) return await supabaseStore.updateOrderStatus(orderId, updates);
+    }
+    return null;
+  },
+
+  async cancelOrder(orderId) {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) return await supabaseStore.cancelOrder(orderId);
+    }
+    return null;
   }
 };

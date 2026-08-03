@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ListOrdered, Plus, Radio, ArrowUpRight, ArrowDownRight, Zap, Target, Clock, Filter } from 'lucide-react';
+import { ListOrdered, Plus, Radio, ArrowUpRight, ArrowDownRight, Zap, Target, Clock, Filter, Trash2 } from 'lucide-react';
 import { useTrade } from '../context/TradeContext';
 import { Pill } from '../components/Pill';
 import { SectionLabel } from '../components/SectionLabel';
@@ -30,7 +30,15 @@ function computeExpiry(value) {
 }
 
 export function PendingOrders() {
-  const { pendingOrders = [], createPendingOrder, cancelPendingOrder, liveGoldPrice, settings } = useTrade();
+  const {
+    pendingOrders = [],
+    createPendingOrder,
+    cancelPendingOrder,
+    deletePendingOrder,
+    clearOrderHistory,
+    liveGoldPrice,
+    settings
+  } = useTrade();
 
   const [orderType, setOrderType] = useState('buy_stop');
   const [entryPrice, setEntryPrice] = useState('');
@@ -144,6 +152,12 @@ export function PendingOrders() {
   const pendingCount = pendingOrders.filter(o => o.status === 'pending').length;
   const activeCount = pendingOrders.filter(o => o.status === 'active').length;
   const historyCount = pendingOrders.filter(o => ['closed_tp', 'closed_sl', 'cancelled', 'expired'].includes(o.status)).length;
+
+  const handleClearHistory = async () => {
+    if (window.confirm('Are you sure you want to clear all completed and cancelled order history?')) {
+      await clearOrderHistory();
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -362,32 +376,44 @@ export function PendingOrders() {
             Order Book
           </SectionLabel>
 
-          {/* Tabs */}
-          <div className="flex gap-1 bg-[#0A0C0E] p-1 rounded-lg border border-[#262B30] w-fit">
-            {[
-              { key: 'pending', label: 'Pending', count: pendingCount },
-              { key: 'active', label: 'Active', count: activeCount },
-              { key: 'history', label: 'History', count: historyCount },
-            ].map(tab => (
+          {/* Tabs & Clear History Header */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex gap-1 bg-[#0A0C0E] p-1 rounded-lg border border-[#262B30] w-fit">
+              {[
+                { key: 'pending', label: 'Pending', count: pendingCount },
+                { key: 'active', label: 'Active', count: activeCount },
+                { key: 'history', label: 'History', count: historyCount },
+              ].map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`px-3.5 py-1.5 rounded-md text-xs font-bold font-display transition-all flex items-center gap-1.5 ${
+                    activeTab === tab.key
+                      ? 'bg-[#C9A227] text-[#0A0C0E]'
+                      : 'text-[#8B8D91] hover:text-[#EDEAE3]'
+                  }`}
+                >
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <span className={`text-[10px] font-mono-num px-1.5 py-0.5 rounded ${
+                      activeTab === tab.key ? 'bg-[#0A0C0E]/20 text-[#0A0C0E]' : 'bg-[#131619] text-[#5A5D61]'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {activeTab === 'history' && historyCount > 0 && (
               <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`px-3.5 py-1.5 rounded-md text-xs font-bold font-display transition-all flex items-center gap-1.5 ${
-                  activeTab === tab.key
-                    ? 'bg-[#C9A227] text-[#0A0C0E]'
-                    : 'text-[#8B8D91] hover:text-[#EDEAE3]'
-                }`}
+                onClick={handleClearHistory}
+                className="px-3 py-1.5 rounded-lg bg-[#4A2A1E]/40 hover:bg-[#4A2A1E] text-[#C1502E] text-xs font-semibold flex items-center gap-1.5 border border-[#5C3426] transition-colors"
+                title="Clear all completed and cancelled orders"
               >
-                {tab.label}
-                {tab.count > 0 && (
-                  <span className={`text-[10px] font-mono-num px-1.5 py-0.5 rounded ${
-                    activeTab === tab.key ? 'bg-[#0A0C0E]/20 text-[#0A0C0E]' : 'bg-[#131619] text-[#5A5D61]'
-                  }`}>
-                    {tab.count}
-                  </span>
-                )}
+                <Trash2 size={13} /> Clear History
               </button>
-            ))}
+            )}
           </div>
 
           {/* Orders List */}
@@ -413,6 +439,7 @@ export function PendingOrders() {
                   order={order}
                   currentPrice={liveGoldPrice}
                   onCancel={cancelPendingOrder}
+                  onDelete={deletePendingOrder}
                 />
               ))}
             </div>

@@ -11,9 +11,81 @@ import { INITIAL_EQUITY_CURVE } from '../utils/mockData';
 import { getCurrentGoldSession } from '../utils/sessionDetector';
 
 export function Dashboard() {
-  const { trades, stats, setActivePage, setSelectedTrade, userSession } = useTrade();
+  const { trades, stats, setActivePage, setSelectedTrade, userSession, dbViews, settings, isDemoMode } = useTrade();
   const [timeRange, setTimeRange] = useState('30D');
   const [sessionInfo, setSessionInfo] = useState(getCurrentGoldSession());
+
+  // Dynamic Equity Curve calculation from Supabase dbViews or Trades
+  const equityCurveData = useMemo(() => {
+    let rawPoints = [];
+    const startBalance = parseFloat(settings?.accountBalance) || 10000;
+
+    // 1. If Supabase DB views has equity curve data
+    if (dbViews?.equityCurve && dbViews.equityCurve.length > 0) {
+      rawPoints = dbViews.equityCurve.map((item) => {
+        const dateObj = new Date(item.exit_time || item.timestamp);
+        const formattedDate = isNaN(dateObj.getTime())
+          ? (item.exit_time || '')
+          : dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return {
+          d: formattedDate,
+          v: Math.round(parseFloat(item.running_balance) || 0),
+          timestamp: dateObj.getTime() || 0,
+        };
+      });
+    } else if (trades && trades.length > 0) {
+      // 2. Compute from trades list
+      const sortedTrades = [...trades]
+        .filter((t) => t.status === 'closed' || t.pnl !== undefined)
+        .sort((a, b) => new Date(a.exitTime || a.timestamp || a.date) - new Date(b.exitTime || b.timestamp || b.date));
+
+      if (sortedTrades.length > 0) {
+        let running = startBalance;
+        const points = [{ d: 'Start', v: startBalance, timestamp: 0 }];
+
+        sortedTrades.forEach((t) => {
+          running += parseFloat(t.pnl) || 0;
+          const dateObj = new Date(t.exitTime || t.timestamp || t.date || Date.now());
+          const formattedDate = isNaN(dateObj.getTime())
+            ? 'Trade'
+            : dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+          points.push({
+            d: formattedDate,
+            v: Math.round(running * 100) / 100,
+            timestamp: dateObj.getTime() || Date.now(),
+          });
+        });
+
+        rawPoints = points;
+      }
+    }
+
+    // If no points from database or trades:
+    if (rawPoints.length === 0) {
+      // Only show mock sample curve if in demo mode and not logged in
+      if (isDemoMode && !userSession) {
+        return INITIAL_EQUITY_CURVE;
+      }
+
+      // If user has 0 trades in database, show a clean flat line at account balance
+      const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return [
+        { d: 'Start', v: startBalance, timestamp: 0 },
+        { d: todayStr, v: startBalance, timestamp: Date.now() },
+      ];
+    }
+
+    // Apply timeRange filtering (7D, 30D, ALL)
+    if (timeRange === 'ALL' || rawPoints.length <= 1) {
+      return rawPoints;
+    }
+
+    const days = timeRange === '7D' ? 7 : 30;
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    const filtered = rawPoints.filter((p) => p.timestamp >= cutoff || p.timestamp === 0);
+    return filtered.length > 0 ? filtered : rawPoints;
+  }, [dbViews, trades, settings, isDemoMode, userSession, timeRange]);
 
   // Greeting based on current local hour
   const greeting = useMemo(() => {
@@ -177,7 +249,7 @@ export function Dashboard() {
           </SectionLabel>
 
           <ResponsiveContainer width="100%" height={230}>
-            <AreaChart data={INITIAL_EQUITY_CURVE} margin={{ left: -15, right: 10 }}>
+            <AreaChart data={equityCurveData} margin={{ left: -15, right: 10 }}>
               <defs>
                 <linearGradient id="eqGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#C9A227" stopOpacity={0.35} />

@@ -84,6 +84,19 @@ export const tradeRepository = {
   },
 
   /**
+   * Delete all trades (both cloud and local)
+   */
+  async clearAllTrades() {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await supabaseStore.deleteAllTrades(session.user.id);
+      }
+    }
+    await tradeStore.clearAll();
+  },
+
+  /**
    * Import batch
    */
   async importBatch(batch) {
@@ -224,5 +237,21 @@ export const tradeRepository = {
       if (session) return await supabaseStore.cancelOrder(orderId);
     }
     return null;
+  },
+
+  async deletePendingOrder(orderId) {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) return await supabaseStore.deletePendingOrder(orderId);
+    }
+    return false;
+  },
+
+  async clearOrderHistory() {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) return await supabaseStore.clearOrderHistory(session.user.id);
+    }
+    return false;
   }
 };

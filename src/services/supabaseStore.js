@@ -174,6 +174,15 @@ export const supabaseStore = {
   },
 
   /**
+   * Delete all trades for a user from Supabase
+   */
+  async deleteAllTrades(userId) {
+    if (!supabase || !userId) return false;
+    const { error } = await supabase.from('trades').delete().eq('user_id', userId);
+    return !error;
+  },
+
+  /**
    * Upload screenshot to Supabase Storage bucket 'trade-screenshots'
    * Folder path structure matches RLS Policy: {userId}/{tradeId}/entry.png
    */
@@ -446,6 +455,28 @@ export const supabaseStore = {
       status: 'cancelled',
       closed_at: new Date().toISOString(),
     });
+  },
+
+  async deletePendingOrder(orderId) {
+    if (!supabase) return false;
+    try {
+      const { error } = await supabase.from('pending_orders').delete().eq('id', orderId);
+      if (error) { console.error('deletePendingOrder error:', error); return false; }
+      return true;
+    } catch (e) { console.error('Failed to delete pending order:', e); return false; }
+  },
+
+  async clearOrderHistory(userId) {
+    if (!supabase || !userId) return false;
+    try {
+      const { error } = await supabase
+        .from('pending_orders')
+        .delete()
+        .eq('user_id', userId)
+        .in('status', ['closed_tp', 'closed_sl', 'cancelled', 'expired']);
+      if (error) { console.error('clearOrderHistory error:', error); return false; }
+      return true;
+    } catch (e) { console.error('Failed to clear order history:', e); return false; }
   },
 
   async linkOrderToTrade(orderId, tradeId) {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ArrowUpRight, ArrowDownRight, Clock, Zap, Target, ShieldAlert } from 'lucide-react';
+import { X, ArrowUpRight, ArrowDownRight, Clock, Zap, Target, ShieldAlert, Trash2 } from 'lucide-react';
 import { Pill } from './Pill';
 
 function formatPrice(p) {
@@ -34,7 +34,7 @@ const STATUS_CONFIG = {
   expired: { label: 'Expired', tone: 'neutral' },
 };
 
-export function OrderCard({ order, currentPrice, onCancel }) {
+export function OrderCard({ order, currentPrice, onCancel, onDelete }) {
   const isBuy = order.order_type === 'buy_stop' || order.order_type === 'buy_limit';
   const entry = parseFloat(order.entry_price);
   const tp = parseFloat(order.take_profit);
@@ -131,6 +131,16 @@ export function OrderCard({ order, currentPrice, onCancel }) {
               title="Cancel Order"
             >
               <X size={14} />
+            </button>
+          )}
+          {/* Delete history order button */}
+          {!isActionable && onDelete && (
+            <button
+              onClick={() => onDelete(order.id)}
+              className="p-1.5 rounded-lg text-[#5A5D61] hover:text-[#C1502E] hover:bg-[#4A2A1E]/50 transition-colors"
+              title="Delete Order Record"
+            >
+              <Trash2 size={14} />
             </button>
           )}
         </div>

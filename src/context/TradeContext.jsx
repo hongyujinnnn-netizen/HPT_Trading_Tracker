@@ -352,9 +352,9 @@ export function TradeProvider({ children }) {
     await refreshData();
   }, [trades, refreshData]);
 
-  // Reset data back to sample seed
+  // Reset data (clear all trades from database and local storage)
   const resetAllData = useCallback(async () => {
-    await tradeStore.clearAll();
+    await tradeRepository.clearAllTrades();
     await refreshData();
   }, [refreshData]);
 
@@ -386,6 +386,16 @@ export function TradeProvider({ children }) {
 
   const cancelPendingOrder = useCallback(async (orderId) => {
     await tradeRepository.cancelOrder(orderId);
+    await refreshOrders();
+  }, [refreshOrders]);
+
+  const deletePendingOrder = useCallback(async (orderId) => {
+    await tradeRepository.deletePendingOrder(orderId);
+    await refreshOrders();
+  }, [refreshOrders]);
+
+  const clearOrderHistory = useCallback(async () => {
+    await tradeRepository.clearOrderHistory();
     await refreshOrders();
   }, [refreshOrders]);
 
@@ -440,6 +450,8 @@ export function TradeProvider({ children }) {
         orderToasts,
         createPendingOrder,
         cancelPendingOrder,
+        deletePendingOrder,
+        clearOrderHistory,
         dismissToast,
         refreshOrders,
       }}

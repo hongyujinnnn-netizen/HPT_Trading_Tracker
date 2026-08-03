@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS public.pending_orders (
   closed_at       timestamptz,
   triggered_price numeric(10,3),
   closed_price    numeric(10,3),
-  resulting_trade_id uuid REFERENCES public.trades(id),
+  resulting_trade_id uuid REFERENCES public.trades(id) ON DELETE SET NULL,
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now()
 );

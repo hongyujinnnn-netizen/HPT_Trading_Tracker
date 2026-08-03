@@ -4,6 +4,7 @@ import { useTrade } from '../context/TradeContext';
 import { Pill } from '../components/Pill';
 import { SectionLabel } from '../components/SectionLabel';
 import { OrderCard } from '../components/OrderCard';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 const ORDER_TYPES = [
   { value: 'buy_stop', label: 'Buy Stop', desc: 'Entry above price', isBuy: true },
@@ -52,6 +53,8 @@ export function PendingOrders() {
   const [activeTab, setActiveTab] = useState('pending');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState(null);
 
   const selectedType = ORDER_TYPES.find(t => t.value === orderType);
   const contractSize = settings?.contractSize || 100;
@@ -153,10 +156,8 @@ export function PendingOrders() {
   const activeCount = pendingOrders.filter(o => o.status === 'active').length;
   const historyCount = pendingOrders.filter(o => ['closed_tp', 'closed_sl', 'cancelled', 'expired'].includes(o.status)).length;
 
-  const handleClearHistory = async () => {
-    if (window.confirm('Are you sure you want to clear all completed and cancelled order history?')) {
-      await clearOrderHistory();
-    }
+  const handleClearHistory = () => {
+    setIsClearModalOpen(true);
   };
 
   return (
@@ -439,13 +440,37 @@ export function PendingOrders() {
                   order={order}
                   currentPrice={liveGoldPrice}
                   onCancel={cancelPendingOrder}
-                  onDelete={deletePendingOrder}
+                  onDelete={(id) => setOrderToDelete(id)}
                 />
               ))}
             </div>
           )}
         </div>
       </div>
+
+      {/* Confirm Modal: Clear All History */}
+      <ConfirmModal
+        isOpen={isClearModalOpen}
+        onClose={() => setIsClearModalOpen(false)}
+        onConfirm={clearOrderHistory}
+        title="Clear All Order History?"
+        description="Are you sure you want to delete all completed (TP/SL), cancelled, and expired pending orders? This action cannot be undone."
+        confirmText="Clear History"
+        confirmTone="danger"
+      />
+
+      {/* Confirm Modal: Delete Single Order */}
+      <ConfirmModal
+        isOpen={Boolean(orderToDelete)}
+        onClose={() => setOrderToDelete(null)}
+        onConfirm={() => {
+          if (orderToDelete) deletePendingOrder(orderToDelete);
+        }}
+        title="Delete Order Record?"
+        description="Are you sure you want to remove this order record from your database history?"
+        confirmText="Delete Order"
+        confirmTone="danger"
+      />
     </div>
   );
 }

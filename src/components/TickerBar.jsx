@@ -1,27 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { TrendingUp, Bell, Zap, Cloud, Sparkles, LogOut, Activity, AlertTriangle, Radio, Clock, Menu, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { TrendingUp, TrendingDown, Bell, Zap, Cloud, Sparkles, LogOut, Activity, AlertTriangle, Radio, Clock, Menu, X, Wifi, WifiOff } from 'lucide-react';
 import { Pill } from './Pill';
 import { useTrade } from '../context/TradeContext';
-import { tradeRepository } from '../services/tradeRepository';
 import { supabase } from '../services/supabaseClient';
+import { goldPriceService, ConnectionState } from '../services/goldPriceService';
 import { getCurrentGoldSession } from '../utils/sessionDetector';
 
 export function TickerBar({ onToggleMobileMenu, mobileMenuOpen }) {
   const { userSession, signOut, isDemoMode } = useTrade();
 
-  const [price, setPrice] = useState(2431.20);
-  const [change, setChange] = useState(+0.42);
-  const [spread, setSpread] = useState(0.28);
-  const [volatility, setVolatility] = useState('Elevated');
-  const [source, setSource] = useState('simulated'); // 'goldapi' | 'simulated' | 'unknown'
-  const [capturedAt, setCapturedAt] = useState(null);
-  const [isStale, setIsStale] = useState(false);
-  const [staleMinutes, setStaleMinutes] = useState(0);
+  const [price, setPrice] = useState(null);
+  const [previousPrice, setPreviousPrice] = useState(null);
+  const [change, setChange] = useState(0);
+  const [bid, setBid] = useState(null);
+  const [ask, setAsk] = useState(null);
+  const [spread, setSpread] = useState(0);
+  const [source, setSource] = useState('unknown');
+  const [connectionState, setConnectionState] = useState(ConnectionState.OFFLINE);
+  const [ticksPerSecond, setTicksPerSecond] = useState(0);
+
+  // Price flash animation state
+  const [flashClass, setFlashClass] = useState('');
+  const flashTimerRef = useRef(null);
 
   const [currentSession, setCurrentSession] = useState(getCurrentGoldSession());
   const [utcTimeStr, setUtcTimeStr] = useState('');
 
-  // Update UTC clock and session every minute
+  // Update UTC clock and session every 30s
   useEffect(() => {
     function updateClock() {
       const now = new Date();
@@ -33,130 +38,81 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen }) {
     return () => clearInterval(clockInterval);
   }, []);
 
-  // Load initial snapshot or live API price and subscribe to Realtime updates
+  // Subscribe to goldPriceService for all price data
   useEffect(() => {
-    let channel = null;
-
-    async function fetchLiveGoldPrice() {
-      try {
-        const res = await fetch('https://api.gold-api.com/price/XAU');
-        if (res.ok) {
-          const data = await res.json();
-          if (data && typeof data.price === 'number') {
-            setPrice(parseFloat(data.price.toFixed(2)));
-            setSource('goldapi');
-            setIsStale(false);
-            setCapturedAt(data.updatedAt || new Date().toISOString());
-            return true;
+    const unsub = goldPriceService.subscribe((state) => {
+      if (state.price !== null) {
+        setPreviousPrice((prev) => prev);
+        setPrice((prev) => {
+          // Trigger flash animation on price change
+          if (prev !== null && state.price !== prev) {
+            const direction = state.price > prev ? 'flash-green' : 'flash-red';
+            setFlashClass(direction);
+            if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+            flashTimerRef.current = setTimeout(() => setFlashClass(''), 400);
           }
-        }
-      } catch (err) {
-        console.warn('gold-api fetch warning:', err);
+          return state.price;
+        });
+        setPreviousPrice(state.previousPrice);
       }
-
-      // Fallback to CoinGecko Pax Gold (1:1 fine troy oz of physical gold)
-      try {
-        const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=pax-gold&vs_currencies=usd&include_24hr_change=true');
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data['pax-gold'] && typeof data['pax-gold'].usd === 'number') {
-            setPrice(parseFloat(data['pax-gold'].usd.toFixed(2)));
-            if (typeof data['pax-gold'].usd_24h_change === 'number') {
-              setChange(parseFloat(data['pax-gold'].usd_24h_change.toFixed(2)));
-            }
-            setSource('goldapi');
-            setIsStale(false);
-            setCapturedAt(new Date().toISOString());
-            return true;
-          }
-        }
-      } catch (err) {
-        console.warn('coingecko pax-gold fetch warning:', err);
+      if (typeof state.change24h === 'number') setChange(state.change24h);
+      if (state.bid !== null && state.ask !== null) {
+        setBid(state.bid);
+        setAsk(state.ask);
+        setSpread(parseFloat((state.ask - state.bid).toFixed(2)));
       }
-
-      return false;
-    }
-
-    async function loadSnapshot() {
-      const initial = await tradeRepository.getLatestPriceSnapshot();
-      if (initial) {
-        updateSnapshotState(initial);
-      } else {
-        // Fetch direct live gold API price
-        await fetchLiveGoldPrice();
-      }
-    }
-
-    function updateSnapshotState(snapshot) {
-      if (!snapshot) return;
-      if (typeof snapshot.price === 'number') setPrice(snapshot.price);
-      if (typeof snapshot.spread === 'number') setSpread(snapshot.spread);
-      if (snapshot.volatility_level) setVolatility(snapshot.volatility_level);
-      if (snapshot.source) setSource(snapshot.source);
-      if (snapshot.captured_at) {
-        setCapturedAt(snapshot.captured_at);
-        checkStaleness(snapshot.captured_at);
-      }
-    }
-
-    function checkStaleness(timestamp) {
-      if (!timestamp) return;
-      const ageMs = Date.now() - new Date(timestamp).getTime();
-      const ageMins = Math.floor(ageMs / 60000);
-      setStaleMinutes(ageMins);
-      setIsStale(ageMs > 10 * 60 * 1000); // Staleness threshold: > 10 minutes
-    }
-
-    loadSnapshot();
-
-    // Subscribe to Realtime INSERT events
-    channel = tradeRepository.subscribeToGoldPrice((newSnapshot) => {
-      updateSnapshotState(newSnapshot);
+      if (state.source) setSource(state.source);
+      if (state.connectionState) setConnectionState(state.connectionState);
+      if (typeof state.ticksPerSecond === 'number') setTicksPerSecond(state.ticksPerSecond);
     });
 
-    // Refresh base live price every 30 seconds
-    const apiInterval = setInterval(async () => {
-      const liveFetched = await fetchLiveGoldPrice();
-      if (!liveFetched && capturedAt) {
-        checkStaleness(capturedAt);
-      }
-    }, 30000);
-
     return () => {
-      clearInterval(apiInterval);
-      if (channel && supabase) {
-        supabase.removeChannel(channel);
-      }
+      unsub();
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
     };
-  }, [capturedAt]);
+  }, []);
 
-  const renderSourceBadge = () => {
-    if (isStale) {
-      return (
-        <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono-num font-semibold bg-[#4A3A1E] text-[#E4C468] border border-[#C9A227]/40">
-          <AlertTriangle size={12} /> Data Delayed ({staleMinutes}m ago)
-        </span>
-      );
+  const isPositive = change >= 0;
+
+  const renderConnectionBadge = () => {
+    switch (connectionState) {
+      case ConnectionState.LIVE:
+        return (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono-num font-semibold bg-[#1F4A40]/60 text-[#3FA88C] border border-[#3FA88C]/40">
+            <Wifi size={12} className="animate-pulse" />
+            <span className="hidden sm:inline">Live</span>
+            {source === 'finnhub' && <span className="hidden md:inline ml-0.5 opacity-70">WebSocket</span>}
+            {ticksPerSecond > 0 && (
+              <span className="hidden lg:inline ml-1 text-[10px] opacity-60">{ticksPerSecond}/s</span>
+            )}
+          </span>
+        );
+      case ConnectionState.CONNECTING:
+        return (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono-num font-semibold bg-[#2A3540] text-[#6BA3D6] border border-[#4A7BA7]/40">
+            <Wifi size={12} className="animate-pulse" /> Connecting…
+          </span>
+        );
+      case ConnectionState.RECONNECTING:
+        return (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono-num font-semibold bg-[#4A3A1E] text-[#E4C468] border border-[#C9A227]/40">
+            <Activity size={12} className="animate-spin" /> Reconnecting…
+          </span>
+        );
+      case ConnectionState.FALLBACK:
+        return (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono-num font-semibold bg-[#2A2311] text-[#C9A227] border border-[#C9A227]/30">
+            <Radio size={12} /> REST Fallback
+          </span>
+        );
+      case ConnectionState.OFFLINE:
+      default:
+        return (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono-num font-semibold bg-[#3A1E1E] text-[#E46868] border border-[#C12E2E]/40">
+            <WifiOff size={12} /> Offline
+          </span>
+        );
     }
-    if (source === 'goldapi') {
-      return (
-        <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono-num font-semibold bg-[#1F4A40]/60 text-[#3FA88C] border border-[#3FA88C]/40">
-          <Radio size={12} className="animate-pulse" /> Live GoldAPI
-        </span>
-      );
-    }
-    if (source === 'simulated') {
-      return (
-        <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono-num font-semibold bg-[#2A2311] text-[#C9A227] border border-[#C9A227]/30">
-          <Sparkles size={12} /> Simulated Feed
-        </span>
-      );
-    }
-    return (
-      <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono-num font-semibold bg-[#1B1F23] text-[#8B8D91] border border-[#262B30]">
-        <Activity size={12} /> Unknown Feed
-      </span>
-    );
   };
 
   return (
@@ -173,17 +129,47 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen }) {
           </button>
         )}
         <div className="flex items-center gap-2.5">
-          <span className={`w-2 h-2 rounded-full ${isStale ? 'bg-[#C9A227]' : 'bg-[#3FA88C] animate-pulse'}`} />
+          {/* Connection dot indicator */}
+          <span className={`w-2 h-2 rounded-full transition-colors duration-300 ${
+            connectionState === ConnectionState.LIVE ? 'bg-[#3FA88C] animate-pulse' :
+            connectionState === ConnectionState.CONNECTING || connectionState === ConnectionState.RECONNECTING ? 'bg-[#C9A227] animate-pulse' :
+            connectionState === ConnectionState.FALLBACK ? 'bg-[#C9A227]' :
+            'bg-[#C1502E]'
+          }`} />
           <span className="text-sm font-bold font-mono-num text-[#EDEAE3]">XAU/USD</span>
-          <span className="text-sm font-semibold font-mono-num text-[#EDEAE3]">${price.toFixed(2)}</span>
-          <span className="text-xs font-mono-num text-[#3FA88C] flex items-center gap-0.5 bg-[#1F4A40]/40 px-1.5 py-0.5 rounded">
-            <TrendingUp size={12} /> +{change}%
+
+          {/* Price with flash animation */}
+          <span
+            className={`text-sm font-semibold font-mono-num text-[#EDEAE3] transition-colors duration-400 rounded px-1 -mx-1 ${
+              flashClass === 'flash-green' ? 'bg-[#3FA88C]/30 text-[#3FA88C]' :
+              flashClass === 'flash-red' ? 'bg-[#C1502E]/30 text-[#E46868]' : ''
+            }`}
+          >
+            {price !== null ? `$${price.toFixed(2)}` : '—'}
+          </span>
+
+          {/* Daily change badge */}
+          <span className={`text-xs font-mono-num flex items-center gap-0.5 px-1.5 py-0.5 rounded ${
+            isPositive
+              ? 'text-[#3FA88C] bg-[#1F4A40]/40'
+              : 'text-[#E46868] bg-[#4A1E1E]/40'
+          }`}>
+            {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+            {isPositive ? '+' : ''}{change}%
           </span>
         </div>
 
+        {/* Bid / Ask / Spread */}
         <div className="hidden sm:flex items-center gap-4 text-xs font-mono-num text-[#5A5D61] border-l border-[#262B30] pl-4">
-          <span>Spread: <strong className="text-[#EDEAE3]">{spread}</strong></span>
-          <span className="hidden md:inline">Volatility: <strong className="text-[#C9A227]">{volatility}</strong></span>
+          {bid !== null && ask !== null ? (
+            <>
+              <span>Bid: <strong className="text-[#EDEAE3]">{bid.toFixed(2)}</strong></span>
+              <span>Ask: <strong className="text-[#EDEAE3]">{ask.toFixed(2)}</strong></span>
+              <span className="hidden md:inline">Spread: <strong className="text-[#C9A227]">{spread.toFixed(2)}</strong></span>
+            </>
+          ) : (
+            <span>Spread: <strong className="text-[#EDEAE3]">{spread.toFixed(2)}</strong></span>
+          )}
         </div>
 
         {/* Active Trading Session Badge */}
@@ -193,9 +179,9 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen }) {
           <span className="text-[10px] text-[#8B8D91]">({utcTimeStr})</span>
         </div>
 
-        {/* Live / Simulated / Delayed Badge */}
+        {/* Connection Status Badge */}
         <div className="hidden md:block">
-          {renderSourceBadge()}
+          {renderConnectionBadge()}
         </div>
       </div>
 
@@ -235,5 +221,3 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen }) {
     </header>
   );
 }
-
-

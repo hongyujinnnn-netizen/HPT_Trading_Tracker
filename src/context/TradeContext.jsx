@@ -30,6 +30,7 @@ export function TradeProvider({ children }) {
   // Pending Orders state
   const [pendingOrders, setPendingOrders] = useState([]);
   const [liveGoldPrice, setLiveGoldPrice] = useState(null);
+  const [goldConnectionState, setGoldConnectionState] = useState('offline');
   const [orderToasts, setOrderToasts] = useState([]);
 
   // Refresh trades, settings, and DB views from active repository
@@ -128,6 +129,9 @@ export function TradeProvider({ children }) {
     const unsubPrice = goldPriceService.subscribe((state) => {
       if (state.price !== null) {
         setLiveGoldPrice(state.price);
+      }
+      if (state.connectionState) {
+        setGoldConnectionState(state.connectionState);
       }
     });
 
@@ -432,6 +436,7 @@ export function TradeProvider({ children }) {
         // Pending Orders
         pendingOrders,
         liveGoldPrice,
+        goldConnectionState,
         orderToasts,
         createPendingOrder,
         cancelPendingOrder,

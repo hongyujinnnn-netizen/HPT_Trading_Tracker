@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, LogIn, LogOut, UserCheck, Shield, Lock } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
+import { LogoIcon } from './LogoIcon';
 
 export function AuthModal({ isOpen, onClose }) {
   const [session, setSession] = useState(null);
@@ -76,7 +77,7 @@ export function AuthModal({ isOpen, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#1E2226] pb-3">
           <div className="flex items-center gap-2">
-            <Shield size={18} className="text-[#C9A227]" />
+            <LogoIcon size={22} />
             <h3 className="text-base font-bold font-display text-[#EDEAE3]">
               {session ? 'Account Management' : isSignUp ? 'Create Journal Account' : 'Sign In to TradePulse'}
             </h3>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Lock, LogIn, UserPlus, KeyRound, Mail, AlertTriangle, CheckCircle2, ArrowLeft, Eye, EyeOff, Sparkles, RefreshCw } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { useTrade } from '../context/TradeContext';
+import { LogoIcon } from './LogoIcon';
 
 export function AuthGate() {
   const { isPasswordRecovery, setIsPasswordRecovery, toggleDemoMode, refreshData } = useTrade();
@@ -145,8 +146,8 @@ export function AuthGate() {
       <div className="relative z-10 max-w-md w-full space-y-6">
         {/* Brand Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#C9A227] text-[#0A0C0E] font-display font-black text-2xl gold-glow mb-2">
-            TP
+          <div className="inline-flex items-center justify-center mb-2">
+            <LogoIcon size={56} />
           </div>
           <h1 className="text-2xl font-bold font-display text-[#EDEAE3]">TradePulse Gold</h1>
           <p className="text-xs text-[#8B8D91]">Institutional XAU/USD Trading Journal &amp; Analytics</p>

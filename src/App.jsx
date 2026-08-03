@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { TradeProvider, useTrade } from './context/TradeContext';
 import { TickerBar } from './components/TickerBar';
+import { LogoIcon } from './components/LogoIcon';
 import { TradeModal } from './components/TradeModal';
 import { ImportModal } from './components/ImportModal';
 import { AuthModal } from './components/AuthModal';
@@ -66,9 +67,7 @@ function AppSplash() {
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#0A0C0E] text-[#EDEAE3] select-none">
       <div className="flex flex-col items-center gap-4 animate-pulse">
-        <div className="w-14 h-14 rounded-2xl bg-[#C9A227] flex items-center justify-center font-display font-black text-2xl text-[#0A0C0E] gold-glow">
-          TP
-        </div>
+        <LogoIcon size={56} />
         <div className="flex items-center gap-2 text-xs font-mono-num text-[#8B8D91]">
           <Loader2 size={16} className="text-[#C9A227] animate-spin" />
           <span>Verifying Secure Session...</span>
@@ -192,9 +191,7 @@ function AppContent() {
             {/* Drawer Header */}
             <div className="px-5 py-4 flex items-center justify-between border-b border-[#262B30]">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#C9A227] flex items-center justify-center font-display font-extrabold text-[#0A0C0E] text-base gold-glow">
-                  TP
-                </div>
+                <LogoIcon size={34} />
                 <div>
                   <div className="text-sm font-bold font-display tracking-tight text-[#EDEAE3]">TradePulse Gold</div>
                   <div className="text-[10px] font-mono-num text-[#8B8D91]">XAU/USD Journal</div>
@@ -285,9 +282,7 @@ function AppContent() {
           {/* Brand Header */}
           <div className="px-5 py-4 flex items-center justify-between border-b border-[#262B30]">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#C9A227] flex items-center justify-center font-display font-extrabold text-[#0A0C0E] text-base gold-glow">
-                TP
-              </div>
+              <LogoIcon size={34} />
               <div>
                 <div className="text-sm font-bold font-display tracking-tight text-[#EDEAE3]">TradePulse Gold</div>
                 <div className="text-[10px] font-mono-num text-[#8B8D91]">XAU/USD Journal</div>

@@ -18,6 +18,7 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen }) {
   const [source, setSource] = useState('unknown');
   const [connectionState, setConnectionState] = useState(ConnectionState.OFFLINE);
   const [ticksPerSecond, setTicksPerSecond] = useState(0);
+  const [isLeader, setIsLeader] = useState(false);
 
   // Price flash animation state
   const [flashClass, setFlashClass] = useState('');
@@ -64,6 +65,7 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen }) {
       if (state.source) setSource(state.source);
       if (state.connectionState) setConnectionState(state.connectionState);
       if (typeof state.ticksPerSecond === 'number') setTicksPerSecond(state.ticksPerSecond);
+      if (typeof state.isLeader === 'boolean') setIsLeader(state.isLeader);
     });
 
     return () => {
@@ -81,7 +83,8 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen }) {
           <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono-num font-semibold bg-[#1F4A40]/60 text-[#3FA88C] border border-[#3FA88C]/40">
             <Wifi size={12} className="animate-pulse" />
             <span className="hidden sm:inline">Live</span>
-            {source === 'finnhub' && <span className="hidden md:inline ml-0.5 opacity-70">WebSocket</span>}
+            {source === 'finnhub' && <span className="hidden md:inline ml-0.5 opacity-70">WS</span>}
+            {source === 'broadcast' && <span className="hidden md:inline ml-0.5 opacity-70">Relay</span>}
             {ticksPerSecond > 0 && (
               <span className="hidden lg:inline ml-1 text-[10px] opacity-60">{ticksPerSecond}/s</span>
             )}

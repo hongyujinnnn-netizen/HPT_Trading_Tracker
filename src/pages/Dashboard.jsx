@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, AlertTriangle, ChevronRight, Activity, TrendingUp, Percent, Target, Clock } from 'lucide-react';
+import { Plus, AlertTriangle, ChevronRight, Activity, TrendingUp, Percent, Target, Clock, CandlestickChart } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { useTrade } from '../context/TradeContext';
 import { StatCard } from '../components/StatCard';
@@ -162,6 +162,14 @@ export function Dashboard() {
               <strong className="text-[#EDEAE3] font-medium">{sessionInfo.name}</strong> · {sessionInfo.timeLeft}
             </span>
           </div>
+
+          {/* View Live Gold Chart Button */}
+          <button
+            onClick={() => setActivePage('chart')}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#131619] hover:bg-[#262B30] text-[#C9A227] font-semibold text-xs border border-[#C9A227]/40 transition-colors"
+          >
+            <CandlestickChart size={15} /> Gold Chart
+          </button>
 
           {/* + New Trade Button */}
           <button

@@ -19,6 +19,7 @@ import {
   X,
   ListOrdered,
   Menu,
+  CandlestickChart,
 } from 'lucide-react';
 import { TradeProvider, useTrade } from './context/TradeContext';
 import { TickerBar } from './components/TickerBar';
@@ -31,6 +32,7 @@ import { OrderToast } from './components/OrderToast';
 
 // Code Splitting with React.lazy() to reduce initial bundle chunk size
 const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
+const GoldChart = lazy(() => import('./pages/GoldChart').then((m) => ({ default: m.GoldChart })));
 const AddTrade = lazy(() => import('./pages/AddTrade').then((m) => ({ default: m.AddTrade })));
 const TradeHistory = lazy(() => import('./pages/TradeHistory').then((m) => ({ default: m.TradeHistory })));
 const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })));
@@ -43,6 +45,7 @@ const PendingOrders = lazy(() => import('./pages/PendingOrders').then((m) => ({ 
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { key: 'chart', label: 'Gold Chart', icon: CandlestickChart },
   { key: 'add', label: 'Add Trade', icon: Plus },
   { key: 'pendingorders', label: 'Pending Orders', icon: ListOrdered },
   { key: 'history', label: 'Trade History', icon: History },
@@ -121,6 +124,7 @@ function AppContent() {
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard': return <Dashboard />;
+      case 'chart': return <GoldChart />;
       case 'add': return <AddTrade />;
       case 'pendingorders': return <PendingOrders />;
       case 'history': return <TradeHistory />;

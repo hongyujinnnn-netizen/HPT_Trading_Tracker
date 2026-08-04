@@ -7,7 +7,7 @@ import { goldPriceService, ConnectionState } from '../services/goldPriceService'
 import { getCurrentGoldSession } from '../utils/sessionDetector';
 
 export function TickerBar({ onToggleMobileMenu, mobileMenuOpen }) {
-  const { userSession, signOut, isDemoMode } = useTrade();
+  const { userSession, signOut, isDemoMode, setActivePage } = useTrade();
 
   const [price, setPrice] = useState(null);
   const [previousPrice, setPreviousPrice] = useState(null);
@@ -131,7 +131,11 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen }) {
             {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
         )}
-        <div className="flex items-center gap-2.5">
+        <button
+          onClick={() => setActivePage && setActivePage('chart')}
+          title="Open TradingView Gold Chart (XAU/USD)"
+          className="flex items-center gap-2.5 p-1 -m-1 rounded-lg hover:bg-[#262B30]/50 transition-colors group cursor-pointer text-left"
+        >
           {/* Connection dot indicator */}
           <span className={`w-2 h-2 rounded-full transition-colors duration-300 ${
             connectionState === ConnectionState.LIVE ? 'bg-[#3FA88C] animate-pulse' :
@@ -139,7 +143,7 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen }) {
             connectionState === ConnectionState.FALLBACK ? 'bg-[#C9A227]' :
             'bg-[#C1502E]'
           }`} />
-          <span className="text-sm font-bold font-mono-num text-[#EDEAE3]">XAU/USD</span>
+          <span className="text-sm font-bold font-mono-num text-[#EDEAE3] group-hover:text-[#C9A227] transition-colors">XAU/USD</span>
 
           {/* Price with flash animation */}
           <span
@@ -160,7 +164,7 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen }) {
             {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
             {isPositive ? '+' : ''}{change}%
           </span>
-        </div>
+        </button>
 
         {/* Bid / Ask / Spread */}
         <div className="hidden sm:flex items-center gap-4 text-xs font-mono-num text-[#5A5D61] border-l border-[#262B30] pl-4">

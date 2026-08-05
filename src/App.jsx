@@ -106,6 +106,13 @@ function AppContent() {
   } = useTrade();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [hasVisitedChart, setHasVisitedChart] = useState(false);
+
+  React.useEffect(() => {
+    if (activePage === 'chart' && !hasVisitedChart) {
+      setHasVisitedChart(true);
+    }
+  }, [activePage, hasVisitedChart]);
 
   if (authLoading) {
     return <AppSplash />;
@@ -124,7 +131,7 @@ function AppContent() {
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard': return <Dashboard />;
-      case 'chart': return <GoldChart />;
+      case 'chart': return null; // Rendered in persistent wrapper to preserve iframe & drawing state
       case 'add': return <AddTrade />;
       case 'pendingorders': return <PendingOrders />;
       case 'history': return <TradeHistory />;
@@ -365,7 +372,12 @@ function AppContent() {
           />
           <main className="flex-1 p-3 sm:p-4 md:p-6 pb-24 md:pb-6 overflow-x-hidden">
             <Suspense fallback={<PageFallback />}>
-              {renderPage()}
+              {hasVisitedChart && (
+                <div className={activePage === 'chart' ? 'block flex-1 min-h-0' : 'hidden'}>
+                  <GoldChart />
+                </div>
+              )}
+              {activePage !== 'chart' && renderPage()}
             </Suspense>
           </main>
         </div>

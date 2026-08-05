@@ -59,7 +59,7 @@ export function GoldChart() {
   const [pivotType, setPivotType] = useState('classic'); // 'classic' | 'fibonacci'
   const [chartMode, setChartMode] = useState('tradingview'); // 'tradingview' | 'native'
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showSidePanel, setShowSidePanel] = useState(true);
+  const [showSidePanel, setShowSidePanel] = useState(false);
 
   // Script & Fallback states
   const [scriptLoaded, setScriptLoaded] = useState(false);
@@ -320,27 +320,6 @@ export function GoldChart() {
 
         {/* Toolbar Controls */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Timeframe Selector */}
-          <div className="flex items-center bg-[#131619] p-1 rounded-lg border border-[#262B30]">
-            {['1', '5', '15', '60', '240', 'D'].map((tf) => {
-              const labels = { '1': '1m', '5': '5m', '15': '15m', '60': '1h', '240': '4h', 'D': '1D' };
-              const isActive = timeframe === tf;
-              return (
-                <button
-                  key={tf}
-                  onClick={() => setTimeframe(tf)}
-                  className={`px-2.5 py-1 rounded text-xs font-mono-num font-semibold transition-all ${
-                    isActive
-                      ? 'bg-[#2A2311] text-[#C9A227] border border-[#C9A227]/40 shadow-sm'
-                      : 'text-[#8B8D91] hover:text-[#EDEAE3]'
-                  }`}
-                >
-                  {labels[tf]}
-                </button>
-              );
-            })}
-          </div>
-
           {/* Engine Switch Button */}
           <button
             onClick={() => setChartMode((prev) => (prev === 'tradingview' ? 'native' : 'tradingview'))}

@@ -2,7 +2,11 @@
  * Detects active Forex/Gold market session based on current UTC time & day of week
  * and calculates remaining time in the current session.
  */
-export function getCurrentGoldSession(date = new Date()) {
+export function getCurrentGoldSession(date = new Date(), marketSource = 'oanda') {
+  if (marketSource === 'okx-crypto') {
+    return { name: '24/7 Crypto Market', color: '#3FA88C', status: 'active', timeLeft: 'Trading 24/7' };
+  }
+
   const day = date.getUTCDay(); // 0 = Sunday, 6 = Saturday
   const hours = date.getUTCHours();
   const minutes = date.getUTCMinutes();

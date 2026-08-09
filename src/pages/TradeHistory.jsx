@@ -5,7 +5,9 @@ import { Pill } from '../components/Pill';
 import { exportToCSV } from '../utils/csvParser';
 
 export function TradeHistory() {
-  const { trades, setSelectedTrade, setIsImportModalOpen, deleteTrade, setActivePage } = useTrade();
+  const { trades, filteredTrades: contextFilteredTrades, setSelectedTrade, setIsImportModalOpen, deleteTrade, setActivePage } = useTrade();
+
+  const activeTrades = contextFilteredTrades || trades;
 
   const [search, setSearch] = useState('');
   const [filterTab, setFilterTab] = useState('All'); // 'All' | 'Wins' | 'Losses' | 'Flagged'
@@ -14,7 +16,7 @@ export function TradeHistory() {
 
   // Filter Logic
   const filteredTrades = useMemo(() => {
-    return trades.filter((t) => {
+    return activeTrades.filter((t) => {
       // Tab filter
       if (filterTab === 'Wins' && t.pnl <= 0) return false;
       if (filterTab === 'Losses' && t.pnl >= 0) return false;
@@ -69,7 +71,7 @@ export function TradeHistory() {
             onClick={() => setIsImportModalOpen(true)}
             className="px-3 py-1.5 rounded-lg bg-[#1B1F23] hover:bg-[#262B30] border border-[#262B30] text-xs font-semibold text-[#EDEAE3] flex items-center gap-1.5 transition-colors"
           >
-            <Upload size={14} className="text-[#C9A227]" /> Import CSV (MT4/MT5)
+            <Upload size={14} className="text-[#C9A227]" /> Import MT5 Report
           </button>
 
           <button

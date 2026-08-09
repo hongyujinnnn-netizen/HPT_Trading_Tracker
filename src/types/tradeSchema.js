@@ -23,12 +23,18 @@
  * @property {string} [ticket] - Optional MT4/MT5 Ticket number
  */
 
+import { isTradeableSymbol } from '../utils/symbolGuard';
+
 /**
  * Creates a normalized Trade object ensuring all fields conform to canonical schema.
  * @param {Partial<Trade>} data 
  * @returns {Trade}
  */
 export function createTrade(data = {}) {
+  if (data.symbol && !isTradeableSymbol(data.symbol)) {
+    throw new Error(`Symbol '${data.symbol}' is a 24/7 chart-only proxy. Trade execution & journaling are restricted to Spot Gold (XAUUSD).`);
+  }
+
   const now = new Date();
   const entryPrice = parseFloat(data.entryPrice) || 0;
   const exitPrice = parseFloat(data.exitPrice) || 0;
@@ -57,5 +63,10 @@ export function createTrade(data = {}) {
     notes: data.notes || '',
     imageId: data.imageId || null,
     ticket: data.ticket || '',
+    accountId: data.accountId || data.account_id || null,
+    brokerPositionId: data.brokerPositionId || data.broker_position_id || null,
+    brokerTicketId: data.brokerTicketId || data.broker_ticket_id || null,
+    partialCloseCount: typeof data.partialCloseCount === 'number' ? data.partialCloseCount : undefined,
+    source: data.source || 'manual', // 'manual' | 'mt5_import'
   };
 }

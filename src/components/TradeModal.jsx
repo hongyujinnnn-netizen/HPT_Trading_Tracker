@@ -82,6 +82,11 @@ export function TradeModal({ trade, onClose }) {
               <p className="text-xs text-[#8B8D91] font-body flex items-center gap-3">
                 <span>Strategy: <strong className="text-[#EDEAE3]">{trade.strategy}</strong></span>
                 <span>Session: <strong className="text-[#C9A227]">{trade.session}</strong></span>
+                {trade.accountId && (
+                  <span className="px-2 py-0.5 rounded bg-[#C9A227]/10 text-[#C9A227] border border-[#C9A227]/30 text-[10px] font-mono">
+                    Sub-Account: #{trade.accountId}
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -154,6 +159,23 @@ export function TradeModal({ trade, onClose }) {
             <div>
               <span className="text-[11px] uppercase tracking-wider text-[#5A5D61] block">Ticket #</span>
               <span className="text-sm font-mono-num text-[#5A5D61]">{trade.ticket || 'Manual'}</span>
+            </div>
+          </div>
+
+          {/* Trade Timeline & Up Time */}
+          <div className="p-3 bg-[#1B1F23] rounded-lg border border-[#1E2226] flex flex-wrap items-center justify-between gap-3 text-xs font-mono-num">
+            <div className="flex items-center gap-1.5 text-[#EDEAE3]">
+              <Clock size={13} className="text-[#C9A227]" />
+              <span className="text-[#5A5D61]">Entry Time / Setup:</span>
+              <strong className="text-[#EDEAE3]">{trade.timestamp ? new Date(trade.timestamp).toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : trade.date}</strong>
+            </div>
+            <div className="flex items-center gap-1.5 text-[#EDEAE3]">
+              <span className="text-[#5A5D61]">Exit / End Time:</span>
+              <strong className="text-[#EDEAE3]">{trade.exitTime ? new Date(trade.exitTime).toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'Closed'}</strong>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[#5A5D61]">Holding Duration:</span>
+              <span className="text-[#3FA88C] font-bold">{trade.duration || 'N/A'}</span>
             </div>
           </div>
 

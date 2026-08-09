@@ -5,6 +5,7 @@ import { Pill } from '../components/Pill';
 import { SectionLabel } from '../components/SectionLabel';
 import { OrderCard } from '../components/OrderCard';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { OrderDetailModal } from '../components/OrderDetailModal';
 
 const ORDER_TYPES = [
   { value: 'buy_stop', label: 'Buy Stop', desc: 'Entry above price', isBuy: true },
@@ -33,13 +34,18 @@ function computeExpiry(value) {
 export function PendingOrders() {
   const {
     pendingOrders = [],
+    filteredPendingOrders = [],
     createPendingOrder,
     cancelPendingOrder,
     deletePendingOrder,
     clearOrderHistory,
     liveGoldPrice,
-    settings
+    settings,
+    tradingAccounts = [],
+    activeAccountId,
   } = useTrade();
+
+  const displayOrders = filteredPendingOrders || pendingOrders;
 
   const [orderType, setOrderType] = useState('buy_stop');
   const [entryPrice, setEntryPrice] = useState('');
@@ -55,9 +61,24 @@ export function PendingOrders() {
   const [successMsg, setSuccessMsg] = useState('');
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState(null);
+  const [selectedOrderForModal, setSelectedOrderForModal] = useState(null);
+
+  const visibleAccounts = tradingAccounts.filter((a) => !a.isArchived);
+  const [selectedAccountId, setSelectedAccountId] = useState(
+    activeAccountId !== 'all' ? activeAccountId : (visibleAccounts[0]?.id || '')
+  );
+
+  const targetSubAccount = visibleAccounts.find((a) => a.id === selectedAccountId) || visibleAccounts[0];
 
   const selectedType = ORDER_TYPES.find(t => t.value === orderType);
   const contractSize = settings?.contractSize || 100;
+
+  // Calculate leverage numeric (e.g., '1:500' -> 500)
+  const leverageNum = useMemo(() => {
+    const levStr = targetSubAccount?.leverage || '1:500';
+    const match = levStr.match(/\d+/g);
+    return match && match.length > 0 ? parseFloat(match[match.length - 1]) : 500;
+  }, [targetSubAccount]);
 
   // Preview calculations
   const preview = useMemo(() => {
@@ -76,14 +97,16 @@ export function PendingOrders() {
       : (sl - ep) * lots * contractSize;
     const riskReward = potentialLoss !== 0 ? Math.abs(potentialProfit / potentialLoss) : 0;
     const distanceToEntry = liveGoldPrice ? Math.abs(liveGoldPrice - ep) : null;
+    const requiredMargin = (ep * lots * contractSize) / (leverageNum || 500);
 
     return {
       potentialProfit: potentialProfit.toFixed(2),
       potentialLoss: Math.abs(potentialLoss).toFixed(2),
       riskReward: riskReward.toFixed(2),
       distanceToEntry: distanceToEntry ? distanceToEntry.toFixed(2) : null,
+      requiredMargin: requiredMargin.toFixed(2),
     };
-  }, [entryPrice, stopLoss, takeProfit, lotSize, orderType, liveGoldPrice, contractSize]);
+  }, [entryPrice, stopLoss, takeProfit, lotSize, orderType, liveGoldPrice, contractSize, leverageNum]);
 
   // Validation
   const validationError = useMemo(() => {
@@ -91,8 +114,18 @@ export function PendingOrders() {
     const sl = parseFloat(stopLoss);
     const tp = parseFloat(takeProfit);
     const lots = parseFloat(lotSize);
+
+    if (targetSubAccount && targetSubAccount.initialBalance <= 0) {
+      return `Sub-account "${targetSubAccount.name}" balance is $0.00 (Stopped Out). Cannot place orders.`;
+    }
+
     if (!ep || !sl || !tp || !lots) return null; // Not filled yet, not an error
     if (lots <= 0) return 'Lot size must be positive';
+
+    const requiredMargin = (ep * lots * contractSize) / (leverageNum || 500);
+    if (targetSubAccount && requiredMargin > targetSubAccount.initialBalance) {
+      return `Insufficient margin on ${targetSubAccount.name}. Available: $${targetSubAccount.initialBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}, Required Margin: $${requiredMargin.toFixed(2)}`;
+    }
 
     const isBuy = orderType === 'buy_stop' || orderType === 'buy_limit';
     if (isBuy) {
@@ -111,7 +144,7 @@ export function PendingOrders() {
     }
 
     return null;
-  }, [entryPrice, stopLoss, takeProfit, lotSize, orderType, liveGoldPrice]);
+  }, [entryPrice, stopLoss, takeProfit, lotSize, orderType, liveGoldPrice, targetSubAccount, contractSize, leverageNum]);
 
   const canSubmit = entryPrice && stopLoss && takeProfit && lotSize && !validationError && !isSubmitting;
 
@@ -121,6 +154,7 @@ export function PendingOrders() {
     setIsSubmitting(true);
     try {
       await createPendingOrder({
+        accountId: targetSubAccount?.id || (activeAccountId !== 'all' ? activeAccountId : null),
         orderType,
         entryPrice,
         stopLoss,
@@ -147,14 +181,14 @@ export function PendingOrders() {
 
   // Filter orders by tab
   const filteredOrders = useMemo(() => {
-    if (activeTab === 'pending') return pendingOrders.filter(o => o.status === 'pending');
-    if (activeTab === 'active') return pendingOrders.filter(o => o.status === 'active');
-    return pendingOrders.filter(o => ['closed_tp', 'closed_sl', 'cancelled', 'expired'].includes(o.status));
-  }, [pendingOrders, activeTab]);
+    if (activeTab === 'pending') return displayOrders.filter(o => o.status === 'pending');
+    if (activeTab === 'active') return displayOrders.filter(o => o.status === 'active');
+    return displayOrders.filter(o => ['closed_tp', 'closed_sl', 'cancelled', 'expired'].includes(o.status));
+  }, [displayOrders, activeTab]);
 
-  const pendingCount = pendingOrders.filter(o => o.status === 'pending').length;
-  const activeCount = pendingOrders.filter(o => o.status === 'active').length;
-  const historyCount = pendingOrders.filter(o => ['closed_tp', 'closed_sl', 'cancelled', 'expired'].includes(o.status)).length;
+  const pendingCount = displayOrders.filter(o => o.status === 'pending').length;
+  const activeCount = displayOrders.filter(o => o.status === 'active').length;
+  const historyCount = displayOrders.filter(o => ['closed_tp', 'closed_sl', 'cancelled', 'expired'].includes(o.status)).length;
 
   const handleClearHistory = () => {
     setIsClearModalOpen(true);
@@ -197,6 +231,30 @@ export function PendingOrders() {
           </SectionLabel>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Target Sub-Account Picker */}
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[#C9A227] font-semibold mb-1 block">
+                Target Sub-Account *
+              </label>
+              <select
+                value={selectedAccountId}
+                onChange={(e) => setSelectedAccountId(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-[#0A0C0E] border border-[#C9A227]/40 text-xs font-semibold text-[#EDEAE3] focus:outline-none focus:border-[#C9A227]"
+              >
+                {visibleAccounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({acc.broker} • {acc.leverage} • ${acc.initialBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })})
+                  </option>
+                ))}
+              </select>
+              {targetSubAccount && (
+                <div className="flex items-center justify-between text-[10px] text-[#8B8D91] mt-1 font-mono">
+                  <span>Balance: <strong className="text-[#3FA88C]">${targetSubAccount.initialBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></span>
+                  <span>Leverage: <strong className="text-[#C9A227]">{targetSubAccount.leverage}</strong></span>
+                </div>
+              )}
+            </div>
+
             {/* Order Type Selector */}
             <div>
               <label className="text-[10px] uppercase tracking-wider text-[#5A5D61] mb-1.5 block">Order Type</label>
@@ -336,6 +394,10 @@ export function PendingOrders() {
                     <span className="text-[#5A5D61]">Risk : Reward</span>
                     <div className="text-[#C9A227] font-bold">1 : {preview.riskReward}</div>
                   </div>
+                  <div>
+                    <span className="text-[#5A5D61]">Required Margin</span>
+                    <div className="text-[#C9A227] font-bold">${preview.requiredMargin}</div>
+                  </div>
                   {preview.distanceToEntry && (
                     <div>
                       <span className="text-[#5A5D61]">Distance to Entry</span>
@@ -441,12 +503,24 @@ export function PendingOrders() {
                   currentPrice={liveGoldPrice}
                   onCancel={cancelPendingOrder}
                   onDelete={(id) => setOrderToDelete(id)}
+                  onSelect={(order) => setSelectedOrderForModal(order)}
                 />
               ))}
             </div>
           )}
         </div>
       </div>
+
+      {/* Order Detail Modal */}
+      {selectedOrderForModal && (
+        <OrderDetailModal
+          order={selectedOrderForModal}
+          currentPrice={liveGoldPrice}
+          onClose={() => setSelectedOrderForModal(null)}
+          onCancel={cancelPendingOrder}
+          onDelete={(id) => setOrderToDelete(id)}
+        />
+      )}
 
       {/* Confirm Modal: Clear All History */}
       <ConfirmModal

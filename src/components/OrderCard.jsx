@@ -1,6 +1,7 @@
 import React from 'react';
-import { X, ArrowUpRight, ArrowDownRight, Clock, Zap, Target, ShieldAlert, Trash2 } from 'lucide-react';
+import { X, ArrowUpRight, ArrowDownRight, Clock, Zap, Target, ShieldAlert, Trash2, Eye, Building2 } from 'lucide-react';
 import { Pill } from './Pill';
+import { useTrade } from '../context/TradeContext';
 
 function formatPrice(p) {
   return parseFloat(p).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -34,7 +35,10 @@ const STATUS_CONFIG = {
   expired: { label: 'Expired', tone: 'neutral' },
 };
 
-export function OrderCard({ order, currentPrice, onCancel, onDelete }) {
+export function OrderCard({ order, currentPrice, onCancel, onDelete, onSelect }) {
+  const { tradingAccounts = [] } = useTrade();
+  const subAccount = tradingAccounts.find((a) => a.id === order.accountId || a.id === order.account_id);
+
   const isBuy = order.order_type === 'buy_stop' || order.order_type === 'buy_limit';
   const entry = parseFloat(order.entry_price);
   const tp = parseFloat(order.take_profit);
@@ -45,7 +49,7 @@ export function OrderCard({ order, currentPrice, onCancel, onDelete }) {
   const typeFgColor = isBuy ? '#3FA88C' : '#C1502E';
   const typeBorderColor = isBuy ? '#265C50' : '#5C3426';
 
-  // Distance to entry from current price (in pips — for gold, 1 pip = $0.10 typically, but we show in $ difference)
+  // Distance to entry from current price
   const distanceToEntry = currentPrice ? Math.abs(currentPrice - entry).toFixed(2) : '—';
   const priceAboveEntry = currentPrice ? currentPrice > entry : false;
 
@@ -82,11 +86,8 @@ export function OrderCard({ order, currentPrice, onCancel, onDelete }) {
     const range = Math.abs(tp - sl);
     if (range > 0) {
       if (isBuy) {
-        // SL is below, TP is above: SL(0%) → TP(100%)
         progressPct = Math.max(0, Math.min(100, ((currentPrice - sl) / range) * 100));
       } else {
-        // SL is above, TP is below: TP(0%) → SL(100%) — but we invert for visual
-        // For sell: SL is higher, TP is lower. Show SL on right, TP on left
         progressPct = Math.max(0, Math.min(100, ((sl - currentPrice) / range) * 100));
       }
     }
@@ -94,8 +95,15 @@ export function OrderCard({ order, currentPrice, onCancel, onDelete }) {
 
   const isActionable = order.status === 'pending' || order.status === 'active';
 
+  const handleCardClick = () => {
+    if (onSelect) onSelect(order);
+  };
+
   return (
-    <div className="p-4 rounded-xl bg-[#131619] border border-[#262B30] hover:border-[#3A3F45] transition-colors space-y-3">
+    <div
+      onClick={handleCardClick}
+      className="p-4 rounded-xl bg-[#131619] border border-[#262B30] hover:border-[#C9A227]/60 transition-all space-y-3 cursor-pointer group hover:shadow-lg"
+    >
       {/* Header Row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
@@ -108,9 +116,33 @@ export function OrderCard({ order, currentPrice, onCancel, onDelete }) {
           </span>
           <Pill tone={statusCfg.tone}>{statusCfg.label}</Pill>
           <span className="text-[10px] font-mono-num text-[#5A5D61]">{lotSize} lots</span>
+
+          {subAccount && (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border flex-shrink-0"
+              style={{
+                borderColor: `${subAccount.colorHex || '#C9A227'}50`,
+                backgroundColor: `${subAccount.colorHex || '#C9A227'}15`,
+                color: subAccount.colorHex || '#C9A227',
+              }}
+            >
+              <Building2 size={10} />
+              <span className="max-w-[100px] truncate">{subAccount.name}</span>
+            </span>
+          )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          {/* View Details Button */}
+          <button
+            onClick={() => onSelect && onSelect(order)}
+            className="p-1.5 rounded-lg text-[#8B8D91] hover:text-[#C9A227] hover:bg-[#1B1F23] transition-colors flex items-center gap-1 text-xs"
+            title="View Order Details"
+          >
+            <Eye size={14} />
+            <span className="hidden sm:inline text-[11px] font-semibold">Details</span>
+          </button>
+
           {/* Unrealized P&L */}
           {unrealizedPnl !== null && (
             <span className={`text-sm font-bold font-mono-num ${unrealizedPnl >= 0 ? 'text-[#3FA88C]' : 'text-[#C1502E]'}`}>
@@ -191,21 +223,29 @@ export function OrderCard({ order, currentPrice, onCancel, onDelete }) {
         </div>
       )}
 
-      {/* Footer: metadata */}
+      {/* Footer: metadata & timing */}
       <div className="flex items-center justify-between text-[10px] font-mono-num text-[#5A5D61] pt-1 border-t border-[#1E2226]">
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1"><Clock size={10} /> {formatTime(order.created_at)}</span>
+          <span className="flex items-center gap-1 text-[#8B8D91]" title="Setup / Placed Time">
+            <Clock size={10} className="text-[#C9A227]" /> Setup: {formatTime(order.created_at)}
+          </span>
           {order.strategy && <span>{order.strategy}</span>}
           {order.session && <span className="text-[#8B8D91]">{order.session}</span>}
         </div>
+
         <div className="flex items-center gap-3">
+          {order.closed_at && (
+            <span className="flex items-center gap-1 text-[#8B8D91]" title="End / Closed Time">
+              <Clock size={10} /> End: {formatTime(order.closed_at)}
+            </span>
+          )}
           {order.status === 'pending' && currentPrice && (
             <span className="flex items-center gap-1">
               <Target size={10} className="text-[#C9A227]" />
               ${distanceToEntry} {priceAboveEntry ? 'above' : 'below'}
             </span>
           )}
-          {order.triggered_at && (
+          {order.triggered_at && !order.closed_at && (
             <span className="flex items-center gap-1 text-[#C9A227]">
               <Zap size={10} /> Triggered {formatTime(order.triggered_at)}
             </span>
@@ -220,3 +260,4 @@ export function OrderCard({ order, currentPrice, onCancel, onDelete }) {
     </div>
   );
 }
+

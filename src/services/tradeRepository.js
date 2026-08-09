@@ -17,6 +17,71 @@ export const tradeRepository = {
   },
 
   /**
+   * Fetch all trading sub-accounts
+   */
+  async getAccounts() {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        return await supabaseStore.getAccounts(session.user.id);
+      }
+    }
+    return await tradeStore.getAccounts();
+  },
+
+  /**
+   * Create a new trading sub-account
+   */
+  async addAccount(accountData) {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const added = await supabaseStore.addAccount(accountData, session.user.id);
+        if (added) return added;
+      }
+    }
+    return await tradeStore.addAccount(accountData);
+  },
+
+  /**
+   * Update an existing sub-account
+   */
+  async updateAccount(id, updates) {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const updated = await supabaseStore.updateAccount(id, updates);
+        if (updated) return updated;
+      }
+    }
+    return await tradeStore.updateAccount(id, updates);
+  },
+
+  /**
+   * Archive (soft-delete) an account
+   */
+  async archiveAccount(id) {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        return await supabaseStore.archiveAccount(id);
+      }
+    }
+    return await tradeStore.archiveAccount(id);
+  },
+
+  /**
+   * Active account ID getter/setter
+   */
+  getActiveAccountId() {
+    return tradeStore.getActiveAccountId();
+  },
+
+  setActiveAccountId(id) {
+    tradeStore.setActiveAccountId(id);
+  },
+
+  /**
    * Fetch all trades for active session
    */
   async getAllTrades() {
@@ -253,5 +318,18 @@ export const tradeRepository = {
       if (session) return await supabaseStore.clearOrderHistory(session.user.id);
     }
     return false;
+  },
+
+  /**
+   * Bulk import trades & balance ops into target sub-account
+   */
+  async bulkImportTrades(tradesToImport = [], balanceOps = [], accountId = '') {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        return await supabaseStore.bulkImportTrades(tradesToImport, balanceOps, accountId, session.user.id);
+      }
+    }
+    return await tradeStore.bulkImportTrades(tradesToImport, balanceOps, accountId);
   }
 };

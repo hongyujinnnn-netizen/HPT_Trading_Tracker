@@ -11,17 +11,25 @@ import { INITIAL_EQUITY_CURVE } from '../utils/mockData';
 import { getCurrentGoldSession } from '../utils/sessionDetector';
 
 export function Dashboard() {
-  const { trades, stats, setActivePage, setSelectedTrade, userSession, dbViews, settings, isDemoMode } = useTrade();
+  const { trades, filteredTrades, stats, setActivePage, setSelectedTrade, userSession, dbViews, settings, isDemoMode, activeAccountId, activeAccount, tradingAccounts } = useTrade();
   const [timeRange, setTimeRange] = useState('30D');
-  const [sessionInfo, setSessionInfo] = useState(getCurrentGoldSession());
+  const [sessionInfo, setSessionInfo] = useState(() => {
+    const savedMode = localStorage.getItem('tradepulse_gold_chart_mode') || 'oanda';
+    return getCurrentGoldSession(new Date(), savedMode);
+  });
+
+  const displayTrades = filteredTrades || trades;
 
   // Dynamic Equity Curve calculation from Supabase dbViews or Trades
   const equityCurveData = useMemo(() => {
     let rawPoints = [];
-    const startBalance = parseFloat(settings?.accountBalance) || 10000;
+    const visibleAccounts = tradingAccounts.filter((a) => !a.isArchived);
+    const startBalance = activeAccountId === 'all'
+      ? visibleAccounts.reduce((sum, a) => sum + (parseFloat(a.initialBalance) || 0), 0) || settings?.accountBalance || 10000
+      : activeAccount ? (parseFloat(activeAccount.initialBalance) || 10000) : (settings?.accountBalance || 10000);
 
-    // 1. If Supabase DB views has equity curve data
-    if (dbViews?.equityCurve && dbViews.equityCurve.length > 0) {
+    // 1. If Supabase DB views has equity curve data and in aggregate mode
+    if (activeAccountId === 'all' && dbViews?.equityCurve && dbViews.equityCurve.length > 0) {
       rawPoints = dbViews.equityCurve.map((item) => {
         const dateObj = new Date(item.exit_time || item.timestamp);
         const formattedDate = isNaN(dateObj.getTime())
@@ -33,9 +41,9 @@ export function Dashboard() {
           timestamp: dateObj.getTime() || 0,
         };
       });
-    } else if (trades && trades.length > 0) {
-      // 2. Compute from trades list
-      const sortedTrades = [...trades]
+    } else if (displayTrades && displayTrades.length > 0) {
+      // 2. Compute from displayTrades list
+      const sortedTrades = [...displayTrades]
         .filter((t) => t.status === 'closed' || t.pnl !== undefined)
         .sort((a, b) => new Date(a.exitTime || a.timestamp || a.date) - new Date(b.exitTime || b.timestamp || b.date));
 
@@ -104,8 +112,9 @@ export function Dashboard() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setSessionInfo(getCurrentGoldSession());
-    }, 30000);
+      const savedMode = localStorage.getItem('tradepulse_gold_chart_mode') || 'oanda';
+      setSessionInfo(getCurrentGoldSession(new Date(), savedMode));
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -119,25 +128,25 @@ export function Dashboard() {
     ];
 
     return sessions.map((s) => {
-      const sessionTrades = trades.filter((t) => t.session === s.name);
+      const sessionTrades = displayTrades.filter((t) => t.session === s.name);
       const wins = sessionTrades.filter((t) => t.pnl > 0).length;
       const pnl = sessionTrades.reduce((acc, t) => acc + (t.pnl || 0), 0);
       const winRate = sessionTrades.length > 0 ? Math.round((wins / sessionTrades.length) * 100) : 0;
       return { ...s, tradesCount: sessionTrades.length, winRate, pnl };
     });
-  }, [trades]);
+  }, [displayTrades]);
 
   // Compute strategy performance stats
   const strategyStats = useMemo(() => {
     const strategies = ['Breakout', 'Pullback', 'News Trading', 'Order Block / ICT'];
     return strategies.map((name) => {
-      const stratTrades = trades.filter((t) => t.strategy === name);
+      const stratTrades = displayTrades.filter((t) => t.strategy === name);
       const wins = stratTrades.filter((t) => t.pnl > 0).length;
       const pnl = stratTrades.reduce((acc, t) => acc + (t.pnl || 0), 0);
       const winRate = stratTrades.length > 0 ? Math.round((wins / stratTrades.length) * 100) : 0;
       return { name, pnl, winRate, count: stratTrades.length, fill: pnl >= 0 ? '#3FA88C' : '#C1502E' };
     });
-  }, [trades]);
+  }, [displayTrades]);
 
   const maxSessionAbs = Math.max(...sessionStats.map((s) => Math.abs(s.pnl)), 1);
 

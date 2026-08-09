@@ -6,14 +6,16 @@ import { StatCard } from '../components/StatCard';
 import { SectionLabel } from '../components/SectionLabel';
 
 export function Analytics() {
-  const { trades, stats } = useTrade();
+  const { trades, filteredTrades: contextFilteredTrades, stats } = useTrade();
+
+  const activeTrades = contextFilteredTrades || trades;
 
   // Win rate & PnL by Day of Week
   const dayOfWeekStats = useMemo(() => {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
     const map = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [] };
 
-    trades.forEach((t) => {
+    activeTrades.forEach((t) => {
       if (!t.date) return;
       const dateObj = new Date(t.date);
       const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
@@ -29,7 +31,7 @@ export function Analytics() {
       const winRate = dayTrades.length > 0 ? Math.round((wins / dayTrades.length) * 100) : 0;
       return { day, count: dayTrades.length, winRate, pnl, fill: pnl >= 0 ? '#3FA88C' : '#C1502E' };
     });
-  }, [trades]);
+  }, [activeTrades]);
 
   // Streak Analysis
   const streakStats = useMemo(() => {
@@ -38,7 +40,7 @@ export function Analytics() {
     let currentLossStreak = 0;
     let maxLossStreak = 0;
 
-    const sorted = [...trades].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const sorted = [...activeTrades].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
     sorted.forEach((t) => {
       if (t.pnl > 0) {
@@ -53,7 +55,7 @@ export function Analytics() {
     });
 
     return { maxWinStreak, maxLossStreak };
-  }, [trades]);
+  }, [activeTrades]);
 
   return (
     <div className="space-y-6 animate-fade-in">

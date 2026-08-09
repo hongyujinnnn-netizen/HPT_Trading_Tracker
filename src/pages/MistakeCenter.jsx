@@ -7,7 +7,9 @@ import { SectionLabel } from '../components/SectionLabel';
 import { MISTAKE_TYPES } from '../utils/mistakeDetector';
 
 export function MistakeCenter() {
-  const { trades } = useTrade();
+  const { trades, filteredTrades: contextFilteredTrades } = useTrade();
+
+  const activeTrades = contextFilteredTrades || trades;
 
   // Compute total cost and count of mistakes
   const mistakeAnalysis = useMemo(() => {
@@ -22,7 +24,7 @@ export function MistakeCenter() {
     let totalMistakeCost = 0;
     let flaggedTradeCount = 0;
 
-    trades.forEach((t) => {
+    activeTrades.forEach((t) => {
       if (t.mistakes && t.mistakes.length > 0) {
         flaggedTradeCount++;
         if (t.pnl < 0) {
@@ -36,10 +38,10 @@ export function MistakeCenter() {
       }
     });
 
-    const disciplineScore = trades.length > 0 ? Math.round(((trades.length - flaggedTradeCount) / trades.length) * 100) : 100;
+    const disciplineScore = activeTrades.length > 0 ? Math.round(((activeTrades.length - flaggedTradeCount) / activeTrades.length) * 100) : 100;
 
     return { counts, totalMistakeCost, flaggedTradeCount, disciplineScore };
-  }, [trades]);
+  }, [activeTrades]);
 
   return (
     <div className="space-y-6 animate-fade-in">

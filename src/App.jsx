@@ -29,6 +29,8 @@ import { ImportModal } from './components/ImportModal';
 import { AuthModal } from './components/AuthModal';
 import { AuthGate } from './components/AuthGate';
 import { OrderToast } from './components/OrderToast';
+import { AccountManagerModal } from './components/AccountManagerModal';
+import { ImportMT5Modal } from './components/ImportMT5Modal';
 
 // Code Splitting with React.lazy() to reduce initial bundle chunk size
 const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
@@ -107,6 +109,7 @@ function AppContent() {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [hasVisitedChart, setHasVisitedChart] = useState(false);
+  const [isAccountManagerOpen, setIsAccountManagerOpen] = useState(false);
 
   React.useEffect(() => {
     if (activePage === 'chart' && !hasVisitedChart) {
@@ -369,6 +372,7 @@ function AppContent() {
           <TickerBar
             onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
             mobileMenuOpen={mobileMenuOpen}
+            onOpenAccountManager={() => setIsAccountManagerOpen(true)}
           />
           <main className="flex-1 p-3 sm:p-4 md:p-6 pb-24 md:pb-6 overflow-x-hidden">
             <Suspense fallback={<PageFallback />}>
@@ -446,8 +450,9 @@ function AppContent() {
 
       {/* Modals */}
       <TradeModal trade={selectedTrade} onClose={() => setSelectedTrade(null)} />
-      <ImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
+      <ImportMT5Modal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <AccountManagerModal isOpen={isAccountManagerOpen} onClose={() => setIsAccountManagerOpen(false)} />
 
       {/* Order Toast Notifications */}
       <OrderToast toasts={orderToasts || []} onDismiss={dismissToast} />

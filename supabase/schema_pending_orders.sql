@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS public.pending_orders (
   triggered_price numeric(10,3),
   closed_price    numeric(10,3),
   resulting_trade_id uuid REFERENCES public.trades(id) ON DELETE SET NULL,
+  account_id      uuid REFERENCES public.trading_accounts(id) ON DELETE SET NULL,
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now()
 );
@@ -51,3 +52,4 @@ CREATE POLICY "users_delete_own_orders" ON public.pending_orders FOR DELETE USIN
 
 CREATE INDEX IF NOT EXISTS idx_pending_orders_active ON public.pending_orders (status) WHERE status IN ('pending', 'active');
 CREATE INDEX IF NOT EXISTS idx_pending_orders_user ON public.pending_orders (user_id);
+CREATE INDEX IF NOT EXISTS idx_pending_orders_account_id ON public.pending_orders (account_id);

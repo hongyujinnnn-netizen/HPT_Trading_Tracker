@@ -15,6 +15,12 @@ export function ImportModal({ isOpen, onClose }) {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Security check: limit CSV import file size to 5MB to prevent memory denial of service
+    if (file.size > 5 * 1024 * 1024) {
+      setError('File size exceeds 5MB limit. Please upload a smaller export file.');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target.result;

@@ -8,8 +8,18 @@
  * Time, Position, Symbol, Type, Volume, Price, S / L, T / P, Time, Price, Commission, Swap, Profit
  */
 
-import { createTrade } from '../types/tradeSchema';
-import { calculateRR } from './calculations';
+/**
+ * Helper to prevent CSV Formula Injection (=, +, -, @, tab, CR)
+ */
+function sanitizeCSVField(val) {
+  if (val === null || val === undefined) return '';
+  const str = String(val);
+  // If field starts with formula trigger characters, prefix with single quote
+  if (/^[=+\-@\t\r]/.test(str)) {
+    return `'${str}`;
+  }
+  return str;
+}
 
 /**
  * Parses raw CSV string into canonical Trade objects
@@ -79,8 +89,8 @@ export function parseCSV(csvText) {
       pnl = parseFloat(rowObj['profit']) || 0;
       const rawDate = rowObj['open time'] || rowObj['close time'] || rowObj['time'];
       if (rawDate) {
-        // Parse MT4 date format e.g. 2026.07.29 14:30:00
-        const formatted = rawDate.replace(/\./g, '-');
+        // Parse MT4 date format e.g. 2026.07.29 14:30:00 -> 2026-07-29T14:30:00 for cross-browser parsing
+        const formatted = rawDate.replace(/\./g, '-').trim().replace(' ', 'T');
         const parsedDate = new Date(formatted);
         if (!isNaN(parsedDate.getTime())) {
           timestamp = parsedDate.toISOString();
@@ -100,7 +110,7 @@ export function parseCSV(csvText) {
 
       const rawDate = rowObj['time'];
       if (rawDate) {
-        const parsedDate = new Date(rawDate);
+        const parsedDate = new Date(rawDate.replace(' ', 'T'));
         if (!isNaN(parsedDate.getTime())) {
           timestamp = parsedDate.toISOString();
           dateStr = timestamp.split('T')[0];
@@ -123,7 +133,7 @@ export function parseCSV(csvText) {
 
     parsedTrades.push(
       createTrade({
-        ticket,
+        ticket: ticket.replace(/[<>"']/g, ''),
         date: dateStr,
         timestamp,
         side,
@@ -134,11 +144,11 @@ export function parseCSV(csvText) {
         lotSize,
         pnl,
         rr,
-        strategy: rowObj['strategy'] || 'Breakout',
-        session: rowObj['session'] || 'London',
-        marketCondition: rowObj['marketcondition'] || 'Trending',
-        emotion: rowObj['emotion'] || 'Planned',
-        notes: rowObj['notes'] || rowObj['reason'] || '',
+        strategy: (rowObj['strategy'] || 'Breakout').replace(/[<>"']/g, ''),
+        session: (rowObj['session'] || 'London').replace(/[<>"']/g, ''),
+        marketCondition: (rowObj['marketcondition'] || 'Trending').replace(/[<>"']/g, ''),
+        emotion: (rowObj['emotion'] || 'Planned').replace(/[<>"']/g, ''),
+        notes: (rowObj['notes'] || rowObj['reason'] || '').replace(/[<>"']/g, ''),
       })
     );
   }
@@ -147,7 +157,7 @@ export function parseCSV(csvText) {
 }
 
 /**
- * Exports trades array to clean CSV string format
+ * Exports trades array to clean CSV string format with Formula Injection protection
  * @param {import('../types/tradeSchema').Trade[]} trades 
  * @returns {string} CSV format text
  */
@@ -157,10 +167,10 @@ export function exportToCSV(trades = []) {
   const headers = ['ID', 'Date', 'Timestamp', 'Side', 'Entry', 'Exit', 'StopLoss', 'TakeProfit', 'LotSize', 'PnL', 'RR', 'Strategy', 'Session', 'Emotion', 'Mistakes', 'Notes'];
 
   const rows = trades.map((t) => [
-    t.id,
-    t.date,
-    t.timestamp,
-    t.side,
+    sanitizeCSVField(t.id),
+    sanitizeCSVField(t.date),
+    sanitizeCSVField(t.timestamp),
+    sanitizeCSVField(t.side),
     t.entryPrice,
     t.exitPrice,
     t.stopLoss,
@@ -168,12 +178,13 @@ export function exportToCSV(trades = []) {
     t.lotSize,
     t.pnl,
     t.rr,
-    `"${(t.strategy || '').replace(/"/g, '""')}"`,
-    t.session,
-    t.emotion,
-    `"${(t.mistakes || []).join(', ')}"`,
-    `"${(t.notes || '').replace(/"/g, '""')}"`,
+    `"${sanitizeCSVField(t.strategy || '').replace(/"/g, '""')}"`,
+    sanitizeCSVField(t.session),
+    sanitizeCSVField(t.emotion),
+    `"${(t.mistakes || []).map(sanitizeCSVField).join(', ')}"`,
+    `"${sanitizeCSVField(t.notes || '').replace(/"/g, '""')}"`,
   ]);
 
   return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
 }
+

@@ -5,9 +5,14 @@ import { calculatePnL, calculateRR, calculateLotSize } from '../utils/calculatio
 import { detectMistakes } from '../utils/mistakeDetector';
 
 export function AddTrade() {
-  const { addTrade, trades, settings, setActivePage } = useTrade();
+  const { addTrade, trades, filteredTrades, tradingAccounts, activeAccountId, settings, setActivePage } = useTrade();
+
+  const visibleAccounts = tradingAccounts.filter((a) => !a.isArchived);
 
   // Form State
+  const [selectedAccountId, setSelectedAccountId] = useState(
+    activeAccountId !== 'all' ? activeAccountId : (visibleAccounts[0]?.id || '')
+  );
   const [side, setSide] = useState('Buy');
   const [entryPrice, setEntryPrice] = useState('2431.20');
   const [exitPrice, setExitPrice] = useState('2442.00');
@@ -62,16 +67,28 @@ export function AddTrade() {
     return detectMistakes(draft, trades);
   }, [side, entry, exit, sl, tp, lots, computedPnL, computedRR, strategy, session, marketCondition, emotion, trades]);
 
-  // Handle Screenshot Upload
+  // Handle Screenshot Upload with Security Validation
   const handleImageChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setScreenshot(event.target.result);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Security check: validate file type (images only)
+    if (!file.type.startsWith('image/')) {
+      alert('Only image files (PNG, JPG, WEBP) are allowed.');
+      return;
     }
+
+    // Security check: limit image size to 5MB
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image file size must be less than 5MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setScreenshot(event.target.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e) => {
@@ -79,6 +96,7 @@ export function AddTrade() {
 
     await addTrade(
       {
+        accountId: selectedAccountId,
         side,
         entryPrice: entry,
         exitPrice: exit,
@@ -120,6 +138,24 @@ export function AddTrade() {
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Form Fields */}
         <div className="lg:col-span-2 terminal-card p-6 space-y-5">
+          {/* Sub-Account Selector */}
+          <div>
+            <label className="text-xs uppercase font-bold text-[#C9A227] tracking-wider block mb-1.5">
+              Trading Sub-Account
+            </label>
+            <select
+              value={selectedAccountId}
+              onChange={(e) => setSelectedAccountId(e.target.value)}
+              className="w-full p-2.5 rounded-lg bg-[#14181D] border border-[#C9A227]/40 text-xs text-[#EDEAE3] font-semibold focus:border-[#C9A227] focus:outline-none"
+            >
+              {visibleAccounts.map((acc) => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} ({acc.broker} • {acc.leverage} • ${acc.initialBalance.toLocaleString()} {acc.currency})
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Side Toggle */}
           <div>
             <label className="text-xs uppercase font-bold text-[#8B8D91] tracking-wider block mb-2">Order Direction</label>

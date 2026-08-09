@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TrendingUp, TrendingDown, Bell, Zap, Cloud, Sparkles, LogOut, Activity, AlertTriangle, Radio, Clock, Menu, X, Wifi, WifiOff } from 'lucide-react';
 import { Pill } from './Pill';
+import { AccountSelector } from './AccountSelector';
 import { useTrade } from '../context/TradeContext';
 import { supabase } from '../services/supabaseClient';
 import { goldPriceService, ConnectionState } from '../services/goldPriceService';
 import { getCurrentGoldSession } from '../utils/sessionDetector';
 
-export function TickerBar({ onToggleMobileMenu, mobileMenuOpen }) {
+export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountManager }) {
   const { userSession, signOut, isDemoMode, setActivePage } = useTrade();
 
   const [price, setPrice] = useState(null);
@@ -24,18 +25,22 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen }) {
   const [flashClass, setFlashClass] = useState('');
   const flashTimerRef = useRef(null);
 
-  const [currentSession, setCurrentSession] = useState(getCurrentGoldSession());
+  const [currentSession, setCurrentSession] = useState(() => {
+    const savedMode = localStorage.getItem('tradepulse_gold_chart_mode') || 'oanda';
+    return getCurrentGoldSession(new Date(), savedMode);
+  });
   const [utcTimeStr, setUtcTimeStr] = useState('');
 
   // Update UTC clock and session every 30s
   useEffect(() => {
     function updateClock() {
       const now = new Date();
-      setCurrentSession(getCurrentGoldSession(now));
+      const savedMode = localStorage.getItem('tradepulse_gold_chart_mode') || 'oanda';
+      setCurrentSession(getCurrentGoldSession(now, savedMode));
       setUtcTimeStr(now.toISOString().substring(11, 16) + ' UTC');
     }
     updateClock();
-    const clockInterval = setInterval(updateClock, 30000);
+    const clockInterval = setInterval(updateClock, 10000);
     return () => clearInterval(clockInterval);
   }, []);
 
@@ -193,6 +198,9 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen }) {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Trading Sub-Account Selector */}
+        <AccountSelector onOpenManager={onOpenAccountManager} />
+
         {/* User Session / Cloud Status Badge */}
         {userSession ? (
           <div className="flex items-center gap-2">

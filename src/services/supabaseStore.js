@@ -33,6 +33,7 @@ function mapRowToTrade(row) {
     notes: row.notes || row.reason_for_entry || '',
     imageId: screenshotPath,
     ticket: row.id.substring(0, 8),
+    accountId: row.account_id || null,
   });
 }
 
@@ -138,6 +139,7 @@ export const supabaseStore = {
         emotion: (tradeData.emotion || 'planned').toLowerCase().replace(/\s+/g, '_'),
         reason_for_entry: tradeData.notes || '',
         notes: tradeData.notes || '',
+        account_id: tradeData.accountId || null,
       };
 
       const { data, error } = await supabase
@@ -483,5 +485,191 @@ export const supabaseStore = {
     return this.updateOrderStatus(orderId, {
       resulting_trade_id: tradeId,
     });
+  },
+
+  // ── Trading Sub-Accounts CRUD ─────────────────────────────────────
+  async getAccounts(userId) {
+    if (!supabase || !userId) return [];
+    try {
+      const { data, error } = await supabase
+        .from('trading_accounts')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Supabase getAccounts error:', error);
+        return [];
+      }
+
+      return (data || []).map((row) => ({
+        id: row.id,
+        name: row.name,
+        broker: row.broker,
+        accountType: row.account_type,
+        accountNumber: row.account_number || '',
+        initialBalance: parseFloat(row.initial_balance) || 10000,
+        currency: row.currency || 'USD',
+        leverage: row.leverage || '1:500',
+        colorHex: row.color_hex || '#C9A227',
+        isDefault: Boolean(row.is_default),
+        isArchived: Boolean(row.is_archived),
+        createdAt: row.created_at,
+      }));
+    } catch (e) {
+      console.error('Failed to fetch trading accounts from Supabase:', e);
+      return [];
+    }
+  },
+
+  async addAccount(accountData, userId) {
+    if (!supabase || !userId) return null;
+    try {
+      const row = {
+        user_id: userId,
+        name: accountData.name || 'Primary Exness MT5',
+        broker: accountData.broker || 'Exness',
+        account_type: accountData.accountType || 'live',
+        account_number: accountData.accountNumber || '',
+        initial_balance: parseFloat(accountData.initialBalance) || 10000,
+        currency: accountData.currency || 'USD',
+        leverage: accountData.leverage || '1:500',
+        color_hex: accountData.colorHex || '#C9A227',
+        is_default: Boolean(accountData.isDefault),
+        is_archived: Boolean(accountData.isArchived),
+      };
+
+      const { data, error } = await supabase
+        .from('trading_accounts')
+        .insert([row])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase addAccount error:', error);
+        return null;
+      }
+
+      return {
+        id: data.id,
+        name: data.name,
+        broker: data.broker,
+        accountType: data.account_type,
+        accountNumber: data.account_number || '',
+        initialBalance: parseFloat(data.initial_balance) || 10000,
+        currency: data.currency || 'USD',
+        leverage: data.leverage || '1:500',
+        colorHex: data.color_hex || '#C9A227',
+        isDefault: Boolean(data.is_default),
+        isArchived: Boolean(data.is_archived),
+        createdAt: data.created_at,
+      };
+    } catch (e) {
+      console.error('Failed to add account in Supabase:', e);
+      return null;
+    }
+  },
+
+  async updateAccount(id, updates) {
+    if (!supabase || !id) return null;
+    try {
+      const dbUpdates = {};
+      if (updates.name !== undefined) dbUpdates.name = updates.name;
+      if (updates.broker !== undefined) dbUpdates.broker = updates.broker;
+      if (updates.accountType !== undefined) dbUpdates.account_type = updates.accountType;
+      if (updates.accountNumber !== undefined) dbUpdates.account_number = updates.accountNumber;
+      if (updates.initialBalance !== undefined) dbUpdates.initial_balance = updates.initialBalance;
+      if (updates.currency !== undefined) dbUpdates.currency = updates.currency;
+      if (updates.leverage !== undefined) dbUpdates.leverage = updates.leverage;
+      if (updates.colorHex !== undefined) dbUpdates.color_hex = updates.colorHex;
+      if (updates.isDefault !== undefined) dbUpdates.is_default = updates.isDefault;
+      if (updates.isArchived !== undefined) dbUpdates.is_archived = updates.isArchived;
+      dbUpdates.updated_at = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from('trading_accounts')
+        .update(dbUpdates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase updateAccount error:', error);
+        return null;
+      }
+
+      return {
+        id: data.id,
+        name: data.name,
+        broker: data.broker,
+        accountType: data.account_type,
+        accountNumber: data.account_number || '',
+        initialBalance: parseFloat(data.initial_balance) || 10000,
+        currency: data.currency || 'USD',
+        leverage: data.leverage || '1:500',
+        colorHex: data.color_hex || '#C9A227',
+        isDefault: Boolean(data.is_default),
+        isArchived: Boolean(data.is_archived),
+        createdAt: data.created_at,
+      };
+    } catch (e) {
+      console.error('Failed to update account in Supabase:', e);
+      return null;
+    }
+  },
+
+  async archiveAccount(id) {
+    return this.updateAccount(id, { isArchived: true });
+  },
+
+  async bulkImportTrades(tradesToImport = [], balanceOps = [], accountId = '', userId = '') {
+    if (!supabase || !userId) return [];
+    try {
+      const rows = tradesToImport.map((t) => ({
+        user_id: userId,
+        account_id: accountId || null,
+        symbol: t.symbol || 'XAUUSD',
+        side: (t.side || 'Buy').toLowerCase(),
+        status: 'closed',
+        entry_price: t.entryPrice,
+        exit_price: t.exitPrice,
+        lot_size: t.lotSize,
+        stop_loss: t.stopLoss || null,
+        take_profit: t.takeProfit || null,
+        entry_time: t.timestamp || new Date().toISOString(),
+        exit_time: t.timestamp || new Date().toISOString(),
+        emotion: 'planned',
+        notes: t.notes || 'Imported from MT5',
+        broker_position_id: t.brokerPositionId || null,
+        broker_ticket_id: t.brokerTicketId || null,
+      }));
+
+      if (rows.length > 0) {
+        const { error } = await supabase
+          .from('trades')
+          .insert(rows, { ignoreDuplicates: true });
+
+        if (error) {
+          console.error('Supabase bulkImportTrades error:', error);
+        }
+      }
+
+      // Apply balance operations to sub-account
+      if (accountId && balanceOps.length > 0) {
+        const netAdjustment = balanceOps.reduce((sum, op) => sum + (parseFloat(op.amount) || 0), 0);
+        if (netAdjustment !== 0) {
+          const accounts = await this.getAccounts(userId);
+          const targetAcc = accounts.find((a) => a.id === accountId);
+          if (targetAcc) {
+            const newBal = Math.max(0, targetAcc.initialBalance + netAdjustment);
+            await this.updateAccount(accountId, { initialBalance: newBal });
+          }
+        }
+      }
+
+      return await this.getAllTrades();
+    } catch (e) {
+      console.error('Failed bulkImportTrades in Supabase:', e);
+      return [];
+    }
   }
 };

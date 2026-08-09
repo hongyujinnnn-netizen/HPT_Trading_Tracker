@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -20,6 +20,7 @@ import {
   Sparkles,
   PanelRightClose,
   PanelRightOpen,
+  Globe,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -33,6 +34,7 @@ import {
 } from 'recharts';
 import { useTrade } from '../context/TradeContext';
 import { goldPriceService } from '../services/goldPriceService';
+import { cryptoGoldPriceService } from '../services/goldPriceService.crypto';
 import { getCurrentGoldSession } from '../utils/sessionDetector';
 import {
   calculateClassicPivots,
@@ -40,10 +42,26 @@ import {
   determineFallbackState,
 } from '../utils/pivotPoints';
 
+const CRYPTO_GOLD_SYMBOLS = [
+  { value: 'OKX:PAXGUSDT', label: 'OKX: PAXG/USDT (24/7 Paxos Gold)', ticker: 'PAXGUSDT' },
+  { value: 'BINANCE:PAXGUSDT', label: 'Binance: PAXG/USDT (24/7 Paxos Gold)', ticker: 'PAXGUSDT' },
+  { value: 'OKX:XAUTUSDT', label: 'OKX: XAUT/USDT (24/7 Tether Gold)', ticker: 'XAUTUSDT' },
+];
+
 export function GoldChart() {
   const { trades, pendingOrders, setActivePage, setSelectedTrade } = useTrade();
 
-  // Price & Market state (Canonical source: goldPriceService)
+  // Explicit Market Mode State: source + symbol
+  const [marketMode, setMarketMode] = useState(() => {
+    const savedSource = localStorage.getItem('tradepulse_gold_chart_mode') || 'oanda';
+    const savedSymbol = localStorage.getItem('tradepulse_crypto_gold_symbol') || 'OKX:PAXGUSDT';
+    return {
+      source: savedSource, // 'oanda' | 'okx-crypto'
+      symbol: savedSource === 'okx-crypto' ? savedSymbol : 'OANDA:XAUUSD',
+    };
+  });
+
+  // Price & Market state
   const [priceState, setPriceState] = useState({
     price: null,
     previousPrice: null,
@@ -70,80 +88,127 @@ export function GoldChart() {
   const tvContainerRef = useRef(null);
   const chartWrapperRef = useRef(null);
   const sentimentContainerRef = useRef(null);
+  const debounceTimerRef = useRef(null);
 
-  // Technical Analysis Widget loader
+  // 1. Persist market mode preference & handle 300ms debounced mode switching
+  const handleModeChange = useCallback((newSource, newSymbol) => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+
+    debounceTimerRef.current = setTimeout(() => {
+      const targetSource = newSource;
+      const targetSymbol = targetSource === 'okx-crypto' ? (newSymbol || 'OKX:PAXGUSDT') : 'OANDA:XAUUSD';
+
+      localStorage.setItem('tradepulse_gold_chart_mode', targetSource);
+      if (targetSource === 'okx-crypto') {
+        localStorage.setItem('tradepulse_crypto_gold_symbol', targetSymbol);
+      }
+
+      setMarketMode({ source: targetSource, symbol: targetSymbol });
+      setNativeTicks([]); // Clear tick history on mode change
+    }, 300);
+  }, []);
+
+  // Cleanup debounce timer
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, []);
+
+  // 2. Technical Analysis Widget loader for side panel
   useEffect(() => {
     if (!showSidePanel || !sentimentContainerRef.current) return;
     
-    // Only inject if container is empty or missing widget
-    if (sentimentContainerRef.current.children.length === 0) {
-      sentimentContainerRef.current.innerHTML = '';
+    sentimentContainerRef.current.innerHTML = '';
 
-      const container = document.createElement('div');
-      container.className = 'tradingview-widget-container';
-      container.style.width = '100%';
-      container.style.height = '100%';
+    const container = document.createElement('div');
+    container.className = 'tradingview-widget-container';
+    container.style.width = '100%';
+    container.style.height = '100%';
 
-      const widgetDiv = document.createElement('div');
-      widgetDiv.className = 'tradingview-widget-container__widget';
-      container.appendChild(widgetDiv);
+    const widgetDiv = document.createElement('div');
+    widgetDiv.className = 'tradingview-widget-container__widget';
+    container.appendChild(widgetDiv);
 
-      const script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js';
-      script.async = true;
-      script.text = JSON.stringify({
-        interval: '15m',
-        width: '100%',
-        isTransparent: true,
-        height: '220',
-        symbol: 'OANDA:XAUUSD',
-        showIntervalTabs: true,
-        displayMode: 'single',
-        locale: 'en',
-        colorTheme: 'dark',
-      });
-
-      container.appendChild(script);
-      sentimentContainerRef.current.appendChild(container);
-    }
-  }, [showSidePanel]);
-
-  // Current session info
-  const sessionInfo = useMemo(() => getCurrentGoldSession(), []);
-
-  // 1. Subscribe to canonical goldPriceService for live prices & native ticks
-  useEffect(() => {
-    const unsub = goldPriceService.subscribe((state) => {
-      setPriceState({
-        price: state.price,
-        previousPrice: state.previousPrice,
-        change24h: state.change24h || 0,
-        bid: state.bid,
-        ask: state.ask,
-        spread: state.bid && state.ask ? parseFloat((state.ask - state.bid).toFixed(2)) : 0,
-        source: state.source || 'unknown',
-      });
-
-      if (state.price) {
-        setNativeTicks((prev) => {
-          const now = new Date();
-          const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-          const newPoint = { time: timeStr, price: state.price };
-          const updated = [...prev, newPoint];
-          return updated.slice(-60); // Keep last 60 ticks
-        });
-      }
+    const script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js';
+    script.async = true;
+    script.text = JSON.stringify({
+      interval: '15m',
+      width: '100%',
+      isTransparent: true,
+      height: '220',
+      symbol: marketMode.symbol,
+      showIntervalTabs: true,
+      displayMode: 'single',
+      locale: 'en',
+      colorTheme: 'dark',
     });
 
-    return () => unsub();
-  }, []);
+    container.appendChild(script);
+    sentimentContainerRef.current.appendChild(container);
+  }, [showSidePanel, marketMode.symbol]);
 
-  // 2. Load TradingView script with timeout & error handling
+  // Current session info (gated on marketMode.source)
+  const sessionInfo = useMemo(() => getCurrentGoldSession(new Date(), marketMode.source), [marketMode.source]);
+
+  // 3. Subscribe to price stream based on active marketMode (Branched streams)
+  useEffect(() => {
+    let unsub = () => {};
+
+    if (marketMode.source === 'okx-crypto') {
+      const cryptoOption = CRYPTO_GOLD_SYMBOLS.find(s => s.value === marketMode.symbol) || CRYPTO_GOLD_SYMBOLS[0];
+      cryptoGoldPriceService.setSymbol(cryptoOption.ticker);
+      
+      unsub = cryptoGoldPriceService.subscribe((state) => {
+        setPriceState({
+          price: state.price,
+          previousPrice: state.previousPrice,
+          change24h: state.change24h || 0,
+          bid: state.bid,
+          ask: state.ask,
+          spread: state.bid && state.ask ? parseFloat((state.ask - state.bid).toFixed(2)) : 0,
+          source: state.source || 'crypto-ws',
+        });
+
+        if (state.price) {
+          setNativeTicks((prev) => {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            return [...prev, { time: timeStr, price: state.price }].slice(-60);
+          });
+        }
+      });
+    } else {
+      unsub = goldPriceService.subscribe((state) => {
+        setPriceState({
+          price: state.price,
+          previousPrice: state.previousPrice,
+          change24h: state.change24h || 0,
+          bid: state.bid,
+          ask: state.ask,
+          spread: state.bid && state.ask ? parseFloat((state.ask - state.bid).toFixed(2)) : 0,
+          source: state.source || 'unknown',
+        });
+
+        if (state.price) {
+          setNativeTicks((prev) => {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            return [...prev, { time: timeStr, price: state.price }].slice(-60);
+          });
+        }
+      });
+    }
+
+    return () => unsub();
+  }, [marketMode.source, marketMode.symbol]);
+
+  // 4. Load TradingView script with timeout & error handling
   useEffect(() => {
     let timer = null;
 
-    // Check if script already loaded globally
     if (window.TradingView) {
       setScriptLoaded(true);
     } else {
@@ -154,12 +219,8 @@ export function GoldChart() {
         script.src = 'https://s3.tradingview.com/tv.js';
         script.async = true;
 
-        script.onload = () => {
-          setScriptLoaded(true);
-        };
-        script.onerror = () => {
-          setScriptError(true);
-        };
+        script.onload = () => setScriptLoaded(true);
+        script.onerror = () => setScriptError(true);
 
         document.head.appendChild(script);
       } else {
@@ -167,7 +228,6 @@ export function GoldChart() {
         existingScript.addEventListener('error', () => setScriptError(true));
       }
 
-      // 5-second timeout fallback for silent ad-blocker suppression
       timer = setTimeout(() => {
         setTimerExpired(true);
       }, 5000);
@@ -184,7 +244,7 @@ export function GoldChart() {
     return determineFallbackState(scriptLoaded, scriptError, timerExpired);
   }, [chartMode, scriptLoaded, scriptError, timerExpired]);
 
-  // 3. Initialize TradingView Widget when script is ready
+  // 5. Initialize TradingView Widget with active marketMode.symbol
   useEffect(() => {
     if (isFallbackActive || !scriptLoaded || !tvContainerRef.current) return;
 
@@ -193,7 +253,7 @@ export function GoldChart() {
         tvContainerRef.current.innerHTML = '';
         new window.TradingView.widget({
           autosize: true,
-          symbol: 'OANDA:XAUUSD',
+          symbol: marketMode.symbol,
           interval: timeframe,
           timezone: 'Etc/UTC',
           theme: 'dark',
@@ -224,9 +284,9 @@ export function GoldChart() {
       console.warn('TradingView widget initialization failed:', err);
       setScriptError(true);
     }
-  }, [scriptLoaded, isFallbackActive, timeframe]);
+  }, [scriptLoaded, isFallbackActive, timeframe, marketMode.symbol]);
 
-  // 4. Calculate Pivot Points from canonical price
+  // 6. Calculate Pivot Points from active live price
   const pivots = useMemo(() => {
     const p = priceState.price || 2740.0;
     const high = p + 12.5;
@@ -239,7 +299,7 @@ export function GoldChart() {
     return calculateClassicPivots(high, low, close);
   }, [priceState.price, pivotType]);
 
-  // 5. Filter active XAU/USD trades from user journal
+  // 7. Filter active XAU/USD trades from user journal
   const xauTrades = useMemo(() => {
     const all = [...(trades || [])];
     return all.filter((t) => {
@@ -261,32 +321,53 @@ export function GoldChart() {
 
   return (
     <div className="flex flex-col gap-4 min-h-[calc(100vh-5rem)]">
-      {/* Top Header / Symbol Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 sm:p-4 rounded-xl bg-[#1B1F23] border border-[#262B30]">
+      {/* Top Header / Symbol & Market Mode Toolbar */}
+      <div className={`flex flex-wrap items-center justify-between gap-3 p-3 sm:p-4 rounded-xl bg-[#1B1F23] border transition-colors ${
+        marketMode.source === 'okx-crypto' ? 'border-[#3FA88C]/40 shadow-lg shadow-[#3FA88C]/5' : 'border-[#262B30]'
+      }`}>
         <div className="flex flex-wrap items-center gap-3 md:gap-4">
-          {/* Symbol Info */}
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-[#2A2311] border border-[#C9A227]/40 flex items-center justify-center font-bold text-[#C9A227] text-xs font-mono-num shadow-inner">
-              AU
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-bold font-mono-num text-[#EDEAE3] tracking-tight">
-                  OANDA:XAUUSD
-                </h1>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono-num font-semibold bg-[#131619] border border-[#262B30] text-[#8B8D91]">
-                  Gold Spot / USD
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-[#8B8D91] font-mono-num">
-                <span>Data Feed:</span>
-                <span className="text-[#C9A227] font-semibold flex items-center gap-1">
-                  <Zap size={11} />
-                  {!isFallbackActive ? 'TradingView Standard (Real-time)' : 'TradePulse Native WS'}
-                </span>
-              </div>
-            </div>
+          {/* Market Mode Switcher UI */}
+          <div className="flex items-center p-1 rounded-lg bg-[#131619] border border-[#262B30] gap-1">
+            <button
+              onClick={() => handleModeChange('oanda', 'OANDA:XAUUSD')}
+              className={`px-2.5 py-1.5 rounded-md text-xs font-bold font-display flex items-center gap-1.5 transition-all ${
+                marketMode.source === 'oanda'
+                  ? 'bg-[#2A2311] text-[#C9A227] border border-[#C9A227]/40 shadow'
+                  : 'text-[#8B8D91] hover:text-[#EDEAE3]'
+              }`}
+            >
+              <span>🏦 Spot Gold</span>
+              <span className="text-[10px] opacity-75 font-mono-num">(23/5 Forex)</span>
+            </button>
+
+            <button
+              onClick={() => handleModeChange('okx-crypto', 'OKX:PAXGUSDT')}
+              className={`px-2.5 py-1.5 rounded-md text-xs font-bold font-display flex items-center gap-1.5 transition-all ${
+                marketMode.source === 'okx-crypto'
+                  ? 'bg-[#1F4A40] text-[#3FA88C] border border-[#3FA88C]/50 shadow'
+                  : 'text-[#8B8D91] hover:text-[#EDEAE3]'
+              }`}
+            >
+              <Zap size={13} className="text-[#3FA88C] animate-pulse" />
+              <span>24/7 Crypto Gold</span>
+              <span className="px-1 py-0.2 rounded text-[9px] font-mono-num bg-[#3FA88C]/20 text-[#3FA88C]">NONSTOP</span>
+            </button>
           </div>
+
+          {/* Crypto Ticker Selector (Mode B Only) */}
+          {marketMode.source === 'okx-crypto' && (
+            <select
+              value={marketMode.symbol}
+              onChange={(e) => handleModeChange('okx-crypto', e.target.value)}
+              className="px-2.5 py-1.5 rounded-lg bg-[#131619] border border-[#3FA88C]/40 text-[#EDEAE3] text-xs font-mono-num font-semibold focus:outline-none focus:border-[#3FA88C]"
+            >
+              {CRYPTO_GOLD_SYMBOLS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          )}
 
           {/* Canonical Live Price Badge */}
           <div className="flex items-baseline gap-2 border-l border-[#262B30] pl-3 md:pl-4">
@@ -320,6 +401,14 @@ export function GoldChart() {
 
         {/* Toolbar Controls */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Session Status Pill */}
+          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#131619] border border-[#262B30] text-xs font-mono-num text-[#EDEAE3]">
+            <Globe size={13} className={marketMode.source === 'okx-crypto' ? 'text-[#3FA88C]' : 'text-[#C9A227]'} />
+            <span className="font-semibold" style={{ color: sessionInfo.color }}>
+              {sessionInfo.name}
+            </span>
+          </div>
+
           {/* Engine Switch Button */}
           <button
             onClick={() => setChartMode((prev) => (prev === 'tradingview' ? 'native' : 'tradingview'))}
@@ -370,6 +459,18 @@ export function GoldChart() {
         </div>
       </div>
 
+      {/* Persistent Disclaimer Banner for Mode B */}
+      {marketMode.source === 'okx-crypto' && (
+        <div className="px-4 py-2 rounded-lg bg-[#1F4A40]/20 border border-[#3FA88C]/30 flex items-center justify-between text-xs font-mono-num text-[#3FA88C]">
+          <div className="flex items-center gap-2">
+            <Info size={14} className="shrink-0" />
+            <span>
+              <strong>24/7 Mode Active:</strong> Tracks physical spot gold via PAXG/USDT (OKX/Binance) — trades nonstop through weekends. May show minor crypto basis spread vs COMEX/OANDA XAU/USD.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Main Grid: Chart Canvas (Left) + Technical Side Panel (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1">
         {/* Chart Canvas Area */}
@@ -402,7 +503,7 @@ export function GoldChart() {
             <div className="w-full flex-1 min-h-[500px] relative" id="tradingview_xauusd" ref={tvContainerRef}>
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-xs text-[#8B8D91] bg-[#0A0C0E]">
                 <Activity size={24} className="text-[#C9A227] animate-spin" />
-                <span>Initializing TradingView Gold Chart...</span>
+                <span>Initializing TradingView Gold Chart ({marketMode.symbol})...</span>
               </div>
             </div>
           ) : (
@@ -411,7 +512,7 @@ export function GoldChart() {
               <div className="flex items-center justify-between pb-3 border-b border-[#262B30]/60 text-xs font-mono-num text-[#8B8D91]">
                 <div className="flex items-center gap-2 text-[#3FA88C]">
                   <Wifi size={14} className="animate-pulse" />
-                  <span>TradePulse Realtime Gold Stream</span>
+                  <span>TradePulse Realtime {marketMode.source === 'okx-crypto' ? '24/7 Crypto Gold Stream' : 'Forex Gold Stream'}</span>
                 </div>
                 <div>{nativeTicks.length} ticks recorded</div>
               </div>
@@ -421,8 +522,8 @@ export function GoldChart() {
                   <AreaChart data={nativeTicks.length > 0 ? nativeTicks : [{ time: 'Now', price: priceState.price || 2740 }]}>
                     <defs>
                       <linearGradient id="goldGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#C9A227" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#C9A227" stopOpacity={0.0} />
+                        <stop offset="5%" stopColor={marketMode.source === 'okx-crypto' ? '#3FA88C' : '#C9A227'} stopOpacity={0.4} />
+                        <stop offset="95%" stopColor={marketMode.source === 'okx-crypto' ? '#3FA88C' : '#C9A227'} stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1B1F23" />
@@ -446,12 +547,12 @@ export function GoldChart() {
                     {priceState.price && (
                       <ReferenceLine
                         y={priceState.price}
-                        stroke="#C9A227"
+                        stroke={marketMode.source === 'okx-crypto' ? '#3FA88C' : '#C9A227'}
                         strokeDasharray="3 3"
-                        label={{ value: `Live $${priceState.price.toFixed(2)}`, fill: '#C9A227', fontSize: 11 }}
+                        label={{ value: `Live $${priceState.price.toFixed(2)}`, fill: marketMode.source === 'okx-crypto' ? '#3FA88C' : '#C9A227', fontSize: 11 }}
                       />
                     )}
-                    <Area type="monotone" dataKey="price" stroke="#C9A227" strokeWidth={2} fill="url(#goldGradient)" />
+                    <Area type="monotone" dataKey="price" stroke={marketMode.source === 'okx-crypto' ? '#3FA88C' : '#C9A227'} strokeWidth={2} fill="url(#goldGradient)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -470,10 +571,9 @@ export function GoldChart() {
                   Technical Sentiment
                 </h3>
               </div>
-              <span className="text-[10px] font-mono-num text-[#8B8D91]">XAUUSD</span>
+              <span className="text-[10px] font-mono-num text-[#8B8D91]">{marketMode.symbol}</span>
             </div>
 
-            {/* TradingView Embedded Technical Gauge Container */}
             <div
               ref={sentimentContainerRef}
               className="w-full min-h-[220px] rounded-lg bg-[#131619] border border-[#262B30] overflow-hidden relative"

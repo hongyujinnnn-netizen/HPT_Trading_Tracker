@@ -2,17 +2,21 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { tradeRepository } from '../services/tradeRepository';
 import { tradeStore } from '../services/tradeStore';
 import { imageStore } from '../services/imageStore';
-import { INITIAL_TRADES } from '../utils/mockData';
+import { INITIAL_TRADES, INITIAL_PENDING_ORDERS, INITIAL_ACCOUNTS } from '../utils/mockData';
+import { createTradingAccount } from '../types/accountSchema';
 import { detectMistakes } from '../utils/mistakeDetector';
 import { calculatePerformanceStats } from '../utils/calculations';
 import { isSupabaseConfigured, supabase } from '../services/supabaseClient';
 import { goldPriceService } from '../services/goldPriceService';
 import { orderEngine } from '../services/orderEngine';
+import { isTradeableSymbol } from '../utils/symbolGuard';
 
 const TradeContext = createContext(null);
 
 export function TradeProvider({ children }) {
   const [trades, setTrades] = useState([]);
+  const [tradingAccounts, setTradingAccounts] = useState([]);
+  const [activeAccountId, setActiveAccountIdState] = useState(() => tradeRepository.getActiveAccountId() || 'all');
   const [settings, setSettings] = useState(tradeStore.getSettings());
   const [dbViews, setDbViews] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,13 +37,20 @@ export function TradeProvider({ children }) {
   const [goldConnectionState, setGoldConnectionState] = useState('offline');
   const [orderToasts, setOrderToasts] = useState([]);
 
-  // Refresh trades, settings, and DB views from active repository
+  const setActiveAccountId = (id) => {
+    setActiveAccountIdState(id);
+    tradeRepository.setActiveAccountId(id);
+  };
+
+  // Refresh trades, accounts, settings, and DB views from active repository
   const refreshData = useCallback(async () => {
     setLoading(true);
 
     if (isDemoMode) {
       setUserSession(null);
+      setTradingAccounts(INITIAL_ACCOUNTS);
       setTrades(INITIAL_TRADES);
+      setPendingOrders(INITIAL_PENDING_ORDERS);
       setDbViews(null);
       setLoading(false);
       setAuthLoading(false);
@@ -52,6 +63,9 @@ export function TradeProvider({ children }) {
     if (activeSession) {
       const loadedSettings = await tradeRepository.getSettings();
       setSettings(loadedSettings);
+
+      const accounts = await tradeRepository.getAccounts();
+      setTradingAccounts(accounts || []);
 
       const storedTrades = await tradeRepository.getAllTrades();
       setTrades(storedTrades || []);
@@ -72,8 +86,11 @@ export function TradeProvider({ children }) {
         setDbViews(null);
       }
     } else {
-      // Unauthenticated state: strictly clear data and prevent mock data leakage
-      setTrades([]);
+      // Unauthenticated state fallback to local stored accounts
+      const accounts = await tradeStore.getAccounts();
+      setTradingAccounts(accounts || []);
+      const storedTrades = await tradeStore.getAllTrades();
+      setTrades(storedTrades || []);
       setDbViews(null);
       setUnmigratedTrades([]);
     }
@@ -298,6 +315,10 @@ export function TradeProvider({ children }) {
 
   // Save new trade
   const addTrade = useCallback(async (tradeInput, screenshotDataUrl = null) => {
+    if (tradeInput && tradeInput.symbol && !isTradeableSymbol(tradeInput.symbol)) {
+      throw new Error(`Symbol '${tradeInput.symbol}' is a 24/7 chart-only proxy. Trade execution & journaling are restricted to Spot Gold (XAUUSD).`);
+    }
+
     if (isDemoMode) {
       const newTrade = {
         ...tradeInput,
@@ -377,32 +398,144 @@ export function TradeProvider({ children }) {
   }, []);
 
   const createPendingOrder = useCallback(async (orderData) => {
-    const result = await tradeRepository.createPendingOrder(orderData);
+    const targetAccountId = orderData.accountId || (activeAccountId !== 'all' ? activeAccountId : null);
+    const result = await tradeRepository.createPendingOrder({
+      ...orderData,
+      accountId: targetAccountId,
+    });
     if (result) {
       await refreshOrders();
+      return result;
     }
-    return result;
-  }, [refreshOrders]);
+    // Demo / fallback local creation
+    const newOrder = {
+      id: `ord_${Date.now()}`,
+      account_id: targetAccountId,
+      accountId: targetAccountId,
+      symbol: 'XAUUSD',
+      order_type: orderData.orderType,
+      status: 'pending',
+      entry_price: parseFloat(orderData.entryPrice),
+      stop_loss: parseFloat(orderData.stopLoss),
+      take_profit: parseFloat(orderData.takeProfit),
+      lot_size: parseFloat(orderData.lotSize) || 0.1,
+      strategy: orderData.strategy || null,
+      session: orderData.session || null,
+      notes: orderData.notes || null,
+      created_at: new Date().toISOString(),
+      triggered_at: null,
+      closed_at: null,
+      expires_at: orderData.expiresAt || null,
+    };
+    setPendingOrders((prev) => [newOrder, ...prev]);
+    return newOrder;
+  }, [refreshOrders, activeAccountId]);
 
   const cancelPendingOrder = useCallback(async (orderId) => {
-    await tradeRepository.cancelOrder(orderId);
-    await refreshOrders();
+    const res = await tradeRepository.cancelOrder(orderId);
+    if (res) {
+      await refreshOrders();
+      return;
+    }
+    setPendingOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? { ...o, status: 'cancelled', closed_at: new Date().toISOString() }
+          : o
+      )
+    );
   }, [refreshOrders]);
 
   const deletePendingOrder = useCallback(async (orderId) => {
-    await tradeRepository.deletePendingOrder(orderId);
-    await refreshOrders();
+    const res = await tradeRepository.deletePendingOrder(orderId);
+    if (res) {
+      await refreshOrders();
+      return;
+    }
+    setPendingOrders((prev) => prev.filter((o) => o.id !== orderId));
   }, [refreshOrders]);
 
   const clearOrderHistory = useCallback(async () => {
-    await tradeRepository.clearOrderHistory();
-    await refreshOrders();
+    const res = await tradeRepository.clearOrderHistory();
+    if (res) {
+      await refreshOrders();
+      return;
+    }
+    setPendingOrders((prev) =>
+      prev.filter((o) => ['pending', 'active'].includes(o.status))
+    );
   }, [refreshOrders]);
 
-  // Merge client-side calculations with database view stats if present
-  const calculatedStats = calculatePerformanceStats(trades, settings.accountBalance);
+  // Automatic Stop-Out Guard: If a sub-account balance reaches $0, liquidate all pending orders for that account
+  useEffect(() => {
+    if (!tradingAccounts || tradingAccounts.length === 0) return;
 
-  const stats = dbViews && dbViews.stats ? {
+    tradingAccounts.forEach((acc) => {
+      const accTrades = trades.filter((t) => t.accountId === acc.id || t.account_id === acc.id);
+      const realizedPnlSum = accTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
+      const effectiveBalance = (parseFloat(acc.initialBalance) || 0) + realizedPnlSum;
+
+      if (effectiveBalance <= 0 || acc.initialBalance <= 0) {
+        const stoppedOutOrders = pendingOrders.filter(
+          (o) => (o.accountId === acc.id || o.account_id === acc.id) && (o.status === 'pending' || o.status === 'active')
+        );
+
+        if (stoppedOutOrders.length > 0) {
+          console.warn(`🚨 Stop-Out Triggered for sub-account "${acc.name}". Liquidating ${stoppedOutOrders.length} orders.`);
+          stoppedOutOrders.forEach((o) => cancelPendingOrder(o.id));
+          addToast('sl', `🚨 Stop-Out Triggered: Liquidated ${stoppedOutOrders.length} orders for ${acc.name} (Balance reached $0.00).`);
+        }
+      }
+    });
+  }, [tradingAccounts, trades, pendingOrders, cancelPendingOrder, addToast]);
+
+  // Sub-Account CRUD Operations
+  const addTradingAccount = async (accountData) => {
+    const newAcc = await tradeRepository.addAccount(accountData);
+    if (newAcc) {
+      setTradingAccounts((prev) => [...prev, newAcc]);
+    }
+    return newAcc;
+  };
+
+  const updateTradingAccount = async (id, updates) => {
+    const updated = await tradeRepository.updateAccount(id, updates);
+    if (updated) {
+      setTradingAccounts((prev) => prev.map((a) => (a.id === id ? updated : a)));
+    }
+    return updated;
+  };
+
+  const archiveTradingAccount = async (id) => {
+    const archived = await tradeRepository.archiveAccount(id);
+    if (archived) {
+      setTradingAccounts((prev) => prev.map((a) => (a.id === id ? archived : a)));
+    }
+    return archived;
+  };
+
+  // Determine active account object
+  const activeAccount = tradingAccounts.find((a) => a.id === activeAccountId) || null;
+
+  // Filter trades and pending orders by active sub-account
+  const filteredTrades = activeAccountId === 'all'
+    ? trades
+    : trades.filter((t) => !t.accountId || t.accountId === activeAccountId);
+
+  const filteredPendingOrders = activeAccountId === 'all'
+    ? pendingOrders
+    : pendingOrders.filter((o) => !o.accountId || o.accountId === activeAccountId);
+
+  // Compute total base capital
+  const visibleAccounts = tradingAccounts.filter((a) => !a.isArchived);
+  const accountBaseBalance = activeAccountId === 'all'
+    ? visibleAccounts.reduce((sum, a) => sum + (parseFloat(a.initialBalance) || 0), 0) || settings.accountBalance
+    : activeAccount ? (parseFloat(activeAccount.initialBalance) || 10000) : settings.accountBalance;
+
+  // Merge client-side calculations over filtered trades with accurate base balance
+  const calculatedStats = calculatePerformanceStats(filteredTrades, accountBaseBalance);
+
+  const stats = (activeAccountId === 'all' && dbViews && dbViews.stats) ? {
     ...calculatedStats,
     totalPnl: parseFloat(dbViews.stats.total_pnl) || calculatedStats.totalPnl,
     winRate: parseFloat(dbViews.stats.win_rate_pct) || calculatedStats.winRate,
@@ -414,6 +547,14 @@ export function TradeProvider({ children }) {
     <TradeContext.Provider
       value={{
         trades,
+        filteredTrades,
+        tradingAccounts,
+        activeAccountId,
+        setActiveAccountId,
+        activeAccount,
+        addTradingAccount,
+        updateTradingAccount,
+        archiveTradingAccount,
         settings,
         stats,
         dbViews,
@@ -445,6 +586,7 @@ export function TradeProvider({ children }) {
         refreshData,
         // Pending Orders
         pendingOrders,
+        filteredPendingOrders,
         liveGoldPrice,
         goldConnectionState,
         orderToasts,

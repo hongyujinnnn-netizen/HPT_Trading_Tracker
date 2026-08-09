@@ -3,10 +3,51 @@
  */
 
 import { createTrade } from '../types/tradeSchema';
+import { createTradingAccount } from '../types/accountSchema';
+
+export const INITIAL_ACCOUNTS = [
+  createTradingAccount({
+    id: 'acc_exness_live',
+    name: 'Primary Exness MT5',
+    broker: 'Exness',
+    accountType: 'live',
+    accountNumber: '8821940',
+    initialBalance: 10000,
+    currency: 'USD',
+    leverage: '1:500',
+    colorHex: '#C9A227',
+    isDefault: true,
+  }),
+  createTradingAccount({
+    id: 'acc_ftmo_100k',
+    name: 'FTMO Challenge $100K',
+    broker: 'FTMO',
+    accountType: 'challenge',
+    accountNumber: '991024',
+    initialBalance: 100000,
+    currency: 'USD',
+    leverage: '1:100',
+    colorHex: '#3B82F6',
+    isDefault: false,
+  }),
+  createTradingAccount({
+    id: 'acc_gold_demo',
+    name: 'Gold Scalper Demo',
+    broker: 'IC Markets',
+    accountType: 'demo',
+    accountNumber: '501294',
+    initialBalance: 5000,
+    currency: 'USD',
+    leverage: '1:200',
+    colorHex: '#10B981',
+    isDefault: false,
+  }),
+];
 
 export const INITIAL_TRADES = [
   createTrade({
     id: 'tr_8',
+    accountId: 'acc_exness_live',
     timestamp: '2026-07-29T14:15:00Z',
     date: '2026-07-29',
     side: 'Buy',
@@ -165,3 +206,99 @@ export const INITIAL_EQUITY_CURVE = [
   { d: 'Jul 19', v: 11240 }, { d: 'Jul 21', v: 11510 }, { d: 'Jul 23', v: 11380 },
   { d: 'Jul 25', v: 11720 }, { d: 'Jul 27', v: 12040 }, { d: 'Jul 29', v: 11960 },
 ];
+
+export const INITIAL_PENDING_ORDERS = [
+  {
+    id: 'ord_101',
+    symbol: 'XAUUSD',
+    order_type: 'buy_stop',
+    status: 'pending',
+    entry_price: 2435.50,
+    stop_loss: 2425.00,
+    take_profit: 2455.00,
+    lot_size: 0.30,
+    strategy: 'Breakout',
+    session: 'London',
+    notes: 'Awaiting 15m breakout above London high before US session open.',
+    created_at: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
+    triggered_at: null,
+    closed_at: null,
+    expires_at: new Date(Date.now() + 14400000).toISOString(), // expires in 4 hours
+  },
+  {
+    id: 'ord_102',
+    symbol: 'XAUUSD',
+    order_type: 'sell_limit',
+    status: 'active',
+    entry_price: 2428.00,
+    stop_loss: 2438.00,
+    take_profit: 2408.00,
+    lot_size: 0.50,
+    strategy: 'Pullback',
+    session: 'New York',
+    notes: 'Rejection at 4h supply zone. Position triggered at London close.',
+    created_at: new Date(Date.now() - 18000000).toISOString(), // 5 hours ago
+    triggered_at: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+    triggered_price: 2428.10,
+    closed_at: null,
+    expires_at: null,
+  },
+  {
+    id: 'ord_103',
+    symbol: 'XAUUSD',
+    order_type: 'buy_limit',
+    status: 'closed_tp',
+    entry_price: 2410.00,
+    stop_loss: 2400.00,
+    take_profit: 2430.00,
+    lot_size: 0.40,
+    strategy: 'Order Block / ICT',
+    session: 'Asian',
+    notes: 'Swept Asian low order block. Hit TP within 6 hours of activation.',
+    created_at: new Date(Date.now() - 86400000).toISOString(), // 24 hours ago
+    triggered_at: new Date(Date.now() - 64800000).toISOString(), // 18 hours ago
+    triggered_price: 2410.00,
+    closed_at: new Date(Date.now() - 43200000).toISOString(), // 12 hours ago
+    closed_price: 2430.00,
+    expires_at: null,
+    resulting_trade_id: 'tr_8',
+  },
+  {
+    id: 'ord_104',
+    symbol: 'XAUUSD',
+    order_type: 'sell_stop',
+    status: 'closed_sl',
+    entry_price: 2402.00,
+    stop_loss: 2410.00,
+    take_profit: 2385.00,
+    lot_size: 0.25,
+    strategy: 'News Trading',
+    session: 'New York',
+    notes: 'Short volatility breakout on PCE news release. Stopped out during whip.',
+    created_at: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+    triggered_at: new Date(Date.now() - 150000000).toISOString(),
+    triggered_price: 2402.10,
+    closed_at: new Date(Date.now() - 120000000).toISOString(),
+    closed_price: 2410.00,
+    expires_at: null,
+    resulting_trade_id: 'tr_7',
+  },
+  {
+    id: 'ord_105',
+    symbol: 'XAUUSD',
+    order_type: 'buy_stop',
+    status: 'cancelled',
+    entry_price: 2445.00,
+    stop_loss: 2435.00,
+    take_profit: 2470.00,
+    lot_size: 0.20,
+    strategy: 'Breakout',
+    session: 'London Close',
+    notes: 'Cancelled manually prior to high-impact FOMC speech.',
+    created_at: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
+    triggered_at: null,
+    closed_at: new Date(Date.now() - 216000000).toISOString(),
+    expires_at: null,
+  },
+];
+

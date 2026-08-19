@@ -99,16 +99,24 @@ export function PendingOrders() {
     const distanceToEntry = liveGoldPrice ? Math.abs(liveGoldPrice - ep) : null;
     const requiredMargin = (ep * lots * contractSize) / (leverageNum || 500);
 
+    // Broker-style margin info
+    const balance = targetSubAccount ? parseFloat(targetSubAccount.initialBalance) || 0 : 0;
+    const freeMargin = balance - requiredMargin;
+    const marginLevel = requiredMargin > 0 ? (balance / requiredMargin) * 100 : 0;
+
     return {
       potentialProfit: potentialProfit.toFixed(2),
       potentialLoss: Math.abs(potentialLoss).toFixed(2),
       riskReward: riskReward.toFixed(2),
       distanceToEntry: distanceToEntry ? distanceToEntry.toFixed(2) : null,
       requiredMargin: requiredMargin.toFixed(2),
+      freeMargin: freeMargin.toFixed(2),
+      marginLevel: marginLevel.toFixed(0),
+      balance: balance.toFixed(2),
     };
-  }, [entryPrice, stopLoss, takeProfit, lotSize, orderType, liveGoldPrice, contractSize, leverageNum]);
+  }, [entryPrice, stopLoss, takeProfit, lotSize, orderType, liveGoldPrice, contractSize, leverageNum, targetSubAccount]);
 
-  // Validation
+  // Validation (only blocks on real errors — broker-style allows any lot size with leverage)
   const validationError = useMemo(() => {
     const ep = parseFloat(entryPrice);
     const sl = parseFloat(stopLoss);
@@ -121,11 +129,6 @@ export function PendingOrders() {
 
     if (!ep || !sl || !tp || !lots) return null; // Not filled yet, not an error
     if (lots <= 0) return 'Lot size must be positive';
-
-    const requiredMargin = (ep * lots * contractSize) / (leverageNum || 500);
-    if (targetSubAccount && requiredMargin > targetSubAccount.initialBalance) {
-      return `Insufficient margin on ${targetSubAccount.name}. Available: $${targetSubAccount.initialBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}, Required Margin: $${requiredMargin.toFixed(2)}`;
-    }
 
     const isBuy = orderType === 'buy_stop' || orderType === 'buy_limit';
     if (isBuy) {
@@ -144,7 +147,21 @@ export function PendingOrders() {
     }
 
     return null;
-  }, [entryPrice, stopLoss, takeProfit, lotSize, orderType, liveGoldPrice, targetSubAccount, contractSize, leverageNum]);
+  }, [entryPrice, stopLoss, takeProfit, lotSize, orderType, liveGoldPrice, targetSubAccount]);
+
+  // Non-blocking margin warning (informational, like brokers show)
+  const marginWarning = useMemo(() => {
+    if (!preview || !targetSubAccount) return null;
+    const marginLevel = parseFloat(preview.marginLevel);
+    const freeMargin = parseFloat(preview.freeMargin);
+    if (freeMargin < 0) {
+      return `⚠ High leverage position — Free Margin: -$${Math.abs(freeMargin).toFixed(2)} (Margin Level: ${marginLevel}%)`;
+    }
+    if (marginLevel > 0 && marginLevel < 200) {
+      return `⚠ Low margin level: ${marginLevel}% — Consider reducing lot size`;
+    }
+    return null;
+  }, [preview, targetSubAccount]);
 
   const canSubmit = entryPrice && stopLoss && takeProfit && lotSize && !validationError && !isSubmitting;
 
@@ -377,11 +394,20 @@ export function PendingOrders() {
               </div>
             )}
 
-            {/* Preview Panel */}
+            {/* Margin Warning (non-blocking, broker-style) */}
+            {!validationError && marginWarning && (
+              <div className="px-3 py-2 rounded-lg bg-[#3D3215]/50 border border-[#C9A227]/40 text-xs text-[#C9A227] font-mono-num">
+                {marginWarning}
+              </div>
+            )}
+
+            {/* Preview Panel — Broker-Style */}
             {preview && !validationError && (
-              <div className="p-3 rounded-lg bg-[#0A0C0E] border border-[#262B30] space-y-2">
+              <div className="p-3 rounded-lg bg-[#0A0C0E] border border-[#262B30] space-y-3">
                 <div className="text-[10px] uppercase tracking-wider text-[#8B8D91] mb-1">Order Preview</div>
-                <div className="grid grid-cols-2 gap-2 text-xs font-mono-num">
+
+                {/* P&L & Risk Section */}
+                <div className="grid grid-cols-3 gap-2 text-xs font-mono-num">
                   <div>
                     <span className="text-[#5A5D61]">Potential Profit</span>
                     <div className="text-[#3FA88C] font-bold">+${preview.potentialProfit}</div>
@@ -394,17 +420,48 @@ export function PendingOrders() {
                     <span className="text-[#5A5D61]">Risk : Reward</span>
                     <div className="text-[#C9A227] font-bold">1 : {preview.riskReward}</div>
                   </div>
-                  <div>
-                    <span className="text-[#5A5D61]">Required Margin</span>
-                    <div className="text-[#C9A227] font-bold">${preview.requiredMargin}</div>
-                  </div>
-                  {preview.distanceToEntry && (
-                    <div>
-                      <span className="text-[#5A5D61]">Distance to Entry</span>
-                      <div className="text-[#EDEAE3] font-bold">${preview.distanceToEntry}</div>
-                    </div>
-                  )}
                 </div>
+
+                {/* Broker Margin Section */}
+                <div className="pt-2 border-t border-[#1E2226]">
+                  <div className="text-[10px] uppercase tracking-wider text-[#5A5D61] mb-1.5">Margin Info</div>
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono-num">
+                    <div>
+                      <span className="text-[#5A5D61]">Balance</span>
+                      <div className="text-[#EDEAE3] font-bold">${preview.balance}</div>
+                    </div>
+                    <div>
+                      <span className="text-[#5A5D61]">Required Margin</span>
+                      <div className="text-[#C9A227] font-bold">${preview.requiredMargin}</div>
+                    </div>
+                    <div>
+                      <span className="text-[#5A5D61]">Free Margin</span>
+                      <div className={`font-bold ${parseFloat(preview.freeMargin) >= 0 ? 'text-[#3FA88C]' : 'text-[#C1502E]'}`}>
+                        ${preview.freeMargin}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[#5A5D61]">Margin Level</span>
+                      <div className={`font-bold ${
+                        parseFloat(preview.marginLevel) >= 500 ? 'text-[#3FA88C]' :
+                        parseFloat(preview.marginLevel) >= 200 ? 'text-[#C9A227]' :
+                        'text-[#C1502E]'
+                      }`}>
+                        {preview.marginLevel}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Distance to Entry */}
+                {preview.distanceToEntry && (
+                  <div className="pt-2 border-t border-[#1E2226]">
+                    <div className="flex items-center justify-between text-xs font-mono-num">
+                      <span className="text-[#5A5D61]">Distance to Entry</span>
+                      <span className="text-[#EDEAE3] font-bold">${preview.distanceToEntry}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

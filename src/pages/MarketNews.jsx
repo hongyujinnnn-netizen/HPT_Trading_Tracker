@@ -92,16 +92,20 @@ export function MarketNews() {
   }
 
   function formatTimeLabel(event) {
-    if (event.timeLabel) return event.timeLabel;
+    const tz = 'Asia/Bangkok'; // UTC+7
     try {
-      const d = new Date(event.event_time);
-      const month = d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
-      const day = String(d.getUTCDate()).padStart(2, '0');
-      const hh = String(d.getUTCHours()).padStart(2, '0');
-      const mm = String(d.getUTCMinutes()).padStart(2, '0');
-      return `${month} ${day} · ${hh}:${mm} UTC`;
+      // Prefer event_time (ISO from DB), fall back to timestamp (seeded data)
+      const raw = event.event_time || event.timestamp;
+      if (!raw) return event.timeLabel || '';
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return event.timeLabel || '';
+      const month = d.toLocaleString('en-US', { month: 'short', timeZone: tz });
+      const day = String(d.toLocaleString('en-US', { day: '2-digit', timeZone: tz })).padStart(2, '0');
+      const hh = String(d.toLocaleString('en-US', { hour: '2-digit', hour12: false, timeZone: tz })).padStart(2, '0');
+      const mm = String(d.toLocaleString('en-US', { minute: '2-digit', timeZone: tz })).padStart(2, '0');
+      return `${month} ${day} · ${hh}:${mm} UTC+7`;
     } catch {
-      return event.event_time || '';
+      return event.timeLabel || '';
     }
   }
 
@@ -162,7 +166,11 @@ export function MarketNews() {
           </div>
         ) : (
           <div className="divide-y divide-[#1E2226]">
-            {events.map((event) => {
+            {[...events].sort((a, b) => {
+              const tA = new Date(a.event_time || a.timestamp || 0).getTime();
+              const tB = new Date(b.event_time || b.timestamp || 0).getTime();
+              return tA - tB;
+            }).map((event) => {
               const impact = event.impact || 'low';
               const title = event.title;
               const note = event.note;

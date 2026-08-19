@@ -182,8 +182,9 @@ export function TradeProvider({ children }) {
         const isBuy = order.order_type === 'buy_stop' || order.order_type === 'buy_limit';
         const triggerPrice = parseFloat(order.triggered_price) || parseFloat(order.entry_price);
         const side = isBuy ? 'Buy' : 'Sell';
+        const orderAccountId = order.account_id || order.accountId || null;
 
-        // Create the trade record automatically
+        // Create the trade record automatically (linked to sub-account)
         const tradeData = {
           side,
           entryPrice: triggerPrice,
@@ -191,11 +192,12 @@ export function TradeProvider({ children }) {
           stopLoss: parseFloat(order.stop_loss),
           takeProfit: parseFloat(order.take_profit),
           lotSize: parseFloat(order.lot_size),
-          strategy: order.strategy || 'Breakout',
-          session: order.session || 'London',
+          strategy: order.strategy || null,
+          session: order.session || null,
           emotion: 'Planned',
           notes: `Auto-executed from pending order (TP hit). ${order.notes || ''}`.trim(),
           timestamp: order.triggered_at || new Date().toISOString(),
+          accountId: orderAccountId,
         };
 
         const savedTrade = await tradeRepository.addTrade(tradeData);
@@ -211,6 +213,19 @@ export function TradeProvider({ children }) {
         const pnl = isBuy
           ? (closedPrice - triggerPrice) * parseFloat(order.lot_size) * cs
           : (triggerPrice - closedPrice) * parseFloat(order.lot_size) * cs;
+
+        // Update sub-account balance with realized P&L (broker-style)
+        if (orderAccountId) {
+          const acc = tradingAccounts.find(a => a.id === orderAccountId);
+          if (acc) {
+            const newBalance = Math.max(0, (parseFloat(acc.initialBalance) || 0) + pnl);
+            await tradeRepository.updateAccount(orderAccountId, { initialBalance: newBalance });
+            setTradingAccounts(prev => prev.map(a =>
+              a.id === orderAccountId ? { ...a, initialBalance: newBalance } : a
+            ));
+          }
+        }
+
         addToast('closed_tp', `${side} closed at Take Profit — +$${pnl.toFixed(2)}`);
 
         await refreshOrders();
@@ -221,6 +236,7 @@ export function TradeProvider({ children }) {
         const isBuy = order.order_type === 'buy_stop' || order.order_type === 'buy_limit';
         const triggerPrice = parseFloat(order.triggered_price) || parseFloat(order.entry_price);
         const side = isBuy ? 'Buy' : 'Sell';
+        const orderAccountId = order.account_id || order.accountId || null;
 
         const tradeData = {
           side,
@@ -229,11 +245,12 @@ export function TradeProvider({ children }) {
           stopLoss: parseFloat(order.stop_loss),
           takeProfit: parseFloat(order.take_profit),
           lotSize: parseFloat(order.lot_size),
-          strategy: order.strategy || 'Breakout',
-          session: order.session || 'London',
+          strategy: order.strategy || null,
+          session: order.session || null,
           emotion: 'Planned',
           notes: `Auto-executed from pending order (SL hit). ${order.notes || ''}`.trim(),
           timestamp: order.triggered_at || new Date().toISOString(),
+          accountId: orderAccountId,
         };
 
         const savedTrade = await tradeRepository.addTrade(tradeData);
@@ -249,6 +266,19 @@ export function TradeProvider({ children }) {
         const pnl = isBuy
           ? (closedPrice - triggerPrice) * parseFloat(order.lot_size) * cs
           : (triggerPrice - closedPrice) * parseFloat(order.lot_size) * cs;
+
+        // Update sub-account balance with realized P&L (broker-style)
+        if (orderAccountId) {
+          const acc = tradingAccounts.find(a => a.id === orderAccountId);
+          if (acc) {
+            const newBalance = Math.max(0, (parseFloat(acc.initialBalance) || 0) + pnl);
+            await tradeRepository.updateAccount(orderAccountId, { initialBalance: newBalance });
+            setTradingAccounts(prev => prev.map(a =>
+              a.id === orderAccountId ? { ...a, initialBalance: newBalance } : a
+            ));
+          }
+        }
+
         addToast('closed_sl', `${side} closed at Stop Loss — -$${Math.abs(pnl).toFixed(2)}`);
 
         await refreshOrders();

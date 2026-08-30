@@ -189,12 +189,26 @@ export const supabaseStore = {
    * Folder path structure matches RLS Policy: {userId}/{tradeId}/entry.png
    */
   async uploadScreenshot(tradeId, userId, fileOrBlob) {
-    if (!supabase || !userId) return null;
+    if (!supabase || !userId || !fileOrBlob) return null;
     try {
+      // Validate file type
+      const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/jpg'];
+      if (fileOrBlob.type && !allowedMimeTypes.includes(fileOrBlob.type.toLowerCase())) {
+        console.warn('Screenshot upload rejected: Invalid MIME type', fileOrBlob.type);
+        throw new Error('Only PNG, JPEG, and WebP images are permitted.');
+      }
+
+      // Enforce 5MB max file size
+      const maxSizeBytes = 5 * 1024 * 1024;
+      if (fileOrBlob.size && fileOrBlob.size > maxSizeBytes) {
+        console.warn('Screenshot upload rejected: File exceeds 5MB size limit', fileOrBlob.size);
+        throw new Error('Screenshot file size must be less than 5 MB.');
+      }
+
       const storagePath = `${userId}/${tradeId}/entry.png`;
       const { data, error } = await supabase.storage
         .from('trade-screenshots')
-        .upload(storagePath, fileOrBlob, { upsert: true });
+        .upload(storagePath, fileOrBlob, { upsert: true, contentType: fileOrBlob.type || 'image/png' });
 
       if (error) {
         console.error('Storage upload error:', error);
@@ -669,6 +683,44 @@ export const supabaseStore = {
       return await this.getAllTrades();
     } catch (e) {
       console.error('Failed bulkImportTrades in Supabase:', e);
+      return [];
+    }
+  },
+
+  /**
+   * Fetch historical price snapshots converted to OHLC candles for backtesting
+   */
+  async fetchHistoricalCandles(symbol = 'XAUUSD', timeframe = '4h', limit = 1000) {
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('price_snapshots')
+        .select('captured_at, price, spread')
+        .eq('symbol', symbol)
+        .order('captured_at', { ascending: true })
+        .limit(limit);
+
+      if (error) {
+        console.error('Error fetching price snapshots:', error);
+        return [];
+      }
+
+      if (!data || data.length === 0) return [];
+
+      // Convert snapshot ticks into synthetic OHLC bars based on timestamp
+      return data.map((snap, i) => {
+        const p = parseFloat(snap.price);
+        const spread = parseFloat(snap.spread) || 0.25;
+        return {
+          time: snap.captured_at,
+          open: p - (i % 2 === 0 ? spread * 0.5 : -spread * 0.5),
+          high: p + spread * 1.5,
+          low: p - spread * 1.5,
+          close: p,
+        };
+      });
+    } catch (e) {
+      console.error('Failed to fetch historical candles:', e);
       return [];
     }
   }

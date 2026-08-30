@@ -45,7 +45,9 @@ DROP POLICY IF EXISTS "users_insert_own_orders" ON public.pending_orders;
 CREATE POLICY "users_insert_own_orders" ON public.pending_orders FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "users_update_own_orders" ON public.pending_orders;
-CREATE POLICY "users_update_own_orders" ON public.pending_orders FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "users_update_own_orders" ON public.pending_orders FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "users_delete_own_orders" ON public.pending_orders;
 CREATE POLICY "users_delete_own_orders" ON public.pending_orders FOR DELETE USING (auth.uid() = user_id);

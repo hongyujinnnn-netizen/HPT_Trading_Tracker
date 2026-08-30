@@ -11,6 +11,7 @@ export function AuthGate() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
@@ -78,6 +79,12 @@ export function AuthGate() {
         if (error) throw error;
         setSuccessMsg('Password reset link sent! Please check your email inbox.');
       } else if (mode === 'reset') {
+        if (newPassword !== confirmPassword) {
+          throw new Error('New password and confirmation password do not match.');
+        }
+        if (newPassword.length < 8) {
+          throw new Error('Password must be at least 8 characters long.');
+        }
         const { error } = await supabase.auth.updateUser({ password: newPassword });
         if (error) throw error;
         setSuccessMsg('Password updated successfully! You can now access your account.');
@@ -251,13 +258,13 @@ export function AuthGate() {
 
               <div>
                 <label className="text-[11px] uppercase font-bold text-[#8B8D91] tracking-wider block mb-1">
-                  New Password
+                  New Password (min 8 chars)
                 </label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
-                    minLength={6}
+                    minLength={8}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="••••••••••••"
@@ -267,10 +274,33 @@ export function AuthGate() {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8B8D91] hover:text-[#EDEAE3]"
+                    aria-label="Toggle password visibility"
                   >
                     {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] uppercase font-bold text-[#8B8D91] tracking-wider block mb-1">
+                  Confirm New Password
+                </label>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  minLength={8}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className={`w-full px-3 py-2.5 bg-[#1B1F23] border rounded-lg text-xs text-[#EDEAE3] outline-none transition-colors ${
+                    confirmPassword && confirmPassword !== newPassword
+                      ? 'border-[#C1502E] focus:border-[#C1502E]'
+                      : 'border-[#262B30] focus:border-[#C9A227]'
+                  }`}
+                />
+                {confirmPassword && confirmPassword !== newPassword && (
+                  <p className="text-[10px] text-[#C1502E] mt-1">Passwords do not match</p>
+                )}
               </div>
 
               <button

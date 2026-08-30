@@ -1,11 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Save, RefreshCw, Shield, LogOut, Cloud, Sparkles, Activity, AlertTriangle, Radio } from 'lucide-react';
+import { Settings as SettingsIcon, Save, RefreshCw, Shield, LogOut, Cloud, Sparkles, Activity, AlertTriangle, Radio, Bell, BellRing, Volume2, VolumeX, Send } from 'lucide-react';
 import { useTrade } from '../context/TradeContext';
 import { SectionLabel } from '../components/SectionLabel';
 import { tradeRepository } from '../services/tradeRepository';
 
 export function Settings() {
-  const { settings, updateSettings, resetAllData, userSession, signOut, isDemoMode } = useTrade();
+  const {
+    settings,
+    updateSettings,
+    resetAllData,
+    userSession,
+    signOut,
+    isDemoMode,
+    isSoundEnabled,
+    toggleNotificationSound,
+    pushPermission,
+    enablePushNotifications,
+    sendNotification,
+  } = useTrade();
 
   const [balance, setBalance] = useState(settings.accountBalance);
   const [riskPct, setRiskPct] = useState(settings.defaultRiskPct);
@@ -35,6 +47,14 @@ export function Settings() {
     setTimeout(() => setSavedMsg(false), 2000);
   };
 
+  const handleTestNotification = () => {
+    sendNotification({
+      type: 'alert',
+      title: '🔔 Test Alert Notification',
+      message: 'TradePulse Gold notifications & audio chimes are functioning properly!',
+    });
+  };
+
   const handleReset = async () => {
     if (window.confirm('Are you sure you want to clear local cached trade history?')) {
       await resetAllData();
@@ -46,7 +66,7 @@ export function Settings() {
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in select-none">
       <div>
         <h1 className="text-xl font-bold font-display text-[#EDEAE3]">Account Preferences &amp; Configuration</h1>
-        <p className="text-xs text-[#8B8D91]">Configure base balance, default risk parameters, and gold contract unit size</p>
+        <p className="text-xs text-[#8B8D91]">Configure base balance, default risk parameters, notification alerts, and gold contract unit size</p>
       </div>
 
       {savedMsg && (
@@ -54,6 +74,79 @@ export function Settings() {
           ✓ Settings saved successfully!
         </div>
       )}
+
+      {/* Notification & Alert Preferences Card */}
+      <div className="terminal-card p-6 space-y-4">
+        <SectionLabel>Notifications &amp; Real-Time Alerts</SectionLabel>
+        <p className="text-xs text-[#8B8D91]">
+          Receive real-time alerts for price targets, order fills, TP/SL hits, and institutional edge degradation warnings.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          {/* Audio Chime Setting */}
+          <div className="p-3.5 bg-[#131619] border border-[#262B30] rounded-xl flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${isSoundEnabled ? 'bg-[#152E25] text-[#3FA88C]' : 'bg-[#1B1F23] text-[#5A5D61]'}`}>
+                {isSoundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+              </div>
+              <div>
+                <span className="text-xs font-bold text-[#EDEAE3] block">Audio Chime</span>
+                <span className="text-[10px] text-[#8B8D91]">{isSoundEnabled ? 'Sound Enabled' : 'Muted'}</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={toggleNotificationSound}
+              className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${
+                isSoundEnabled
+                  ? 'bg-[#1F4A40] text-[#3FA88C] border border-[#3FA88C]/40'
+                  : 'bg-[#1B1F23] text-[#8B8D91] border border-[#262B30] hover:text-[#EDEAE3]'
+              }`}
+            >
+              {isSoundEnabled ? 'Active' : 'Enable'}
+            </button>
+          </div>
+
+          {/* Browser Desktop Push Notification */}
+          <div className="p-3.5 bg-[#131619] border border-[#262B30] rounded-xl flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${pushPermission === 'granted' ? 'bg-[#2A2311] text-[#C9A227]' : 'bg-[#1B1F23] text-[#5A5D61]'}`}>
+                <BellRing size={18} />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-[#EDEAE3] block">Desktop Push</span>
+                <span className="text-[10px] text-[#8B8D91]">
+                  {pushPermission === 'granted' ? 'Allowed' : pushPermission === 'denied' ? 'Blocked by Browser' : 'Click to Request'}
+                </span>
+              </div>
+            </div>
+
+            {pushPermission === 'granted' ? (
+              <span className="px-2.5 py-1 rounded text-[11px] font-semibold bg-[#152E25] text-[#3FA88C] border border-[#3FA88C]/30">
+                Active
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={enablePushNotifications}
+                className="px-3 py-1 rounded bg-[#C9A227] hover:bg-[#E4C468] text-[#0A0C0E] text-xs font-bold transition-colors"
+              >
+                Enable
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Test Alert Button */}
+        <button
+          type="button"
+          onClick={handleTestNotification}
+          className="w-full py-2 rounded-lg bg-[#1B1F23] hover:bg-[#262B30] text-[#C9A227] border border-[#C9A227]/30 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+        >
+          <Send size={13} /> Send Test Alert &amp; Play Chime
+        </button>
+      </div>
 
       {/* Account & Security Card */}
       <div className="terminal-card p-6 space-y-4">

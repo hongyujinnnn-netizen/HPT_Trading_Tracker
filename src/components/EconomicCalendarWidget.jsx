@@ -20,18 +20,18 @@ export function EconomicCalendarWidget() {
 
     async function load() {
       const now = new Date();
-      const from = new Date(now);
-      from.setDate(from.getDate() - 3);
+      // Start from beginning of today to exclude past days (e.g. 27 Aug)
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const to = new Date(now);
-      to.setDate(to.getDate() + 3);
+      to.setDate(to.getDate() + 7);
 
       const rows = await getEconomicEvents({
-        from: from.toISOString(),
+        from: startOfToday.toISOString(),
         to: to.toISOString(),
       });
 
       if (!cancelled) {
-        setEvents(rows);
+        setEvents(rows || []);
         setLoading(false);
       }
     }
@@ -71,7 +71,7 @@ export function EconomicCalendarWidget() {
   return (
     <div className="terminal-card p-5 space-y-4">
       <SectionLabel right={<Pill tone="neutral"><ShieldAlert size={11} /> Live DB</Pill>}>
-        Economic Calendar (±3 Days)
+        Upcoming Economic Releases
       </SectionLabel>
 
       {loading ? (

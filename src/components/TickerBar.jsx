@@ -2,14 +2,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import { TrendingUp, TrendingDown, Bell, Zap, Cloud, Sparkles, LogOut, Activity, AlertTriangle, Radio, Clock, Menu, X, Wifi, WifiOff } from 'lucide-react';
 import { Pill } from './Pill';
 import { AccountSelector } from './AccountSelector';
+import { PriceAlertModal } from './PriceAlertModal';
+import { NotificationCenterModal } from './NotificationCenterModal';
 import { useTrade } from '../context/TradeContext';
 import { supabase } from '../services/supabaseClient';
 import { goldPriceService, ConnectionState } from '../services/goldPriceService';
 import { getCurrentGoldSession } from '../utils/sessionDetector';
 
 export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountManager }) {
-  const { userSession, signOut, isDemoMode, setActivePage } = useTrade();
+  const { userSession, signOut, isDemoMode, setActivePage, priceAlerts, notifications = [] } = useTrade();
 
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
   const [price, setPrice] = useState(null);
   const [previousPrice, setPreviousPrice] = useState(null);
   const [change, setChange] = useState(0);
@@ -224,15 +228,47 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountMan
           </span>
         ) : null}
 
-        <button className="p-1.5 rounded text-[#8B8D91] hover:text-[#C9A227] hover:bg-[#131619] transition-colors relative">
-          <Bell size={16} />
-          <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#C9A227]" />
-        </button>
+        {/* Notifications & Alerts Bell */}
+        {(() => {
+          const unreadNotifCount = notifications.filter((n) => !n.isRead).length;
+          const activeAlertCount = (priceAlerts || []).filter((a) => !a.isTriggered).length;
+          const totalBadge = unreadNotifCount > 0 ? unreadNotifCount : activeAlertCount > 0 ? activeAlertCount : 0;
+
+          return (
+            <button
+              onClick={() => setIsNotificationCenterOpen(true)}
+              title="Notifications & Alerts Center"
+              className="p-1.5 rounded text-[#8B8D91] hover:text-[#C9A227] hover:bg-[#131619] transition-colors relative"
+              aria-label="Open Notifications Center"
+            >
+              <Bell size={16} />
+              {totalBadge > 0 && (
+                <span className={`absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[8px] font-bold flex items-center justify-center font-mono-num ${
+                  unreadNotifCount > 0
+                    ? 'bg-[#C1502E] text-[#EDEAE3] animate-pulse'
+                    : 'bg-[#C9A227] text-[#0A0C0E]'
+                }`}>
+                  {totalBadge}
+                </span>
+              )}
+            </button>
+          );
+        })()}
 
         <Pill tone="gold" className="hidden lg:inline-flex">
           <Zap size={11} /> Gold Spot
         </Pill>
       </div>
+
+      {/* Notifications Center Modal */}
+      <NotificationCenterModal
+        isOpen={isNotificationCenterOpen}
+        onClose={() => setIsNotificationCenterOpen(false)}
+        onOpenPriceAlerts={() => setIsAlertModalOpen(true)}
+      />
+
+      {/* Price Alert Modal */}
+      <PriceAlertModal isOpen={isAlertModalOpen} onClose={() => setIsAlertModalOpen(false)} />
     </header>
   );
 }

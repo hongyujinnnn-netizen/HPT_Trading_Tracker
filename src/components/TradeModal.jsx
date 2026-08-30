@@ -82,6 +82,7 @@ export function TradeModal({ trade, onClose }) {
               <p className="text-xs text-[#8B8D91] font-body flex items-center gap-3">
                 <span>Strategy: <strong className="text-[#EDEAE3]">{trade.strategy}</strong></span>
                 <span>Session: <strong className="text-[#C9A227]">{trade.session}</strong></span>
+                <span>Emotion: <strong className="text-[#EDEAE3]">{trade.emotion || 'Planned'}</strong></span>
                 {trade.accountId && (
                   <span className="px-2 py-0.5 rounded bg-[#C9A227]/10 text-[#C9A227] border border-[#C9A227]/30 text-[10px] font-mono">
                     Sub-Account: #{trade.accountId}
@@ -118,10 +119,18 @@ export function TradeModal({ trade, onClose }) {
                 {trade.pnl > 0 ? '+' : ''}${trade.pnl.toLocaleString()}
               </div>
             </div>
-            <div className="text-right">
-              <span className="text-xs font-semibold uppercase text-[#8B8D91]">Realized R:R</span>
-              <div className={`text-lg font-bold font-mono-num ${trade.rr >= 0 ? 'text-[#3FA88C]' : 'text-[#C1502E]'}`}>
-                1 : {trade.rr.toFixed(1)}
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <span className="text-xs font-semibold uppercase text-[#8B8D91]">R-Multiple</span>
+                <div className={`text-lg font-bold font-mono-num ${trade.pnl >= 0 ? 'text-[#3FA88C]' : 'text-[#C1502E]'}`}>
+                  {trade.pnl >= 0 ? '+' : ''}{trade.rr ? Number(trade.rr).toFixed(1) : (trade.pnl >= 0 ? '1.0' : '-1.0')}R
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-semibold uppercase text-[#8B8D91]">Realized R:R</span>
+                <div className={`text-lg font-bold font-mono-num ${trade.rr >= 0 ? 'text-[#3FA88C]' : 'text-[#C1502E]'}`}>
+                  1 : {trade.rr ? Number(trade.rr).toFixed(1) : '1.0'}
+                </div>
               </div>
             </div>
           </div>

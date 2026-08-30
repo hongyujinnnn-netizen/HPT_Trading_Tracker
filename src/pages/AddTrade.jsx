@@ -1,31 +1,83 @@
-import React, { useState, useMemo } from 'react';
-import { PlusCircle, Upload, AlertTriangle, ShieldCheck, Calculator, Sparkles } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { PlusCircle, Upload, AlertTriangle, ShieldCheck, Calculator, Sparkles, X, CheckCircle2, Image as ImageIcon } from 'lucide-react';
 import { useTrade } from '../context/TradeContext';
 import { calculatePnL, calculateRR, calculateLotSize } from '../utils/calculations';
 import { detectMistakes } from '../utils/mistakeDetector';
 
 export function AddTrade() {
-  const { addTrade, trades, filteredTrades, tradingAccounts, activeAccountId, settings, setActivePage } = useTrade();
+  const {
+    addTrade,
+    trades,
+    filteredTrades,
+    tradingAccounts,
+    activeAccountId,
+    settings,
+    setActivePage,
+    liveGoldPrice,
+    tradeDraft,
+    setTradeDraft,
+  } = useTrade();
 
   const visibleAccounts = tradingAccounts.filter((a) => !a.isArchived);
 
-  // Form State
+  // Form State initialized with draft or live gold price
   const [selectedAccountId, setSelectedAccountId] = useState(
-    activeAccountId !== 'all' ? activeAccountId : (visibleAccounts[0]?.id || '')
+    tradeDraft?.accountId || (activeAccountId !== 'all' ? activeAccountId : (visibleAccounts[0]?.id || ''))
   );
-  const [side, setSide] = useState('Buy');
-  const [entryPrice, setEntryPrice] = useState('2431.20');
-  const [exitPrice, setExitPrice] = useState('2442.00');
-  const [stopLoss, setStopLoss] = useState('2422.00');
-  const [takeProfit, setTakeProfit] = useState('2445.00');
-  const [lotSize, setLotSize] = useState('0.50');
-  const [strategy, setStrategy] = useState('Breakout');
+  const [side, setSide] = useState(tradeDraft?.side || 'Buy');
+  const [entryPrice, setEntryPrice] = useState(
+    tradeDraft?.entryPrice || (liveGoldPrice ? liveGoldPrice.toFixed(2) : '2700.00')
+  );
+  const [exitPrice, setExitPrice] = useState(
+    tradeDraft?.exitPrice || (liveGoldPrice ? (liveGoldPrice + (side === 'Buy' ? 10 : -10)).toFixed(2) : '2710.00')
+  );
+  const [stopLoss, setStopLoss] = useState(
+    tradeDraft?.stopLoss || (liveGoldPrice ? (liveGoldPrice + (side === 'Buy' ? -10 : 10)).toFixed(2) : '2690.00')
+  );
+  const [takeProfit, setTakeProfit] = useState(
+    tradeDraft?.takeProfit || (liveGoldPrice ? (liveGoldPrice + (side === 'Buy' ? 20 : -20)).toFixed(2) : '2720.00')
+  );
+  const [lotSize, setLotSize] = useState(tradeDraft?.lotSize || '0.50');
+  const [strategy, setStrategy] = useState(tradeDraft?.strategy || 'Breakout');
+  const [isCustomStrategy, setIsCustomStrategy] = useState(false);
+  const [customStrategy, setCustomStrategy] = useState('');
   const [session, setSession] = useState('London');
   const [marketCondition, setMarketCondition] = useState('Trending');
   const [emotion, setEmotion] = useState('Planned');
   const [notes, setNotes] = useState('');
   const [screenshot, setScreenshot] = useState(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [formError, setFormError] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Check if current hour was blocked as an unprofitable red slot
+  const isBlockedSlot = useMemo(() => {
+    try {
+      const saved = localStorage.getItem('tradepulse_blocked_slots');
+      const blocked = saved ? JSON.parse(saved) : [];
+      const now = new Date();
+      const day = now.toLocaleDateString('en-US', { weekday: 'long' });
+      const hr = now.getUTCHours();
+      return blocked.includes(`${day}_${hr}`);
+    } catch {
+      return false;
+    }
+  }, []);
+
+  // Consume tradeDraft once on mount
+  useEffect(() => {
+    if (tradeDraft) {
+      if (tradeDraft.side) setSide(tradeDraft.side);
+      if (tradeDraft.entryPrice) setEntryPrice(tradeDraft.entryPrice);
+      if (tradeDraft.exitPrice) setExitPrice(tradeDraft.exitPrice);
+      if (tradeDraft.stopLoss) setStopLoss(tradeDraft.stopLoss);
+      if (tradeDraft.takeProfit) setTakeProfit(tradeDraft.takeProfit);
+      if (tradeDraft.lotSize) setLotSize(tradeDraft.lotSize);
+      if (tradeDraft.strategy) setStrategy(tradeDraft.strategy);
+      if (tradeDraft.accountId) setSelectedAccountId(tradeDraft.accountId);
+      setTradeDraft(null);
+    }
+  }, [tradeDraft, setTradeDraft]);
 
   // Live Calculations
   const entry = parseFloat(entryPrice) || 0;
@@ -67,20 +119,20 @@ export function AddTrade() {
     return detectMistakes(draft, trades);
   }, [side, entry, exit, sl, tp, lots, computedPnL, computedRR, strategy, session, marketCondition, emotion, trades]);
 
-  // Handle Screenshot Upload with Security Validation
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
+  // Process file object
+  const processImageFile = (file) => {
     if (!file) return;
+    setFormError(null);
 
     // Security check: validate file type (images only)
-    if (!file.type.startsWith('image/')) {
-      alert('Only image files (PNG, JPG, WEBP) are allowed.');
+    if (!file.type || !file.type.startsWith('image/')) {
+      setFormError('Only image files (PNG, JPG, WEBP) are allowed.');
       return;
     }
 
     // Security check: limit image size to 5MB
     if (file.size > 5 * 1024 * 1024) {
-      alert('Image file size must be less than 5MB.');
+      setFormError('Image file size must be less than 5MB.');
       return;
     }
 
@@ -91,8 +143,32 @@ export function AddTrade() {
     reader.readAsDataURL(file);
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    processImageFile(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    processImageFile(file);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError(null);
+
+    const finalStrategy = isCustomStrategy && customStrategy.trim() ? customStrategy.trim() : strategy;
 
     await addTrade(
       {
@@ -105,7 +181,7 @@ export function AddTrade() {
         lotSize: lots,
         pnl: computedPnL,
         rr: computedRR,
-        strategy,
+        strategy: finalStrategy,
         session,
         marketCondition,
         emotion,
@@ -132,6 +208,20 @@ export function AddTrade() {
       {savedSuccess && (
         <div className="p-4 bg-[#1F4A40] border border-[#3FA88C] rounded-lg text-sm text-[#3FA88C] font-semibold flex items-center gap-2">
           <ShieldCheck size={18} /> Trade successfully logged to journal! Redirecting to trade history...
+        </div>
+      )}
+
+      {isBlockedSlot && (
+        <div className="p-4 bg-[#2E1815] border border-[#C1502E] rounded-xl text-xs text-[#EDEAE3] flex items-start gap-3 shadow-lg animate-pulse">
+          <AlertTriangle size={18} className="text-[#C1502E] shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold text-[#E46868] block">
+              ⚠ Restricted Trading Slot Warning
+            </span>
+            <span className="text-[#8B8D91]">
+              You have previously flagged this hour in your Time-of-Day Heat Map as an unprofitable red slot. Review your trade edge carefully before execution.
+            </span>
+          </div>
         </div>
       )}
 
@@ -239,19 +329,42 @@ export function AddTrade() {
             </div>
 
             <div>
-              <label className="text-[11px] uppercase font-bold text-[#8B8D91] tracking-wider block mb-1">Strategy Setup</label>
-              <select
-                value={strategy}
-                onChange={(e) => setStrategy(e.target.value)}
-                className="w-full px-3 py-2 bg-[#1B1F23] border border-[#262B30] rounded-md text-xs text-[#EDEAE3] outline-none focus:border-[#C9A227]"
-              >
-                <option value="Breakout">Breakout</option>
-                <option value="Pullback">Pullback</option>
-                <option value="News Trading">News Trading</option>
-                <option value="Order Block / ICT">Order Block / ICT</option>
-                <option value="Trend Following">Trend Following</option>
-                <option value="Range Scalp">Range Scalp</option>
-              </select>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] uppercase font-bold text-[#8B8D91] tracking-wider">Strategy Setup</label>
+                <button
+                  type="button"
+                  onClick={() => setIsCustomStrategy(!isCustomStrategy)}
+                  className="text-[10px] text-[#C9A227] hover:underline font-mono-num"
+                >
+                  {isCustomStrategy ? '← Choose Standard' : '+ Custom Setup Tag'}
+                </button>
+              </div>
+
+              {isCustomStrategy ? (
+                <input
+                  type="text"
+                  value={customStrategy}
+                  onChange={(e) => setCustomStrategy(e.target.value)}
+                  placeholder="e.g. London Breakout, News Fade, FVG Sweep..."
+                  className="w-full px-3 py-2 bg-[#1B1F23] border border-[#C9A227]/60 rounded-md text-xs text-[#EDEAE3] outline-none focus:border-[#C9A227]"
+                  required
+                />
+              ) : (
+                <select
+                  value={strategy}
+                  onChange={(e) => setStrategy(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#1B1F23] border border-[#262B30] rounded-md text-xs text-[#EDEAE3] outline-none focus:border-[#C9A227]"
+                >
+                  <option value="Breakout">Breakout</option>
+                  <option value="Pullback">Pullback</option>
+                  <option value="London Breakout">London Breakout</option>
+                  <option value="News Fade">News Fade</option>
+                  <option value="Order Block / ICT">Order Block / ICT</option>
+                  <option value="FVG Liquidity Sweep">FVG Liquidity Sweep</option>
+                  <option value="Trend Following">Trend Following</option>
+                  <option value="Range Scalp">Range Scalp</option>
+                </select>
+              )}
             </div>
 
             <div>
@@ -293,10 +406,13 @@ export function AddTrade() {
                 className="w-full px-3 py-2 bg-[#1B1F23] border border-[#262B30] rounded-md text-xs text-[#EDEAE3] outline-none"
               >
                 <option value="Planned">Planned / Disciplined</option>
-                <option value="Emotional">Emotional / Impulsive</option>
-                <option value="Late Entry">Late Entry / Chasing</option>
-                <option value="Revenge Trade">Revenge Trade</option>
                 <option value="FOMO">FOMO (Fear Of Missing Out)</option>
+                <option value="Revenge Trade">Revenge Trade</option>
+                <option value="Late Entry">Late Entry / Chasing</option>
+                <option value="Greedy">Greedy / Overleveraged</option>
+                <option value="Hesitant">Hesitant / Fearful</option>
+                <option value="Overconfident">Overconfident</option>
+                <option value="Emotional">Emotional / Impulsive</option>
               </select>
             </div>
           </div>
@@ -315,23 +431,65 @@ export function AddTrade() {
 
           {/* Screenshot Upload (Saved to IndexedDB) */}
           <div>
-            <label className="text-[11px] uppercase font-bold text-[#8B8D91] tracking-wider block mb-1">Chart Screenshot (IndexedDB Storage)</label>
-            <label className="border border-dashed border-[#262B30] hover:border-[#C9A227] bg-[#1B1F23] rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer transition-colors">
-              <Upload size={18} className="text-[#8B8D91] mb-1" />
-              <span className="text-xs text-[#EDEAE3]">Click or drag to attach chart screenshot</span>
-              <span className="text-[10px] text-[#5A5D61] mt-0.5">Stored in local IndexedDB — won't blow localStorage quota</span>
-              <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+            <label className="text-[11px] uppercase font-bold text-[#8B8D91] tracking-wider block mb-1">
+              Chart Screenshot (IndexedDB Storage)
             </label>
-            {screenshot && (
-              <div className="mt-2 text-xs text-[#3FA88C] flex items-center gap-1 font-mono-num">
-                ✓ Screenshot ready for save
+
+            {!screenshot ? (
+              <div
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                className={`border border-dashed rounded-xl p-5 flex flex-col items-center justify-center cursor-pointer transition-all ${
+                  isDragging
+                    ? 'border-[#C9A227] bg-[#C9A227]/10'
+                    : 'border-[#262B30] hover:border-[#C9A227] bg-[#1B1F23]/60'
+                }`}
+              >
+                <label className="flex flex-col items-center justify-center cursor-pointer w-full h-full">
+                  <Upload size={20} className="text-[#C9A227] mb-1.5" />
+                  <span className="text-xs font-semibold text-[#EDEAE3]">Click or drag &amp; drop screenshot here</span>
+                  <span className="text-[10px] text-[#5A5D61] mt-0.5">PNG, JPG, or WEBP up to 5MB (stored in local IndexedDB)</span>
+                  <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                </label>
               </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-[#1B1F23] border border-[#262B30] flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={screenshot}
+                    alt="Trade Screenshot Preview"
+                    className="w-12 h-12 object-cover rounded-lg border border-[#262B30]"
+                  />
+                  <div>
+                    <span className="text-xs font-semibold text-[#3FA88C] flex items-center gap-1 font-mono-num">
+                      <CheckCircle2 size={13} /> Screenshot attached
+                    </span>
+                    <span className="text-[10px] text-[#8B8D91] block">Ready for local IndexedDB saving</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setScreenshot(null)}
+                  className="p-1.5 rounded-lg text-[#8B8D91] hover:text-[#C1502E] hover:bg-[#4A2A1E]/30 transition-colors"
+                  title="Remove Screenshot"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+
+            {formError && (
+              <p className="text-xs text-[#C1502E] font-semibold mt-2 flex items-center gap-1">
+                <AlertTriangle size={13} /> {formError}
+              </p>
             )}
           </div>
 
           <button
             type="submit"
-            className="w-full py-3 rounded-lg bg-[#C9A227] hover:bg-[#E4C468] text-[#0A0C0E] font-bold text-sm font-display tracking-wide shadow-lg transition-colors"
+            className="w-full py-3 rounded-lg bg-[#C9A227] hover:bg-[#E4C468] text-[#0A0C0E] font-bold text-sm font-display tracking-wide shadow-lg transition-all active:scale-[0.99]"
           >
             Save Trade to Journal
           </button>

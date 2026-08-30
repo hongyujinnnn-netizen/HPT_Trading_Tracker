@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { tradeRepository } from '../services/tradeRepository';
 import { tradeStore } from '../services/tradeStore';
 import { imageStore } from '../services/imageStore';
@@ -10,6 +10,9 @@ import { isSupabaseConfigured, supabase } from '../services/supabaseClient';
 import { goldPriceService } from '../services/goldPriceService';
 import { orderEngine } from '../services/orderEngine';
 import { isTradeableSymbol } from '../utils/symbolGuard';
+import { playNotificationSound } from '../utils/audioAlert';
+import { getPushPermission, requestPushPermission, sendPushNotification } from '../utils/pushNotification';
+import { calculateRollingWinRate, calculateUnderwaterDrawdown } from '../utils/edgeAnalytics';
 
 const TradeContext = createContext(null);
 
@@ -31,11 +34,169 @@ export function TradeProvider({ children }) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [userSession, setUserSession] = useState(null);
 
-  // Pending Orders state
+  // Pending Orders & Live Market state
   const [pendingOrders, setPendingOrders] = useState([]);
   const [liveGoldPrice, setLiveGoldPrice] = useState(null);
   const [goldConnectionState, setGoldConnectionState] = useState('offline');
   const [orderToasts, setOrderToasts] = useState([]);
+
+  // Persistent Notification System State
+  const [notifications, setNotifications] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tradepulse_notifications');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [isSoundEnabled, setIsSoundEnabled] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tradepulse_notification_sound');
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const [pushPermission, setPushPermission] = useState(() => getPushPermission());
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('tradepulse_notifications', JSON.stringify(notifications.slice(0, 100)));
+    } catch (e) {
+      console.warn('Failed to save notifications to localStorage', e);
+    }
+  }, [notifications]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('tradepulse_notification_sound', JSON.stringify(isSoundEnabled));
+    } catch (e) {
+      console.warn('Failed to save notification sound setting', e);
+    }
+  }, [isSoundEnabled]);
+
+  const addToast = useCallback((type, message, title = '') => {
+    const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    setOrderToasts((prev) => [...prev, { id, type, message, title, timestamp: new Date() }]);
+  }, []);
+
+  const dismissToast = useCallback((id) => {
+    setOrderToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const sendNotification = useCallback(({ type = 'default', title, message, priority = 'normal' }) => {
+    const id = `notif_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const newNotif = {
+      id,
+      type,
+      title: title || 'Notification',
+      message: message || '',
+      timestamp: new Date().toISOString(),
+      isRead: false,
+      priority,
+    };
+
+    setNotifications((prev) => [newNotif, ...prev]);
+
+    // Show visual toast notification
+    addToast(type, message, title);
+
+    // Audio chime
+    if (isSoundEnabled) {
+      playNotificationSound(type);
+    }
+
+    // Native browser desktop push notification
+    if (pushPermission === 'granted') {
+      sendPushNotification(title || 'TradePulse Alert', {
+        body: message,
+        tag: `notif_${type}`,
+      });
+    }
+  }, [isSoundEnabled, pushPermission, addToast]);
+
+  const markNotificationAsRead = useCallback((id) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+    );
+  }, []);
+
+  const markAllNotificationsAsRead = useCallback(() => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  }, []);
+
+  const clearAllNotifications = useCallback(() => {
+    setNotifications([]);
+    localStorage.removeItem('tradepulse_notifications');
+  }, []);
+
+  const removeNotification = useCallback((id) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }, []);
+
+  const toggleNotificationSound = useCallback(() => {
+    setIsSoundEnabled((prev) => !prev);
+  }, []);
+
+  const enablePushNotifications = useCallback(async () => {
+    const permission = await requestPushPermission();
+    setPushPermission(permission);
+    if (permission === 'granted') {
+      sendNotification({
+        type: 'alert',
+        title: 'Push Notifications Enabled',
+        message: 'You will now receive desktop notifications for price alerts, risk limits, and circuit breaker trips.',
+      });
+    }
+    return permission;
+  }, [sendNotification]);
+
+  // Trade Entry Draft (allows RiskCalculator, Chart, etc. to pre-fill AddTrade)
+  const [tradeDraft, setTradeDraft] = useState(null);
+
+  // Price Alerts state
+  const [priceAlerts, setPriceAlerts] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tradepulse_price_alerts');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Sync price alerts to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('tradepulse_price_alerts', JSON.stringify(priceAlerts));
+    } catch (e) {
+      console.warn('Failed to save price alerts to localStorage', e);
+    }
+  }, [priceAlerts]);
+
+  const addPriceAlert = useCallback((targetPrice, direction = 'above', label = '') => {
+    const newAlert = {
+      id: `alt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      price: parseFloat(targetPrice),
+      direction, // 'above' | 'below'
+      label: label || `XAU/USD ${direction === 'above' ? '≥' : '≤'} $${parseFloat(targetPrice).toFixed(2)}`,
+      isTriggered: false,
+      createdAt: new Date().toISOString(),
+    };
+    setPriceAlerts((prev) => [newAlert, ...prev]);
+    return newAlert;
+  }, []);
+
+  const deletePriceAlert = useCallback((id) => {
+    setPriceAlerts((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
+  const togglePriceAlert = useCallback((id) => {
+    setPriceAlerts((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, isTriggered: !a.isTriggered } : a))
+    );
+  }, []);
 
   const setActiveAccountId = (id) => {
     setActiveAccountIdState(id);
@@ -146,6 +307,31 @@ export function TradeProvider({ children }) {
     const unsubPrice = goldPriceService.subscribe((state) => {
       if (state.price !== null) {
         setLiveGoldPrice(state.price);
+
+        // Check active price alerts against current tick
+        setPriceAlerts((prevAlerts) => {
+          let updated = false;
+          const nextAlerts = prevAlerts.map((alert) => {
+            if (alert.isTriggered) return alert;
+
+            const isHit =
+              (alert.direction === 'above' && state.price >= alert.price) ||
+              (alert.direction === 'below' && state.price <= alert.price);
+
+            if (isHit) {
+              updated = true;
+              sendNotification({
+                type: 'alert',
+                title: 'Price Alert Triggered',
+                message: `XAU/USD ${alert.direction === 'above' ? 'hit/surpassed' : 'dropped to'} $${state.price.toFixed(2)} (Target: $${alert.price.toFixed(2)})`,
+              });
+              return { ...alert, isTriggered: true, triggeredAt: new Date().toISOString() };
+            }
+            return alert;
+          });
+
+          return updated ? nextAlerts : prevAlerts;
+        });
       }
       if (state.connectionState) {
         setGoldConnectionState(state.connectionState);
@@ -153,7 +339,7 @@ export function TradeProvider({ children }) {
     });
 
     return () => unsubPrice();
-  }, []);
+  }, [sendNotification]);
 
   // Order engine lifecycle — start/stop based on auth session
   useEffect(() => {
@@ -174,7 +360,11 @@ export function TradeProvider({ children }) {
           triggered_at: new Date().toISOString(),
           triggered_price: triggeredPrice,
         });
-        addToast('triggered', `${order.order_type.replace(/_/g, ' ').toUpperCase()} @ $${parseFloat(order.entry_price).toFixed(2)} triggered at $${triggeredPrice.toFixed(2)}`);
+        sendNotification({
+          type: 'triggered',
+          title: 'Order Triggered',
+          message: `${order.order_type.replace(/_/g, ' ').toUpperCase()} @ $${parseFloat(order.entry_price).toFixed(2)} triggered at $${triggeredPrice.toFixed(2)}`,
+        });
         await refreshOrders();
       };
 
@@ -226,7 +416,11 @@ export function TradeProvider({ children }) {
           }
         }
 
-        addToast('closed_tp', `${side} closed at Take Profit — +$${pnl.toFixed(2)}`);
+        sendNotification({
+          type: 'closed_tp',
+          title: 'Take Profit Hit',
+          message: `${side} closed at Take Profit — +$${pnl.toFixed(2)}`,
+        });
 
         await refreshOrders();
         await refreshData();
@@ -279,7 +473,11 @@ export function TradeProvider({ children }) {
           }
         }
 
-        addToast('closed_sl', `${side} closed at Stop Loss — -$${Math.abs(pnl).toFixed(2)}`);
+        sendNotification({
+          type: 'closed_sl',
+          title: 'Stop Loss Hit',
+          message: `${side} closed at Stop Loss — -$${Math.abs(pnl).toFixed(2)}`,
+        });
 
         await refreshOrders();
         await refreshData();
@@ -290,7 +488,11 @@ export function TradeProvider({ children }) {
           status: 'expired',
           closed_at: new Date().toISOString(),
         });
-        addToast('expired', `${order.order_type.replace(/_/g, ' ').toUpperCase()} @ $${parseFloat(order.entry_price).toFixed(2)} expired`);
+        sendNotification({
+          type: 'expired',
+          title: 'Order Expired',
+          message: `${order.order_type.replace(/_/g, ' ').toUpperCase()} @ $${parseFloat(order.entry_price).toFixed(2)} expired`,
+        });
         await refreshOrders();
       };
 
@@ -418,15 +620,6 @@ export function TradeProvider({ children }) {
 
   // ── Pending Order management ─────────────────────────
 
-  const addToast = useCallback((type, message) => {
-    const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    setOrderToasts((prev) => [...prev, { id, type, message, timestamp: new Date() }]);
-  }, []);
-
-  const dismissToast = useCallback((id) => {
-    setOrderToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
   const createPendingOrder = useCallback(async (orderData) => {
     const targetAccountId = orderData.accountId || (activeAccountId !== 'all' ? activeAccountId : null);
     const result = await tradeRepository.createPendingOrder({
@@ -513,11 +706,15 @@ export function TradeProvider({ children }) {
         if (stoppedOutOrders.length > 0) {
           console.warn(`🚨 Stop-Out Triggered for sub-account "${acc.name}". Liquidating ${stoppedOutOrders.length} orders.`);
           stoppedOutOrders.forEach((o) => cancelPendingOrder(o.id));
-          addToast('sl', `🚨 Stop-Out Triggered: Liquidated ${stoppedOutOrders.length} orders for ${acc.name} (Balance reached $0.00).`);
+          sendNotification({
+            type: 'circuit_breaker',
+            title: '🚨 Stop-Out Liquidated',
+            message: `Liquidated ${stoppedOutOrders.length} orders for ${acc.name} (Balance reached $0.00).`,
+          });
         }
       }
     });
-  }, [tradingAccounts, trades, pendingOrders, cancelPendingOrder, addToast]);
+  }, [tradingAccounts, trades, pendingOrders, cancelPendingOrder, sendNotification]);
 
   // Sub-Account CRUD Operations
   const addTradingAccount = async (accountData) => {
@@ -573,6 +770,36 @@ export function TradeProvider({ children }) {
     closedTrades: dbViews.stats.closed_trades || calculatedStats.totalTrades,
   } : calculatedStats;
 
+  // Automated Institutional Risk & Edge Degradation Monitoring
+  const lastAlertsRef = useRef({ drawdownTripped: false, rollingAlertTripped: false });
+  useEffect(() => {
+    if (!trades || trades.length < 5) return;
+    const initialBal = accountBaseBalance || 10000;
+    const dd = calculateUnderwaterDrawdown(trades, initialBal, 10);
+    if (dd.circuitBreakerHit && !lastAlertsRef.current.drawdownTripped) {
+      lastAlertsRef.current.drawdownTripped = true;
+      sendNotification({
+        type: 'circuit_breaker',
+        title: '🚨 Drawdown Circuit Breaker Hit',
+        message: `Drawdown has reached -${dd.currentDrawdownPct}%, breaching your hard -10% preservation limit.`,
+      });
+    } else if (!dd.circuitBreakerHit) {
+      lastAlertsRef.current.drawdownTripped = false;
+    }
+
+    const rolling = calculateRollingWinRate(trades, 20, 50);
+    if (rolling.hasAlert && !lastAlertsRef.current.rollingAlertTripped) {
+      lastAlertsRef.current.rollingAlertTripped = true;
+      sendNotification({
+        type: 'edge_alert',
+        title: '📉 Edge Degradation Alert',
+        message: `Rolling 20-trade win rate has dropped to ${rolling.currentRollingWinRate}%, falling below your 50% baseline. Review recent trade management.`,
+      });
+    } else if (!rolling.hasAlert) {
+      lastAlertsRef.current.rollingAlertTripped = false;
+    }
+  }, [trades, accountBaseBalance, sendNotification]);
+
   return (
     <TradeContext.Provider
       value={{
@@ -614,6 +841,25 @@ export function TradeProvider({ children }) {
         resetAllData,
         updateSettings,
         refreshData,
+        // Trade Draft & Bridge
+        tradeDraft,
+        setTradeDraft,
+        // Notification Center & Alerts
+        notifications,
+        sendNotification,
+        markNotificationAsRead,
+        markAllNotificationsAsRead,
+        clearAllNotifications,
+        removeNotification,
+        isSoundEnabled,
+        toggleNotificationSound,
+        pushPermission,
+        enablePushNotifications,
+        // Price Alerts
+        priceAlerts,
+        addPriceAlert,
+        deletePriceAlert,
+        togglePriceAlert,
         // Pending Orders
         pendingOrders,
         filteredPendingOrders,

@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, TrendingUp, AlertTriangle, ArrowRight } from 'lucide-react';
+import { useTrade } from '../context/TradeContext';
+import { Pill } from './Pill';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = [
@@ -12,7 +14,9 @@ const MONTH_SHORT = [
 ];
 
 export function DailyPnLCalendar({ trades = [] }) {
-  // Default to July 2026 or month of latest trade
+  const { setSelectedTrade } = useTrade();
+
+  // Default to current date or month of latest trade
   const [currentDate, setCurrentDate] = useState(() => {
     if (trades.length > 0) {
       const dates = trades.map((t) => new Date(t.date || t.timestamp)).filter((d) => !isNaN(d));
@@ -21,8 +25,11 @@ export function DailyPnLCalendar({ trades = [] }) {
         return new Date(latest.getFullYear(), latest.getMonth(), 1);
       }
     }
-    return new Date(2026, 6, 1); // July 2026
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+
+  const [selectedDayRecap, setSelectedDayRecap] = useState(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -35,13 +42,14 @@ export function DailyPnLCalendar({ trades = [] }) {
     setCurrentDate(new Date(year, month + 1, 1));
   };
 
-  // Map trades by 'YYYY-MM-DD' => total daily P&L
-  const dailyPnLMap = useMemo(() => {
+  // Map trades by 'YYYY-MM-DD' => list of trades
+  const dailyTradesMap = useMemo(() => {
     const map = {};
     trades.forEach((t) => {
-      if (!t.date) return;
-      const dateStr = t.date.split('T')[0];
-      map[dateStr] = (map[dateStr] || 0) + (t.pnl || 0);
+      if (!t.date && !t.timestamp) return;
+      const dateStr = (t.date || t.timestamp).split('T')[0];
+      if (!map[dateStr]) map[dateStr] = [];
+      map[dateStr].push(t);
     });
     return map;
   }, [trades]);
@@ -59,8 +67,9 @@ export function DailyPnLCalendar({ trades = [] }) {
 
     for (let d = 1; d <= daysCount; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const hasTrade = Object.prototype.hasOwnProperty.call(dailyPnLMap, dateStr);
-      const pnl = dailyPnLMap[dateStr] || 0;
+      const dayTrades = dailyTradesMap[dateStr] || [];
+      const hasTrade = dayTrades.length > 0;
+      const pnl = dayTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
 
       days.push({
         empty: false,
@@ -68,12 +77,13 @@ export function DailyPnLCalendar({ trades = [] }) {
         dateStr,
         hasTrade,
         pnl,
+        dayTrades,
         key: `day-${d}`,
       });
     }
 
     return { daysInMonth: daysCount, firstDayIndex: firstDay, calendarDays: days };
-  }, [year, month, dailyPnLMap]);
+  }, [year, month, dailyTradesMap]);
 
   return (
     <div className="terminal-card p-5 space-y-4 select-none">
@@ -82,7 +92,7 @@ export function DailyPnLCalendar({ trades = [] }) {
         <div>
           <h3 className="text-base font-bold font-display text-[#EDEAE3]">Daily P&amp;L Calendar</h3>
           <p className="text-xs text-[#8B8D91]">
-            {MONTH_NAMES[month]} {year} · <span className="text-[#3FA88C]">green = profit day</span>, <span className="text-[#C1502E]">red = loss day</span>
+            {MONTH_NAMES[month]} {year} · <span className="text-[#3FA88C]">green = profit day</span>, <span className="text-[#C1502E]">red = loss day</span> (click day for details)
           </p>
         </div>
 
@@ -90,6 +100,7 @@ export function DailyPnLCalendar({ trades = [] }) {
           <button
             onClick={handlePrevMonth}
             className="p-1 text-[#8B8D91] hover:text-[#EDEAE3] hover:bg-[#1B1F23] rounded transition-colors"
+            aria-label="Previous Month"
           >
             <ChevronLeft size={14} />
           </button>
@@ -99,6 +110,7 @@ export function DailyPnLCalendar({ trades = [] }) {
           <button
             onClick={handleNextMonth}
             className="p-1 text-[#8B8D91] hover:text-[#EDEAE3] hover:bg-[#1B1F23] rounded transition-colors"
+            aria-label="Next Month"
           >
             <ChevronRight size={14} />
           </button>
@@ -119,23 +131,23 @@ export function DailyPnLCalendar({ trades = [] }) {
             return <div key={cell.key} className="h-16 rounded-lg bg-transparent" />;
           }
 
-          const { dayNumber, hasTrade, pnl } = cell;
+          const { dayNumber, hasTrade, pnl, dayTrades, dateStr } = cell;
 
-          let bgStyle = 'bg-[#131619] border-[#1E2226] text-[#5A5D61]';
+          let bgStyle = 'bg-[#131619] border-[#1E2226] text-[#5A5D61] hover:border-[#262B30]';
           let pnlText = '—';
           let pnlColor = 'text-[#5A5D61]';
 
           if (hasTrade) {
             if (pnl > 0) {
-              bgStyle = 'bg-[#152E25] border-[#1F4A40] text-[#3FA88C] shadow-inner';
-              pnlText = `+${Math.round(pnl)}`;
+              bgStyle = 'bg-[#152E25]/90 border-[#1F4A40] text-[#3FA88C] shadow-inner hover:border-[#3FA88C] cursor-pointer hover:scale-[1.02]';
+              pnlText = `+$${Math.round(pnl)}`;
               pnlColor = 'text-[#3FA88C] font-extrabold';
             } else if (pnl < 0) {
-              bgStyle = 'bg-[#2E1815] border-[#4A2A1E] text-[#C1502E] shadow-inner';
-              pnlText = `${Math.round(pnl)}`;
+              bgStyle = 'bg-[#2E1815]/90 border-[#4A2A1E] text-[#C1502E] shadow-inner hover:border-[#C1502E] cursor-pointer hover:scale-[1.02]';
+              pnlText = `-$${Math.abs(Math.round(pnl))}`;
               pnlColor = 'text-[#C1502E] font-extrabold';
             } else {
-              bgStyle = 'bg-[#1B1F23] border-[#262B30] text-[#8B8D91]';
+              bgStyle = 'bg-[#1B1F23] border-[#262B30] text-[#8B8D91] hover:border-[#C9A227] cursor-pointer hover:scale-[1.02]';
               pnlText = '$0';
               pnlColor = 'text-[#8B8D91] font-semibold';
             }
@@ -144,11 +156,23 @@ export function DailyPnLCalendar({ trades = [] }) {
           return (
             <div
               key={cell.key}
+              onClick={() => {
+                if (hasTrade) {
+                  setSelectedDayRecap({ dateStr, dayNumber, pnl, dayTrades });
+                }
+              }}
               className={`h-16 p-2 rounded-lg border flex flex-col justify-between transition-all ${bgStyle}`}
             >
-              <span className="text-[11px] font-mono-num text-[#8B8D91] self-start leading-none">
-                {dayNumber}
-              </span>
+              <div className="flex items-center justify-between w-full">
+                <span className="text-[11px] font-mono-num text-[#8B8D91] leading-none">
+                  {dayNumber}
+                </span>
+                {hasTrade && (
+                  <span className="text-[9px] px-1 rounded bg-black/40 font-mono-num text-[#8B8D91]">
+                    {dayTrades.length}t
+                  </span>
+                )}
+              </div>
               <span className={`text-xs font-mono-num text-center leading-none ${pnlColor}`}>
                 {pnlText}
               </span>
@@ -156,6 +180,74 @@ export function DailyPnLCalendar({ trades = [] }) {
           );
         })}
       </div>
+
+      {/* Selected Day Drill-down Modal */}
+      {selectedDayRecap && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[#131619] border border-[#262B30] rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#1E2226] pb-3">
+              <div className="flex items-center gap-2">
+                <CalendarIcon size={16} className="text-[#C9A227]" />
+                <div>
+                  <h3 className="text-sm font-bold font-display text-[#EDEAE3]">
+                    {selectedDayRecap.dateStr} Recap
+                  </h3>
+                  <span className="text-[11px] text-[#8B8D91]">
+                    {selectedDayRecap.dayTrades.length} total trade(s) logged
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Pill tone={selectedDayRecap.pnl >= 0 ? 'profit' : 'loss'}>
+                  {selectedDayRecap.pnl >= 0 ? '+' : ''}${selectedDayRecap.pnl.toFixed(2)}
+                </Pill>
+                <button
+                  onClick={() => setSelectedDayRecap(null)}
+                  className="p-1 text-[#8B8D91] hover:text-[#EDEAE3] rounded-lg"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Trades list for the day */}
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {selectedDayRecap.dayTrades.map((t) => (
+                <div
+                  key={t.id}
+                  onClick={() => {
+                    setSelectedTrade(t);
+                    setSelectedDayRecap(null);
+                  }}
+                  className="p-3 rounded-xl bg-[#1B1F23] border border-[#262B30] hover:border-[#C9A227] cursor-pointer flex items-center justify-between text-xs transition-all group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Pill tone={t.side === 'Buy' ? 'profit' : 'loss'}>{t.side}</Pill>
+                    <div>
+                      <div className="font-semibold text-[#EDEAE3] flex items-center gap-1.5">
+                        <span>{t.strategy}</span>
+                        <span className="text-[10px] text-[#8B8D91]">({t.session})</span>
+                      </div>
+                      <div className="text-[10px] text-[#8B8D91] font-mono-num">
+                        @{t.entryPrice} → @{t.exitPrice} ({t.lotSize} lots)
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 font-mono-num">
+                    <span className={`font-bold ${t.pnl >= 0 ? 'text-[#3FA88C]' : 'text-[#C1502E]'}`}>
+                      {t.pnl >= 0 ? '+' : ''}${t.pnl}
+                    </span>
+                    <ArrowRight size={13} className="text-[#5A5D61] group-hover:text-[#C9A227] transition-colors" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

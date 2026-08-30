@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Zap, CheckCircle, XCircle, Clock, X } from 'lucide-react';
+import { Zap, CheckCircle, XCircle, Clock, X, Bell, AlertOctagon, TrendingDown, AlertTriangle, Flame } from 'lucide-react';
 
 const TOAST_CONFIG = {
   triggered: {
@@ -30,6 +30,41 @@ const TOAST_CONFIG = {
     fg: '#8B8D91',
     label: 'Order Expired',
   },
+  alert: {
+    icon: Bell,
+    bg: '#2A2311',
+    border: '#C9A227',
+    fg: '#C9A227',
+    label: 'Price Alert',
+  },
+  circuit_breaker: {
+    icon: AlertOctagon,
+    bg: '#2E1815',
+    border: '#C1502E',
+    fg: '#E46868',
+    label: 'Circuit Breaker Alert',
+  },
+  edge_alert: {
+    icon: TrendingDown,
+    bg: '#2A2311',
+    border: '#C9A227',
+    fg: '#E4C468',
+    label: 'Edge Degradation Alert',
+  },
+  expectancy: {
+    icon: AlertTriangle,
+    bg: '#2E1815',
+    border: '#C1502E',
+    fg: '#E46868',
+    label: 'Expectancy Warning',
+  },
+  news: {
+    icon: Flame,
+    bg: '#1B1F23',
+    border: '#C9A227',
+    fg: '#C9A227',
+    label: 'Economic Release Warning',
+  },
 };
 
 function Toast({ toast, onDismiss }) {
@@ -44,13 +79,13 @@ function Toast({ toast, onDismiss }) {
 
   return (
     <div
-      className="flex items-start gap-3 px-4 py-3 rounded-xl border shadow-2xl min-w-[320px] max-w-[400px] animate-fade-in"
+      className="flex items-start gap-3 px-4 py-3 rounded-xl border shadow-2xl min-w-[320px] max-w-[420px] animate-fade-in"
       style={{ background: config.bg, borderColor: config.border }}
     >
       <Icon size={18} style={{ color: config.fg, marginTop: 2 }} className="shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="text-xs font-bold font-display" style={{ color: config.fg }}>
-          {config.label}
+          {toast.title || config.label}
         </div>
         <p className="text-xs text-[#EDEAE3] mt-0.5 font-body leading-relaxed">{toast.message}</p>
       </div>

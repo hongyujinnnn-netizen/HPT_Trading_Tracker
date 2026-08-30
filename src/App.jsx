@@ -117,6 +117,16 @@ function AppContent() {
     }
   }, [activePage, hasVisitedChart]);
 
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mobileMenuOpen]);
+
   if (authLoading) {
     return <AppSplash />;
   }
@@ -388,7 +398,7 @@ function AppContent() {
       </div>
 
       {/* Modern Bottom Docked Navigation Bar for Mobile */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#131619] border-t border-[#262B30] px-2 h-16 flex items-center justify-around shadow-2xl">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#131619]/95 backdrop-blur-md border-t border-[#262B30] px-2 py-1 min-h-[4rem] pb-safe flex items-center justify-around shadow-2xl">
         <button
           onClick={() => setActivePage('dashboard')}
           className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 rounded-lg text-[10px] font-mono-num font-medium transition-all ${

@@ -38,26 +38,78 @@
   background: #C9A227;
 }
 
+/* Firefox Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #262B30 #131619;
+}
+
 /* Custom glass / dark terminal card styling */
 .terminal-card {
   background: #131619;
   border: 1px solid #1E2226;
-  border-radius: 0.5rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  border-radius: 0.75rem;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
 }
 
 .terminal-card:hover {
   border-color: #262B30;
+  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.5);
+}
+
+.glass-panel {
+  background: rgba(19, 22, 25, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(38, 43, 48, 0.6);
+  border-radius: 0.75rem;
 }
 
 .gold-glow {
-  box-shadow: 0 0 15px rgba(201, 162, 39, 0.15);
+  box-shadow: 0 0 20px rgba(201, 162, 39, 0.18);
 }
 
 .profit-glow {
-  box-shadow: 0 0 15px rgba(63, 168, 140, 0.15);
+  box-shadow: 0 0 20px rgba(63, 168, 140, 0.18);
 }
 
 .loss-glow {
-  box-shadow: 0 0 15px rgba(193, 80, 46, 0.15);
+  box-shadow: 0 0 20px rgba(193, 80, 46, 0.18);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(201, 162, 39, 0.2);
+  }
+  50% {
+    opacity: 0.85;
+    box-shadow: 0 0 22px rgba(201, 162, 39, 0.4);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2.5s ease-in-out infinite;
+}
+
+/* Mobile safe area support */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
 }

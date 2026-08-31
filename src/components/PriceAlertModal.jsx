@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell, Plus, Trash2, X, ArrowUpRight, ArrowDownRight, CheckCircle2, Clock, Zap, AlertCircle } from 'lucide-react';
 import { useTrade } from '../context/TradeContext';
 import { Pill } from './Pill';
@@ -37,9 +38,15 @@ export function PriceAlertModal({ isOpen, onClose }) {
   const activeAlerts = (priceAlerts || []).filter((a) => !a.isTriggered);
   const triggeredAlerts = (priceAlerts || []).filter((a) => a.isTriggered);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="terminal-card rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+      onClick={onClose}
+    >
+      <div
+        className="terminal-card rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl flex flex-col my-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Modal Header */}
         <div className="p-5 border-b flex items-center justify-between sticky top-0 z-10" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
           <div className="flex items-center gap-3">
@@ -319,4 +326,6 @@ export function PriceAlertModal({ isOpen, onClose }) {
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }

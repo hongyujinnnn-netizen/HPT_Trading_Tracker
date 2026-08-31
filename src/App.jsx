@@ -20,6 +20,7 @@ import {
   ListOrdered,
   Menu,
   CandlestickChart,
+  Target,
 } from 'lucide-react';
 import { TradeProvider, useTrade } from './context/TradeContext';
 import { TickerBar } from './components/TickerBar';
@@ -40,6 +41,7 @@ const TradeHistory = lazy(() => import('./pages/TradeHistory').then((m) => ({ de
 const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })));
 const StrategyCompare = lazy(() => import('./pages/StrategyCompare').then((m) => ({ default: m.StrategyCompare })));
 const RiskCalculator = lazy(() => import('./pages/RiskCalculator').then((m) => ({ default: m.RiskCalculator })));
+const TargetPlan = lazy(() => import('./pages/TargetPlan').then((m) => ({ default: m.TargetPlan })));
 const MarketNews = lazy(() => import('./pages/MarketNews').then((m) => ({ default: m.MarketNews })));
 const MistakeCenter = lazy(() => import('./pages/MistakeCenter').then((m) => ({ default: m.MistakeCenter })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
@@ -54,6 +56,7 @@ const NAV_ITEMS = [
   { key: 'analytics', label: 'Analytics', icon: TrendingUp },
   { key: 'strategy', label: 'Strategy Comparison', icon: GitCompare },
   { key: 'risk', label: 'Risk Calculator', icon: Calculator },
+  { key: 'targetplan', label: 'Target Plan', icon: Target },
   { key: 'news', label: 'Market News', icon: Newspaper },
   { key: 'mistakes', label: 'Mistake Center', icon: ShieldAlert },
   { key: 'settings', label: 'Settings', icon: SettingsIcon },
@@ -151,6 +154,7 @@ function AppContent() {
       case 'analytics': return <Analytics />;
       case 'strategy': return <StrategyCompare />;
       case 'risk': return <RiskCalculator />;
+      case 'targetplan': return <TargetPlan />;
       case 'news': return <MarketNews />;
       case 'mistakes': return <MistakeCenter />;
       case 'settings': return <Settings />;

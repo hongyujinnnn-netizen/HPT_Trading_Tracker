@@ -6,6 +6,7 @@
 
 import { createTrade } from '../types/tradeSchema';
 import { createTradingAccount } from '../types/accountSchema';
+import { createTargetPlan, PLAN_PRESETS } from '../types/planSchema';
 import { INITIAL_ACCOUNTS } from '../utils/mockData';
 
 const STORAGE_KEY = 'tradepulse_gold_trades_v1';
@@ -13,6 +14,8 @@ const SETTINGS_KEY = 'tradepulse_gold_settings_v1';
 const INIT_KEY = 'tradepulse_gold_initialized_v1';
 const ACCOUNTS_KEY = 'tradepulse_gold_accounts_v1';
 const ACTIVE_ACCOUNT_KEY = 'tradepulse_gold_active_account_v1';
+const PLANS_KEY = 'tradepulse_gold_target_plans_v1';
+const ACTIVE_PLAN_KEY = 'tradepulse_gold_active_target_plan_v1';
 
 export const DEFAULT_SETTINGS = {
   accountBalance: 10000,
@@ -238,5 +241,90 @@ export const tradeStore = {
     const updated = { ...current, ...settings };
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
     return updated;
+  },
+
+  /**
+   * Fetch all target plans
+   */
+  async getPlans() {
+    try {
+      const raw = localStorage.getItem(PLANS_KEY);
+      if (!raw) {
+        // Seed default micro-doubler plan ($50 -> $100)
+        const defaultPlan = createTargetPlan({
+          ...PLAN_PRESETS[0],
+          id: 'plan_default_micro_50_100',
+        });
+        localStorage.setItem(PLANS_KEY, JSON.stringify([defaultPlan]));
+        return [defaultPlan];
+      }
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.map(createTargetPlan) : [];
+    } catch (e) {
+      console.error('Failed to read target plans from localStorage:', e);
+      return [];
+    }
+  },
+
+  /**
+   * Save all target plans
+   */
+  async savePlans(plans) {
+    const normalized = plans.map(createTargetPlan);
+    localStorage.setItem(PLANS_KEY, JSON.stringify(normalized));
+    return normalized;
+  },
+
+  /**
+   * Add a new target plan
+   */
+  async addPlan(planData) {
+    const plan = createTargetPlan(planData);
+    const existing = await this.getPlans();
+    const updated = [plan, ...existing];
+    await this.savePlans(updated);
+    return plan;
+  },
+
+  /**
+   * Update existing target plan
+   */
+  async updatePlan(id, updates) {
+    const existing = await this.getPlans();
+    const index = existing.findIndex((p) => p.id === id);
+    if (index === -1) return null;
+
+    const updated = createTargetPlan({ ...existing[index], ...updates, id, updatedAt: new Date().toISOString() });
+    existing[index] = updated;
+    await this.savePlans(existing);
+    return updated;
+  },
+
+  /**
+   * Delete a target plan
+   */
+  async deletePlan(id) {
+    const existing = await this.getPlans();
+    const filtered = existing.filter((p) => p.id !== id);
+    await this.savePlans(filtered);
+    return filtered;
+  },
+
+  /**
+   * Get active target plan ID
+   */
+  getActivePlanId() {
+    return localStorage.getItem(ACTIVE_PLAN_KEY) || null;
+  },
+
+  /**
+   * Set active target plan ID
+   */
+  setActivePlanId(id) {
+    if (id) {
+      localStorage.setItem(ACTIVE_PLAN_KEY, id);
+    } else {
+      localStorage.removeItem(ACTIVE_PLAN_KEY);
+    }
   }
 };

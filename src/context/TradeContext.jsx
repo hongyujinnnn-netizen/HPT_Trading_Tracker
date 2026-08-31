@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { tradeRepository } from '../services/tradeRepository';
 import { tradeStore } from '../services/tradeStore';
 import { imageStore } from '../services/imageStore';
@@ -13,6 +13,14 @@ import { isTradeableSymbol } from '../utils/symbolGuard';
 import { playNotificationSound } from '../utils/audioAlert';
 import { getPushPermission, requestPushPermission, sendPushNotification } from '../utils/pushNotification';
 import { calculateRollingWinRate, calculateUnderwaterDrawdown } from '../utils/edgeAnalytics';
+import {
+  calculatePlanProgress,
+  generateMilestones,
+  calculateNextTradeSize,
+  simulatePlanProjection,
+  calculateDailyRiskStatus,
+} from '../utils/planCalculations';
+import { createTargetPlan, PLAN_PRESETS } from '../types/planSchema';
 
 const TradeContext = createContext(null);
 
@@ -39,6 +47,10 @@ export function TradeProvider({ children }) {
   const [liveGoldPrice, setLiveGoldPrice] = useState(null);
   const [goldConnectionState, setGoldConnectionState] = useState('offline');
   const [orderToasts, setOrderToasts] = useState([]);
+
+  // Target Plans state
+  const [targetPlans, setTargetPlans] = useState([]);
+  const [activePlanId, setActivePlanIdState] = useState(() => tradeStore.getActivePlanId());
 
   // Persistent Notification System State
   const [notifications, setNotifications] = useState(() => {
@@ -254,6 +266,21 @@ export function TradeProvider({ children }) {
       setTrades(storedTrades || []);
       setDbViews(null);
       setUnmigratedTrades([]);
+    }
+
+    // Load Target Plans
+    try {
+      const loadedPlans = await tradeStore.getPlans();
+      setTargetPlans(loadedPlans || []);
+      const savedPlanId = tradeStore.getActivePlanId();
+      if (savedPlanId && loadedPlans && loadedPlans.some((p) => p.id === savedPlanId)) {
+        setActivePlanIdState(savedPlanId);
+      } else if (loadedPlans && loadedPlans.length > 0) {
+        setActivePlanIdState(loadedPlans[0].id);
+        tradeStore.setActivePlanId(loadedPlans[0].id);
+      }
+    } catch (e) {
+      console.error('Failed to load target plans:', e);
     }
 
     setLoading(false);
@@ -800,6 +827,87 @@ export function TradeProvider({ children }) {
     }
   }, [trades, accountBaseBalance, sendNotification]);
 
+  // Target Plan CRUD operations
+  const createPlan = useCallback(async (planData) => {
+    const newPlan = await tradeStore.addPlan(planData);
+    setTargetPlans((prev) => [newPlan, ...prev.filter((p) => p.id !== newPlan.id)]);
+    setActivePlanIdState(newPlan.id);
+    tradeStore.setActivePlanId(newPlan.id);
+    addToast('success', `Created target plan "${newPlan.name}"`, 'Plan Created');
+    return newPlan;
+  }, [addToast]);
+
+  const updatePlan = useCallback(async (id, updates) => {
+    const updated = await tradeStore.updatePlan(id, updates);
+    if (updated) {
+      setTargetPlans((prev) => prev.map((p) => (p.id === id ? updated : p)));
+      addToast('success', `Updated target plan "${updated.name}"`, 'Plan Updated');
+    }
+    return updated;
+  }, [addToast]);
+
+  const deletePlan = useCallback(async (id) => {
+    const remaining = await tradeStore.deletePlan(id);
+    setTargetPlans(remaining);
+    if (activePlanId === id) {
+      const nextId = remaining[0]?.id || null;
+      setActivePlanIdState(nextId);
+      tradeStore.setActivePlanId(nextId);
+    }
+    addToast('neutral', 'Target plan removed', 'Plan Deleted');
+    return remaining;
+  }, [activePlanId, addToast]);
+
+  const setActivePlanId = useCallback((id) => {
+    setActivePlanIdState(id);
+    tradeStore.setActivePlanId(id);
+  }, []);
+
+  const resetPlan = useCallback(async (id) => {
+    const plan = targetPlans.find((p) => p.id === id);
+    if (plan) {
+      const updated = await updatePlan(id, { status: 'active' });
+      addToast('info', `Reset plan "${plan.name}" to Active`, 'Plan Reset');
+      return updated;
+    }
+  }, [targetPlans, updatePlan, addToast]);
+
+  // Active Target Plan and live progress calculation
+  const activePlan = useMemo(() => {
+    if (!targetPlans || targetPlans.length === 0) return null;
+    return targetPlans.find((p) => p.id === activePlanId) || targetPlans[0];
+  }, [targetPlans, activePlanId]);
+
+  const activePlanMetrics = useMemo(() => {
+    if (!activePlan) return null;
+
+    // Filter trades relevant to this plan's account
+    const relevantTrades = (activePlan.accountId === 'all' || !activePlan.accountId)
+      ? trades
+      : trades.filter((t) => !t.accountId || t.accountId === activePlan.accountId);
+
+    // Calculate realized PnL of these trades
+    const realizedPnl = Math.round(relevantTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0) * 100) / 100;
+    const currentEquity = Math.round((activePlan.startingBalance + realizedPnl) * 100) / 100;
+
+    const progress = calculatePlanProgress(activePlan, currentEquity);
+    const milestones = generateMilestones(activePlan, currentEquity, settings.contractSize || 100);
+    const nextTradeSize = calculateNextTradeSize(activePlan, currentEquity, 2.0, settings.contractSize || 100);
+    const dailyRisk = calculateDailyRiskStatus(relevantTrades, activePlan);
+    const projection = simulatePlanProjection(activePlan, relevantTrades, 25, stats.winRate || 50);
+
+    return {
+      ...progress,
+      realizedPnl,
+      currentEquity,
+      milestones,
+      nextTradeSize,
+      dailyRisk,
+      projection,
+      relevantTrades,
+    };
+  }, [activePlan, trades, settings.contractSize, stats.winRate]);
+
   return (
     <TradeContext.Provider
       value={{
@@ -872,6 +980,16 @@ export function TradeProvider({ children }) {
         clearOrderHistory,
         dismissToast,
         refreshOrders,
+        // Target Plans & Account Growth Planner
+        targetPlans,
+        activePlan,
+        activePlanId,
+        activePlanMetrics,
+        setActivePlanId,
+        createTargetPlan: createPlan,
+        updateTargetPlan: updatePlan,
+        deleteTargetPlan: deletePlan,
+        resetTargetPlan: resetPlan,
       }}
     >
       {children}

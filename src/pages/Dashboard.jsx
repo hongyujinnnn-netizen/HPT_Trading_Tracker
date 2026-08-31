@@ -39,6 +39,7 @@ import { RollingWinRateChart } from '../components/RollingWinRateChart';
 import { RMultipleHistogram } from '../components/RMultipleHistogram';
 import { UnderwaterDrawdownChart } from '../components/UnderwaterDrawdownChart';
 import { EdgeAlertBanner } from '../components/EdgeAlertBanner';
+import { PlanTargetWidget } from '../components/PlanTargetWidget';
 import { INITIAL_EQUITY_CURVE } from '../utils/mockData';
 import { getCurrentGoldSession } from '../utils/sessionDetector';
 import { calculateExpectancy, calculateSharpeRatio, calculateUnderwaterDrawdown } from '../utils/edgeAnalytics';
@@ -681,6 +682,9 @@ export function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Micro Account Doubler / Plan Target Section */}
+      <PlanTargetWidget />
     </div>
   );
 }

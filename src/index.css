@@ -20,7 +20,7 @@
   --color-border-soft:      rgba(255, 255, 255, 0.08);
   --color-border-dark:      rgba(255, 255, 255, 0.14);
   --color-border-shine:     rgba(255, 255, 255, 0.09);
-  --color-text-main:        #F1F3F5;
+  --color-text-main:        #FFFFFF;
   --color-text-muted:       #94A3B8;
   --color-text-dim:         #64748B;
   --color-scrolltrack:      #080A0D;
@@ -53,15 +53,38 @@
   --card-shadow-hover:      0 8px 24px -3px rgba(0, 0, 0, 0.08), 0 0 16px rgba(217, 119, 6, 0.08);
 }
 
-/* ─── Base Styles ────────────────────────────────────────────────────────────── */
+/* ─── Smooth View Transition Cross-Fade (Native Browser Engine) ─────────────── */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.28s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── Base Styles & Global Theme Smooth Transitions ─────────────────────────── */
 
 @layer base {
+  html,
+  body,
+  #root,
+  header,
+  aside,
+  nav,
+  main,
+  footer,
+  .terminal-card,
+  .terminal-input,
+  .terminal-select {
+    transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
   body {
     font-family: 'Inter', sans-serif;
     background-color: var(--color-bg);
     color: var(--color-text-main);
     overflow-x: hidden;
-    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   h1, h2, h3, h4, h5, h6 {

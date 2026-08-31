@@ -234,10 +234,19 @@ export function Dashboard() {
       {/* Top Header with Layout Selector */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold font-display tracking-tight text-slate-900 dark:text-[#F1F3F5] flex items-center gap-2">
-            {greeting}, <span className="bg-gradient-to-r from-amber-600 to-amber-500 dark:from-[#EDEAE3] dark:via-[#F3D371] dark:to-[#C9A227] bg-clip-text text-transparent">{userName}</span> <span className="inline-block animate-bounce">👋</span>
+          <h1
+            className="text-2xl font-bold font-display tracking-tight flex items-center gap-2"
+            style={{ color: 'var(--color-text-main, #FFFFFF)' }}
+          >
+            <span className="text-slate-900 dark:text-white" style={{ color: 'var(--color-text-main, #FFFFFF)' }}>
+              {greeting},
+            </span>
+            <span className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-400 dark:from-[#EDEAE3] dark:via-[#F3D371] dark:to-[#C9A227] bg-clip-text text-transparent">
+              {userName}
+            </span>
+            <span className="inline-block animate-bounce">👋</span>
           </h1>
-          <p className="text-xs text-slate-500 dark:text-[#94A3B8] mt-0.5">
+          <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
             Institutional edge analytics, discipline metrics, and real-time execution tracking.
           </p>
         </div>

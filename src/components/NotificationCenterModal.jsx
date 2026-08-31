@@ -173,33 +173,40 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
       />
 
       {/* Modern Trading Telemetry Flyout */}
-      <div className="absolute right-0 top-full mt-2.5 w-[440px] max-w-[calc(100vw-1.5rem)] z-50 rounded-2xl overflow-hidden shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6),0_0_25px_rgba(201,162,39,0.08)] border animate-fade-in flex flex-col max-h-[85vh] bg-[#0A0D12]/95 dark:bg-[#0A0D12]/95 light:bg-white/95 backdrop-blur-2xl transition-all"
+      <div
+        className="absolute right-0 top-full mt-2.5 w-[440px] max-w-[calc(100vw-1.5rem)] z-50 rounded-2xl overflow-hidden shadow-2xl border animate-fade-in flex flex-col max-h-[85vh] backdrop-blur-2xl transition-all"
         style={{
+          background: 'var(--color-surface)',
           borderColor: 'var(--color-border-soft)',
+          color: 'var(--color-text-main)',
         }}
       >
         {/* Subtle Top Gold Highlight Glow Line */}
         <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#F3D371]/60 to-transparent" />
 
         {/* Header Bar */}
-        <div className="p-4 border-b flex items-center justify-between bg-black/20 dark:bg-black/30 light:bg-slate-50/50"
-          style={{ borderColor: 'var(--color-border-soft)' }}
+        <div
+          className="p-4 border-b flex items-center justify-between"
+          style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
         >
           <div className="flex items-center gap-3">
             {/* Luminous Logo Badge with Pulse */}
             <div className="relative flex items-center justify-center">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2A210F] to-[#120F07] border border-[#C9A227]/40 flex items-center justify-center text-[#F3D371] shadow-inner">
+              <div
+                className="w-9 h-9 rounded-xl border flex items-center justify-center text-amber-500 shadow-inner"
+                style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border-soft)' }}
+              >
                 <Bell size={17} />
               </div>
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#34D399] shadow-[0_0_8px_#34D399]" />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34D399]" />
             </div>
 
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold font-display tracking-tight text-slate-900 dark:text-[#EDEAE3]">
+                <h3 className="text-sm font-bold font-display tracking-tight" style={{ color: 'var(--color-text-main)' }}>
                   Telemetry Alerts
                 </h3>
-                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-num font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-num font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-500">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                   LIVE
                 </span>
@@ -209,7 +216,7 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
                   </span>
                 )}
               </div>
-              <p className="text-[11px] font-mono-num text-slate-500 dark:text-[#94A3B8] mt-0.5">
+              <p className="text-[11px] font-mono-num mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
                 XAU/USD Sentinel • Risk &amp; Trigger Engine
               </p>
             </div>
@@ -221,9 +228,10 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
               onClick={toggleNotificationSound}
               className={`p-1.5 rounded-lg border transition-all ${
                 isSoundEnabled
-                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shadow-sm'
-                  : 'text-slate-400 border-transparent hover:bg-white/[0.06]'
+                  ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30 shadow-sm'
+                  : 'hover:opacity-80'
               }`}
+              style={!isSoundEnabled ? { borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' } : undefined}
               title={isSoundEnabled ? 'Audio Alert Enabled' : 'Audio Alert Muted'}
             >
               {isSoundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
@@ -232,7 +240,8 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
             {/* Dismiss Button */}
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors"
+              className="p-1.5 rounded-lg border hover:opacity-80 transition-colors"
+              style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
               title="Close Panel"
             >
               <X size={16} />
@@ -242,9 +251,9 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
 
         {/* Push Notification Permission Toast */}
         {pushPermission !== 'granted' && (
-          <div className="px-4 py-2.5 bg-gradient-to-r from-[#2A210F]/80 to-[#120F07]/90 border-b border-[#C9A227]/30 flex items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2 text-[#EDEAE3] text-[11px]">
-              <BellRing size={14} className="text-[#F3D371] shrink-0 animate-bounce" />
+          <div className="px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/30 flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--color-text-main)' }}>
+              <BellRing size={14} className="text-amber-500 shrink-0 animate-bounce" />
               <span>Enable OS browser push for background price hits.</span>
             </div>
             <button
@@ -257,12 +266,14 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
         )}
 
         {/* Tab Strip & Actions */}
-        <div className="px-4 py-2 border-b flex items-center justify-between gap-2 text-xs bg-black/10 dark:bg-black/20"
-          style={{ borderColor: 'var(--color-border-soft)' }}
+        <div
+          className="px-4 py-2 border-b flex items-center justify-between gap-2 text-xs"
+          style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
         >
           {/* Segmented Filter Pills */}
-          <div className="flex items-center gap-1 p-0.5 rounded-xl border bg-black/20 dark:bg-white/[0.03]"
-            style={{ borderColor: 'var(--color-border-soft)' }}
+          <div
+            className="flex items-center gap-1 p-0.5 rounded-xl border"
+            style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border-soft)' }}
           >
             {[
               { id: 'all', label: 'All' },
@@ -278,8 +289,9 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
                   className={`px-3 py-1 rounded-lg font-semibold text-[11px] transition-all ${
                     active
                       ? 'bg-gradient-to-b from-[#C9A227] to-[#B38E1B] text-[#080A0D] font-bold shadow-md shadow-[#C9A227]/20 scale-[1.02]'
-                      : 'text-slate-400 hover:text-slate-200'
+                      : 'hover:opacity-80'
                   }`}
+                  style={{ color: active ? undefined : 'var(--color-text-muted)' }}
                 >
                   {tab.label}
                 </button>
@@ -291,7 +303,8 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
             {unreadCount > 0 && (
               <button
                 onClick={markAllNotificationsAsRead}
-                className="text-slate-400 hover:text-[#34D399] flex items-center gap-1 transition-colors"
+                className="hover:text-emerald-500 flex items-center gap-1 transition-colors"
+                style={{ color: 'var(--color-text-muted)' }}
                 title="Mark all as read"
               >
                 <CheckCheck size={13} />
@@ -301,7 +314,8 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
             {notifications.length > 0 && (
               <button
                 onClick={clearAllNotifications}
-                className="text-slate-500 hover:text-rose-400 flex items-center gap-1 transition-colors"
+                className="hover:text-rose-500 flex items-center gap-1 transition-colors"
+                style={{ color: 'var(--color-text-dim)' }}
                 title="Clear all alerts"
               >
                 <Trash2 size={12} />
@@ -317,17 +331,17 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
             <div className="py-8 px-4 flex flex-col items-center justify-center text-center">
               {/* Radar Rings Graphic */}
               <div className="relative flex items-center justify-center mb-4">
-                <div className="w-16 h-16 rounded-full bg-[#C9A227]/10 border border-[#C9A227]/25 flex items-center justify-center text-[#F3D371] shadow-[0_0_25px_rgba(201,162,39,0.18)]">
-                  <ShieldCheck size={28} className="text-[#F3D371]" />
+                <div className="w-16 h-16 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-500 shadow-sm">
+                  <ShieldCheck size={28} />
                 </div>
-                <div className="absolute w-22 h-22 rounded-full border border-[#C9A227]/15 animate-ping opacity-30" />
+                <div className="absolute w-22 h-22 rounded-full border border-amber-500/20 animate-ping opacity-30" />
                 <div className="absolute w-28 h-28 rounded-full border border-emerald-500/10 pointer-events-none" />
               </div>
 
-              <h4 className="text-sm font-bold font-display text-slate-900 dark:text-[#EDEAE3] tracking-tight">
+              <h4 className="text-sm font-bold font-display tracking-tight" style={{ color: 'var(--color-text-main)' }}>
                 All Systems Operational
               </h4>
-              <p className="text-xs text-slate-500 dark:text-[#94A3B8] max-w-xs mt-1 leading-relaxed">
+              <p className="text-xs max-w-xs mt-1 leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
                 Zero discipline breaches or triggered risk alarms. Sentinel is actively monitoring spot gold price velocity.
               </p>
 
@@ -435,11 +449,12 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
         </div>
 
         {/* Footer Quick Action Console */}
-        <div className="p-3 px-4 border-t flex items-center justify-between text-xs bg-black/20 dark:bg-black/30"
-          style={{ borderColor: 'var(--color-border-soft)' }}
+        <div
+          className="p-3 px-4 border-t flex items-center justify-between text-xs"
+          style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
         >
-          <div className="flex items-center gap-1.5 text-slate-500 text-[11px] font-mono-num">
-            <Radio size={12} className="text-emerald-400 animate-pulse" />
+          <div className="flex items-center gap-1.5 text-[11px] font-mono-num" style={{ color: 'var(--color-text-muted)' }}>
+            <Radio size={12} className="text-emerald-500 animate-pulse" />
             <span>24/7 Gold Stream</span>
           </div>
 
@@ -448,7 +463,7 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
               onClose();
               if (onOpenPriceAlerts) onOpenPriceAlerts();
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#C9A227]/20 to-[#E4C468]/20 hover:from-[#C9A227]/30 hover:to-[#E4C468]/30 border border-[#C9A227]/40 text-[#F3D371] font-semibold text-xs transition-all shadow-sm group"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-semibold text-xs transition-all shadow-sm group bg-amber-500/15 text-amber-700 dark:text-[#F3D371] border-amber-500/30 hover:bg-amber-500/25"
           >
             <span>Set Price Target Alert</span>
             <ArrowUpRight size={13} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />

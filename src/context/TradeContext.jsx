@@ -83,12 +83,20 @@ export function TradeProvider({ children }) {
   });
 
   const applyTheme = useCallback((resolvedTheme) => {
-    if (resolvedTheme === 'light') {
-      document.documentElement.classList.add('light');
-      document.documentElement.classList.remove('dark');
+    const updateClasses = () => {
+      if (resolvedTheme === 'light') {
+        document.documentElement.classList.add('light');
+        document.documentElement.classList.remove('dark');
+      } else {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+      }
+    };
+
+    if (typeof document !== 'undefined' && document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.startViewTransition(updateClasses);
     } else {
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
+      updateClasses();
     }
   }, []);
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TrendingUp, TrendingDown, Bell, Zap, Cloud, Sparkles, LogOut, Activity, AlertTriangle, Radio, Clock, Menu, X, Wifi, WifiOff } from 'lucide-react';
+import { TrendingUp, TrendingDown, Bell, Zap, Cloud, Sparkles, LogOut, Activity, AlertTriangle, Radio, Clock, Menu, X, Wifi, WifiOff, Sun, Moon, User } from 'lucide-react';
 import { Pill } from './Pill';
 import { AccountSelector } from './AccountSelector';
 import { PriceAlertModal } from './PriceAlertModal';
@@ -10,7 +10,12 @@ import { goldPriceService, ConnectionState } from '../services/goldPriceService'
 import { getCurrentGoldSession } from '../utils/sessionDetector';
 
 export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountManager }) {
-  const { userSession, signOut, isDemoMode, setActivePage, priceAlerts, notifications = [] } = useTrade();
+  const { userSession, signOut, isDemoMode, setActivePage, priceAlerts, notifications = [], theme, setTheme } = useTrade();
+
+  const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const handleToggleTheme = () => {
+    setTheme(isDarkMode ? 'light' : 'dark');
+  };
 
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
@@ -240,45 +245,73 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountMan
         {/* Trading Sub-Account Selector */}
         <AccountSelector onOpenManager={onOpenAccountManager} />
 
-        {/* User Session / Cloud Status Badge — click to open Profile */}
+        {/* User Session Profile — ONLY Logo/Avatar Icon */}
         {userSession ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => setActivePage('profile')}
-              title="View Profile"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono-num font-semibold border transition-all"
+              title={`Profile (${userSession.user.email})`}
+              className="w-8 h-8 rounded-full flex items-center justify-center border transition-all hover:scale-105 active:scale-95 shadow-sm"
               style={{
                 background: 'var(--color-elevated)',
                 borderColor: 'var(--color-border-soft)',
-                color: 'var(--color-text-main)',
               }}
             >
-              {/* Avatar circle with initial */}
-              <span className="w-5 h-5 rounded-full bg-[#10B981] text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0">
-                {userSession.user.email?.charAt(0).toUpperCase()}
+              <span className="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-400 text-white text-[11px] font-bold flex items-center justify-center shadow-inner">
+                {userSession.user.email?.charAt(0).toUpperCase() || 'U'}
               </span>
-              <span className="hidden sm:inline truncate max-w-[140px]">{userSession.user.email}</span>
-              <span className="sm:hidden">Profile</span>
             </button>
 
             <button
               onClick={signOut}
               title="Sign Out"
-              className="p-1.5 rounded hover:text-[#F43F5E] transition-colors"
-              style={{ color: 'var(--color-text-muted)' }}
+              className="p-1.5 rounded-lg border hover:text-rose-500 hover:border-rose-500/30 transition-colors"
+              style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
             >
-              <LogOut size={15} />
+              <LogOut size={14} />
             </button>
           </div>
         ) : isDemoMode ? (
           <button
             onClick={() => setActivePage('profile')}
-            title="View Profile"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono-num font-semibold bg-amber-500/10 text-amber-600 dark:text-[#E5B83B] border border-amber-500/30 transition-all"
+            title="Demo Profile"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-amber-500 border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 transition-all shadow-sm"
           >
-            <Sparkles size={13} /> Demo Mode
+            <Sparkles size={14} />
           </button>
-        ) : null}
+        ) : (
+          <button
+            onClick={() => setActivePage('profile')}
+            title="Profile"
+            className="w-8 h-8 rounded-full flex items-center justify-center border hover:opacity-80 transition-all shadow-sm"
+            style={{
+              background: 'var(--color-elevated)',
+              borderColor: 'var(--color-border-soft)',
+              color: 'var(--color-text-main)',
+            }}
+          >
+            <User size={15} />
+          </button>
+        )}
+
+        {/* Dark / White Mode Toggle */}
+        <button
+          onClick={handleToggleTheme}
+          title={isDarkMode ? 'Switch to White Mode' : 'Switch to Dark Mode'}
+          className="w-8 h-8 rounded-xl border flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 shadow-sm"
+          style={{
+            background: 'var(--color-elevated)',
+            borderColor: 'var(--color-border-soft)',
+            color: isDarkMode ? '#F3D371' : '#F59E0B',
+          }}
+          aria-label={isDarkMode ? 'Switch to White Mode' : 'Switch to Dark Mode'}
+        >
+          {isDarkMode ? (
+            <Sun size={16} className="transition-transform hover:rotate-45" />
+          ) : (
+            <Moon size={16} className="transition-transform hover:-rotate-12" />
+          )}
+        </button>
 
         {/* Notifications & Alerts Bell with Anchored Dropdown Flyout */}
         {(() => {

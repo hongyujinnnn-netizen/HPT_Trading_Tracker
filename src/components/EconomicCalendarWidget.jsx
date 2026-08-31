@@ -93,32 +93,32 @@ export function EconomicCalendarWidget() {
         </div>
       ) : (
         /* ── Event list ──────────────────────────────────── */
-        <div className="divide-y divide-[#1E2226]">
+        <div className="divide-y divide-slate-200 dark:divide-[#262B30]">
           {events.map((ev) => (
             <div
               key={ev.id}
               className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
             >
               <div className="flex items-start gap-4">
-                <span className="text-xs font-mono-num text-[#8B8D91] w-[130px] shrink-0 pt-0.5">
+                <span className="text-xs font-mono-num text-slate-500 dark:text-[#8B8D91] w-[130px] shrink-0 pt-0.5">
                   {formatTime(ev.event_time)}
                 </span>
                 <div>
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-sm font-bold font-display text-[#EDEAE3]">
+                    <span className="text-sm font-bold font-display" style={{ color: 'var(--color-text-main)' }}>
                       {ev.title}
                     </span>
                     <Pill tone={impactTone(ev.impact)}>
                       {impactLabel(ev.impact)}
                     </Pill>
                     {ev.currency && (
-                      <span className="text-[10px] font-mono-num text-[#5A5D61]">
+                      <span className="text-[10px] font-mono-num" style={{ color: 'var(--color-text-dim)' }}>
                         {ev.currency}
                       </span>
                     )}
                   </div>
                   {ev.note && (
-                    <p className="text-xs text-[#8B8D91] font-body max-w-xl">
+                    <p className="text-xs font-body max-w-xl" style={{ color: 'var(--color-text-muted)' }}>
                       {ev.note}
                     </p>
                   )}

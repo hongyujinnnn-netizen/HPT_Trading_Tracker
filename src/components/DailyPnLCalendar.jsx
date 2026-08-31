@@ -90,26 +90,36 @@ export function DailyPnLCalendar({ trades = [] }) {
       {/* Header & Controls */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold font-display text-[#EDEAE3]">Daily P&amp;L Calendar</h3>
-          <p className="text-xs text-[#8B8D91]">
-            {MONTH_NAMES[month]} {year} · <span className="text-[#3FA88C]">green = profit day</span>, <span className="text-[#C1502E]">red = loss day</span> (click day for details)
+          <h3 className="text-base font-bold font-display" style={{ color: 'var(--color-text-main)' }}>
+            Daily P&amp;L Calendar
+          </h3>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+            {MONTH_NAMES[month]} {year} · <span className="text-[#3FA88C] font-semibold">green = profit</span>, <span className="text-[#FB7185] font-semibold">red = loss</span>
           </p>
         </div>
 
-        <div className="flex items-center gap-1 bg-[#131619] p-1 rounded-lg border border-[#262B30]">
+        <div
+          className="flex items-center gap-1 p-1 rounded-xl border shadow-inner transition-colors"
+          style={{
+            background: 'var(--color-elevated)',
+            borderColor: 'var(--color-border-soft)',
+          }}
+        >
           <button
             onClick={handlePrevMonth}
-            className="p-1 text-[#8B8D91] hover:text-[#EDEAE3] hover:bg-[#1B1F23] rounded transition-colors"
+            className="p-1 rounded-lg transition-colors hover:opacity-80"
+            style={{ color: 'var(--color-text-muted)' }}
             aria-label="Previous Month"
           >
             <ChevronLeft size={14} />
           </button>
-          <span className="px-2 text-xs font-mono-num font-bold text-[#C9A227]">
+          <span className="px-2.5 text-xs font-mono-num font-bold text-[#E5B83B]">
             {MONTH_SHORT[month]}
           </span>
           <button
             onClick={handleNextMonth}
-            className="p-1 text-[#8B8D91] hover:text-[#EDEAE3] hover:bg-[#1B1F23] rounded transition-colors"
+            className="p-1 rounded-lg transition-colors hover:opacity-80"
+            style={{ color: 'var(--color-text-muted)' }}
             aria-label="Next Month"
           >
             <ChevronRight size={14} />
@@ -118,7 +128,7 @@ export function DailyPnLCalendar({ trades = [] }) {
       </div>
 
       {/* Weekday Headers */}
-      <div className="grid grid-cols-7 gap-1.5 text-center text-xs font-semibold text-[#5A5D61]">
+      <div className="grid grid-cols-7 gap-1.5 text-center text-xs font-semibold" style={{ color: 'var(--color-text-dim)' }}>
         {WEEKDAYS.map((day) => (
           <div key={day} className="py-1">{day}</div>
         ))}
@@ -133,23 +143,23 @@ export function DailyPnLCalendar({ trades = [] }) {
 
           const { dayNumber, hasTrade, pnl, dayTrades, dateStr } = cell;
 
-          let bgStyle = 'bg-[#131619] border-[#1E2226] text-[#5A5D61] hover:border-[#262B30]';
+          let cellClass = 'calendar-day-slot';
           let pnlText = '—';
-          let pnlColor = 'text-[#5A5D61]';
+          let pnlColor = 'opacity-40';
 
           if (hasTrade) {
             if (pnl > 0) {
-              bgStyle = 'bg-[#152E25]/90 border-[#1F4A40] text-[#3FA88C] shadow-inner hover:border-[#3FA88C] cursor-pointer hover:scale-[1.02]';
+              cellClass = 'calendar-day-profit cursor-pointer hover:scale-[1.02]';
               pnlText = `+$${Math.round(pnl)}`;
-              pnlColor = 'text-[#3FA88C] font-extrabold';
+              pnlColor = 'font-extrabold';
             } else if (pnl < 0) {
-              bgStyle = 'bg-[#2E1815]/90 border-[#4A2A1E] text-[#C1502E] shadow-inner hover:border-[#C1502E] cursor-pointer hover:scale-[1.02]';
+              cellClass = 'calendar-day-loss cursor-pointer hover:scale-[1.02]';
               pnlText = `-$${Math.abs(Math.round(pnl))}`;
-              pnlColor = 'text-[#C1502E] font-extrabold';
+              pnlColor = 'font-extrabold';
             } else {
-              bgStyle = 'bg-[#1B1F23] border-[#262B30] text-[#8B8D91] hover:border-[#C9A227] cursor-pointer hover:scale-[1.02]';
+              cellClass = 'calendar-day-breakeven cursor-pointer hover:scale-[1.02]';
               pnlText = '$0';
-              pnlColor = 'text-[#8B8D91] font-semibold';
+              pnlColor = 'font-semibold';
             }
           }
 
@@ -161,14 +171,14 @@ export function DailyPnLCalendar({ trades = [] }) {
                   setSelectedDayRecap({ dateStr, dayNumber, pnl, dayTrades });
                 }
               }}
-              className={`h-16 p-2 rounded-lg border flex flex-col justify-between transition-all ${bgStyle}`}
+              className={`h-16 p-2 rounded-lg flex flex-col justify-between transition-all ${cellClass}`}
             >
               <div className="flex items-center justify-between w-full">
-                <span className="text-[11px] font-mono-num text-[#8B8D91] leading-none">
+                <span className="text-[11px] font-mono-num opacity-70 leading-none">
                   {dayNumber}
                 </span>
                 {hasTrade && (
-                  <span className="text-[9px] px-1 rounded bg-black/40 font-mono-num text-[#8B8D91]">
+                  <span className="text-[9px] px-1 rounded bg-black/30 font-mono-num opacity-80">
                     {dayTrades.length}t
                   </span>
                 )}
@@ -184,15 +194,21 @@ export function DailyPnLCalendar({ trades = [] }) {
       {/* Selected Day Drill-down Modal */}
       {selectedDayRecap && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#131619] border border-[#262B30] rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#1E2226] pb-3">
+          <div
+            className="border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl transition-colors"
+            style={{
+              background: 'var(--color-surface)',
+              borderColor: 'var(--color-border-dark)',
+            }}
+          >
+            <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-border-soft)' }}>
               <div className="flex items-center gap-2">
                 <CalendarIcon size={16} className="text-[#C9A227]" />
                 <div>
-                  <h3 className="text-sm font-bold font-display text-[#EDEAE3]">
+                  <h3 className="text-sm font-bold font-display" style={{ color: 'var(--color-text-main)' }}>
                     {selectedDayRecap.dateStr} Recap
                   </h3>
-                  <span className="text-[11px] text-[#8B8D91]">
+                  <span className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
                     {selectedDayRecap.dayTrades.length} total trade(s) logged
                   </span>
                 </div>
@@ -204,7 +220,8 @@ export function DailyPnLCalendar({ trades = [] }) {
                 </Pill>
                 <button
                   onClick={() => setSelectedDayRecap(null)}
-                  className="p-1 text-[#8B8D91] hover:text-[#EDEAE3] rounded-lg"
+                  className="p-1 rounded-lg transition-colors hover:opacity-80"
+                  style={{ color: 'var(--color-text-muted)' }}
                 >
                   <X size={16} />
                 </button>
@@ -220,23 +237,27 @@ export function DailyPnLCalendar({ trades = [] }) {
                     setSelectedTrade(t);
                     setSelectedDayRecap(null);
                   }}
-                  className="p-3 rounded-xl bg-[#1B1F23] border border-[#262B30] hover:border-[#C9A227] cursor-pointer flex items-center justify-between text-xs transition-all group"
+                  className="p-3 rounded-xl border hover:border-[#C9A227] cursor-pointer flex items-center justify-between text-xs transition-all group"
+                  style={{
+                    background: 'var(--color-elevated)',
+                    borderColor: 'var(--color-border-soft)',
+                  }}
                 >
                   <div className="flex items-center gap-2.5">
                     <Pill tone={t.side === 'Buy' ? 'profit' : 'loss'}>{t.side}</Pill>
                     <div>
-                      <div className="font-semibold text-[#EDEAE3] flex items-center gap-1.5">
+                      <div className="font-semibold flex items-center gap-1.5" style={{ color: 'var(--color-text-main)' }}>
                         <span>{t.strategy}</span>
-                        <span className="text-[10px] text-[#8B8D91]">({t.session})</span>
+                        <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>({t.session})</span>
                       </div>
-                      <div className="text-[10px] text-[#8B8D91] font-mono-num">
+                      <div className="text-[10px] font-mono-num" style={{ color: 'var(--color-text-muted)' }}>
                         @{t.entryPrice} → @{t.exitPrice} ({t.lotSize} lots)
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 font-mono-num">
-                    <span className={`font-bold ${t.pnl >= 0 ? 'text-[#3FA88C]' : 'text-[#C1502E]'}`}>
+                    <span className={`font-bold ${t.pnl >= 0 ? 'text-[#3FA88C]' : 'text-[#FB7185]'}`}>
                       {t.pnl >= 0 ? '+' : ''}${t.pnl}
                     </span>
                     <ArrowRight size={13} className="text-[#5A5D61] group-hover:text-[#C9A227] transition-colors" />

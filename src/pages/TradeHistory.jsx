@@ -60,8 +60,8 @@ export function TradeHistory() {
       {/* Header & Main Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold font-display text-[#EDEAE3]">Trade Journal &amp; History</h1>
-          <p className="text-xs text-[#8B8D91]">
+          <h1 className="text-xl font-bold font-display" style={{ color: 'var(--color-text-main)' }}>Trade Journal &amp; History</h1>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
             Showing {filteredTrades.length} of {trades.length} logged XAU/USD trades
           </p>
         </div>
@@ -69,21 +69,31 @@ export function TradeHistory() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setIsImportModalOpen(true)}
-            className="px-3 py-1.5 rounded-lg bg-[#1B1F23] hover:bg-[#262B30] border border-[#262B30] text-xs font-semibold text-[#EDEAE3] flex items-center gap-1.5 transition-colors"
+            className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-colors hover:opacity-80"
+            style={{
+              background: 'var(--color-elevated)',
+              borderColor: 'var(--color-border-soft)',
+              color: 'var(--color-text-main)',
+            }}
           >
-            <Upload size={14} className="text-[#C9A227]" /> Import MT5 Report
+            <Upload size={14} className="text-amber-500 dark:text-[#C9A227]" /> Import MT5 Report
           </button>
 
           <button
             onClick={handleExportCSV}
-            className="px-3 py-1.5 rounded-lg bg-[#1B1F23] hover:bg-[#262B30] border border-[#262B30] text-xs font-semibold text-[#EDEAE3] flex items-center gap-1.5 transition-colors"
+            className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-colors hover:opacity-80"
+            style={{
+              background: 'var(--color-elevated)',
+              borderColor: 'var(--color-border-soft)',
+              color: 'var(--color-text-main)',
+            }}
           >
-            <Download size={14} className="text-[#3FA88C]" /> Export CSV
+            <Download size={14} className="text-emerald-500 dark:text-[#3FA88C]" /> Export CSV
           </button>
 
           <button
             onClick={() => setActivePage('add')}
-            className="px-3.5 py-1.5 rounded-lg bg-[#C9A227] hover:bg-[#E4C468] text-[#0A0C0E] text-xs font-bold flex items-center gap-1.5 transition-colors"
+            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#C9A227] to-[#D4AF37] hover:brightness-105 text-[#080A0D] text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
           >
             <Plus size={14} /> Add Trade
           </button>
@@ -94,41 +104,56 @@ export function TradeHistory() {
       <div className="terminal-card p-4 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Filter Tabs */}
-          <div className="flex gap-1.5 bg-[#1B1F23] p-1 rounded-lg border border-[#1E2226]">
-            {['All', 'Wins', 'Losses', 'Flagged'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setFilterTab(tab)}
-                className={`px-3 py-1 rounded text-xs font-semibold font-body transition-colors ${filterTab === tab ? 'bg-[#C9A227] text-[#0A0C0E]' : 'text-[#8B8D91] hover:text-[#EDEAE3]'}`}
-              >
-                {tab}
-              </button>
-            ))}
+          <div
+            className="flex gap-1 p-1 rounded-xl border shadow-inner transition-colors w-fit"
+            style={{
+              background: 'var(--color-elevated)',
+              borderColor: 'var(--color-border-soft)',
+            }}
+          >
+            {['All', 'Wins', 'Losses', 'Flagged'].map((tab) => {
+              const isActive = filterTab === tab;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setFilterTab(tab)}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold font-display transition-all ${
+                    isActive
+                      ? 'bg-gradient-to-r from-[#C9A227] to-[#D4AF37] text-[#080A0D] shadow-sm'
+                      : 'hover:opacity-80'
+                  }`}
+                  style={!isActive ? { color: 'var(--color-text-muted)' } : undefined}
+                >
+                  {tab}
+                </button>
+              );
+            })}
           </div>
 
           {/* Search Bar */}
-          <div className="flex items-center gap-2 bg-[#1B1F23] px-3 py-1.5 rounded-lg border border-[#1E2226] text-xs text-[#EDEAE3] sm:w-64">
-            <Search size={14} className="text-[#5A5D61]" />
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs sm:w-64 terminal-input">
+            <Search size={14} style={{ color: 'var(--color-text-dim)' }} />
             <input
               type="text"
               placeholder="Search strategy, notes, emotion..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="bg-transparent outline-none w-full text-xs placeholder-[#5A5D61]"
+              className="bg-transparent outline-none w-full text-xs"
+              style={{ color: 'var(--color-text-main)' }}
             />
           </div>
         </div>
 
         {/* Dropdown Filters */}
-        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[#1E2226] text-xs">
-          <span className="text-[#5A5D61] flex items-center gap-1 font-semibold">
+        <div className="flex flex-wrap items-center gap-3 pt-2 border-t text-xs" style={{ borderColor: 'var(--color-border-soft)' }}>
+          <span className="flex items-center gap-1 font-semibold" style={{ color: 'var(--color-text-dim)' }}>
             <Filter size={12} /> Filters:
           </span>
 
           <select
             value={selectedStrategy}
             onChange={(e) => setSelectedStrategy(e.target.value)}
-            className="bg-[#1B1F23] border border-[#262B30] rounded px-2.5 py-1 text-[#EDEAE3] outline-none"
+            className="rounded-lg px-2.5 py-1 text-xs terminal-select"
           >
             <option value="All">All Strategies</option>
             <option value="Breakout">Breakout</option>
@@ -140,7 +165,7 @@ export function TradeHistory() {
           <select
             value={selectedSession}
             onChange={(e) => setSelectedSession(e.target.value)}
-            className="bg-[#1B1F23] border border-[#262B30] rounded px-2.5 py-1 text-[#EDEAE3] outline-none"
+            className="rounded-lg px-2.5 py-1 text-xs terminal-select"
           >
             <option value="All">All Sessions</option>
             <option value="Asian">Asian</option>
@@ -155,7 +180,13 @@ export function TradeHistory() {
       <div className="terminal-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
-            <thead className="bg-[#1B1F23] border-b border-[#1E2226] text-[#8B8D91] uppercase tracking-wider font-semibold">
+            <thead
+              className="border-b border-slate-200 dark:border-[#262B30] uppercase tracking-wider font-semibold text-[11px]"
+              style={{
+                background: 'var(--color-elevated)',
+                color: 'var(--color-text-dim)',
+              }}
+            >
               <tr>
                 <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Side</th>
@@ -170,10 +201,10 @@ export function TradeHistory() {
                 <th className="px-4 py-3 text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#1E2226] font-body">
+            <tbody className="divide-y divide-slate-200 dark:divide-[#262B30] font-body">
               {filteredTrades.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-8 text-center text-[#5A5D61]">
+                  <td colSpan={11} className="px-4 py-8 text-center text-slate-400 dark:text-[#8B8D91]">
                     No trades found matching active filters.
                   </td>
                 </tr>
@@ -181,45 +212,45 @@ export function TradeHistory() {
                 filteredTrades.map((t) => (
                   <tr
                     key={t.id}
-                    className="hover:bg-[#1B1F23]/60 transition-colors group cursor-pointer"
+                    className="hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors group cursor-pointer"
                     onClick={() => setSelectedTrade(t)}
                   >
-                    <td className="px-4 py-3 font-mono-num text-[#8B8D91]">{t.date}</td>
+                    <td className="px-4 py-3 font-mono-num text-slate-500 dark:text-[#8B8D91]">{t.date}</td>
                     <td className="px-4 py-3">
                       <Pill tone={t.side === 'Buy' ? 'profit' : 'loss'}>{t.side}</Pill>
                     </td>
-                    <td className="px-4 py-3 font-mono-num text-[#EDEAE3]">${t.entryPrice}</td>
-                    <td className="px-4 py-3 font-mono-num text-[#EDEAE3]">${t.exitPrice}</td>
-                    <td className="px-4 py-3 font-mono-num text-[#C9A227]">{t.lotSize}</td>
-                    <td className="px-4 py-3 font-mono-num" style={{ color: t.rr >= 1.0 ? '#3FA88C' : '#C1502E' }}>
+                    <td className="px-4 py-3 font-mono-num font-medium" style={{ color: 'var(--color-text-main)' }}>${t.entryPrice}</td>
+                    <td className="px-4 py-3 font-mono-num font-medium" style={{ color: 'var(--color-text-main)' }}>${t.exitPrice}</td>
+                    <td className="px-4 py-3 font-mono-num font-semibold text-amber-600 dark:text-[#C9A227]">{t.lotSize}</td>
+                    <td className="px-4 py-3 font-mono-num" style={{ color: t.rr >= 1.0 ? '#059669' : '#E11D48' }}>
                       1 : {t.rr.toFixed(1)}
                     </td>
-                    <td className="px-4 py-3 text-[#EDEAE3] font-medium">{t.strategy}</td>
-                    <td className="px-4 py-3 text-[#8B8D91]">{t.session}</td>
+                    <td className="px-4 py-3 font-medium" style={{ color: 'var(--color-text-main)' }}>{t.strategy}</td>
+                    <td className="px-4 py-3 text-slate-500 dark:text-[#8B8D91]">{t.session}</td>
                     <td className="px-4 py-3">
                       {t.mistakes && t.mistakes.length > 0 ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-[#C1502E] font-semibold bg-[#4A2A1E]/30 px-2 py-0.5 rounded border border-[#5C3426]">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/30 text-rose-700 dark:text-rose-400">
                           <AlertTriangle size={11} /> {t.mistakes[0]}
                         </span>
                       ) : (
-                        <span className="text-xs text-[#5A5D61]">{t.emotion}</span>
+                        <span className="text-xs text-slate-400 dark:text-[#8B8D91]">{t.emotion}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-mono-num font-bold text-right text-sm" style={{ color: t.pnl >= 0 ? '#3FA88C' : '#C1502E' }}>
+                    <td className="px-4 py-3 font-mono-num font-bold text-right text-sm" style={{ color: t.pnl >= 0 ? '#059669' : '#E11D48' }}>
                       {t.pnl >= 0 ? '+' : ''}${t.pnl.toLocaleString()}
                     </td>
                     <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => setSelectedTrade(t)}
-                          className="p-1 rounded text-[#8B8D91] hover:text-[#C9A227]"
+                          className="p-1 rounded text-slate-400 dark:text-[#8B8D91] hover:text-amber-500 transition-colors"
                           title="View Trade Details"
                         >
                           <Eye size={14} />
                         </button>
                         <button
                           onClick={() => deleteTrade(t.id)}
-                          className="p-1 rounded text-[#5A5D61] hover:text-[#C1502E]"
+                          className="p-1 rounded text-rose-500/70 hover:text-rose-600 transition-colors"
                           title="Delete Trade"
                         >
                           <Trash2 size={14} />

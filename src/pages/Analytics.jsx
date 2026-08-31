@@ -144,27 +144,28 @@ export function Analytics() {
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       {/* Header with Strategy Segmentation */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#262B30] pb-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4" style={{ borderColor: 'var(--color-border-soft)' }}>
         <div>
-          <h1 className="text-xl font-bold font-display text-[#EDEAE3]">
+          <h1 className="text-xl font-bold font-display" style={{ color: 'var(--color-text-main)' }}>
             Performance Analytics &amp; Quantitative Edge
           </h1>
-          <p className="text-xs text-[#8B8D91] mt-0.5">
+          <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
             Institutional-grade statistical modeling: rolling win rates, R-multiple distributions, underwater drawdowns, and session heat maps.
           </p>
         </div>
 
         {/* Strategy Segmentation Filter */}
-        <div className="flex items-center gap-2 bg-[#131619] px-3 py-1.5 rounded-lg border border-[#262B30] text-xs">
-          <Filter size={13} className="text-[#C9A227]" />
-          <span className="text-[#8B8D91]">Strategy:</span>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
+          <Filter size={13} className="text-amber-500 dark:text-[#C9A227]" />
+          <span style={{ color: 'var(--color-text-dim)' }}>Strategy:</span>
           <select
             value={selectedStrategy}
             onChange={(e) => setSelectedStrategy(e.target.value)}
-            className="bg-transparent text-[#EDEAE3] font-semibold outline-none cursor-pointer"
+            className="bg-transparent font-semibold outline-none cursor-pointer"
+            style={{ color: 'var(--color-text-main)' }}
           >
             {availableStrategies.map((s) => (
-              <option key={s} value={s} className="bg-[#1B1F23] text-[#EDEAE3]">
+              <option key={s} value={s} style={{ background: 'var(--color-surface)', color: 'var(--color-text-main)' }}>
                 {s === 'All' ? 'All Strategies (Aggregate)' : s}
               </option>
             ))}
@@ -208,7 +209,7 @@ export function Analytics() {
       </div>
 
       {/* Modular Tab Navigation */}
-      <div className="flex items-center gap-1.5 overflow-x-auto border-b border-[#262B30] pb-2 text-xs select-none">
+      <div className="flex items-center gap-1.5 overflow-x-auto border-b pb-2 text-xs select-none" style={{ borderColor: 'var(--color-border-soft)' }}>
         {[
           { id: 'overview', label: 'Overview & Day Stats', icon: Calendar },
           { id: 'edge', label: 'Rolling Win Rate & R-Histogram', icon: TrendingUp },
@@ -224,9 +225,10 @@ export function Analytics() {
               onClick={() => setActiveTab(tab.id)}
               className={`px-3.5 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all shrink-0 ${
                 isActive
-                  ? 'bg-[#2A2311] text-[#C9A227] border border-[#C9A227]/40 shadow-sm'
-                  : 'text-[#8B8D91] hover:text-[#EDEAE3] hover:bg-[#1B1F23]'
+                  ? 'bg-amber-500/15 text-amber-700 dark:text-[#C9A227] border border-amber-500/40 shadow-sm'
+                  : 'hover:opacity-80 hover:bg-black/5 dark:hover:bg-white/5'
               }`}
+              style={!isActive ? { color: 'var(--color-text-muted)' } : undefined}
             >
               <Icon size={14} />
               <span>{tab.label}</span>

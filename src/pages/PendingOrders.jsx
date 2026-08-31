@@ -216,20 +216,23 @@ export function PendingOrders() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold font-display text-[#EDEAE3] flex items-center gap-2">
-            <ListOrdered size={22} className="text-[#C9A227]" /> Pending Orders
+          <h1 className="text-xl font-bold font-display flex items-center gap-2" style={{ color: 'var(--color-text-main)' }}>
+            <ListOrdered size={22} className="text-amber-500 dark:text-[#C9A227]" /> Pending Orders
           </h1>
-          <p className="text-xs text-[#8B8D91] mt-0.5">
+          <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
             Set up pending orders that auto-execute when real XAU/USD price hits your entry, TP, or SL.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           {/* Live price badge */}
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#131619] border border-[#262B30] text-xs font-mono-num">
+          <div
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-mono-num"
+            style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
+          >
             <span className="w-2 h-2 rounded-full bg-[#3FA88C] animate-pulse" />
-            <span className="text-[#8B8D91]">
-              XAU/USD <strong className="text-[#EDEAE3]">${liveGoldPrice ? liveGoldPrice.toFixed(2) : '—'}</strong>
+            <span style={{ color: 'var(--color-text-muted)' }}>
+              XAU/USD <strong style={{ color: 'var(--color-text-main)' }}>${liveGoldPrice ? liveGoldPrice.toFixed(2) : '—'}</strong>
             </span>
           </div>
 
@@ -250,13 +253,13 @@ export function PendingOrders() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Target Sub-Account Picker */}
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-[#C9A227] font-semibold mb-1 block">
+              <label className="text-[10px] uppercase tracking-wider text-amber-600 dark:text-[#C9A227] font-semibold mb-1 block">
                 Target Sub-Account *
               </label>
               <select
                 value={selectedAccountId}
                 onChange={(e) => setSelectedAccountId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-[#0A0C0E] border border-[#C9A227]/40 text-xs font-semibold text-[#EDEAE3] focus:outline-none focus:border-[#C9A227]"
+                className="w-full px-3 py-2 rounded-lg text-xs font-semibold terminal-select focus:outline-none"
               >
                 {visibleAccounts.map((acc) => (
                   <option key={acc.id} value={acc.id}>
@@ -265,31 +268,31 @@ export function PendingOrders() {
                 ))}
               </select>
               {targetSubAccount && (
-                <div className="flex items-center justify-between text-[10px] text-[#8B8D91] mt-1 font-mono">
-                  <span>Balance: <strong className="text-[#3FA88C]">${targetSubAccount.initialBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></span>
-                  <span>Leverage: <strong className="text-[#C9A227]">{targetSubAccount.leverage}</strong></span>
+                <div className="flex items-center justify-between text-[10px] mt-1 font-mono" style={{ color: 'var(--color-text-muted)' }}>
+                  <span>Balance: <strong className="text-emerald-600 dark:text-[#3FA88C]">${targetSubAccount.initialBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></span>
+                  <span>Leverage: <strong className="text-amber-600 dark:text-[#C9A227]">{targetSubAccount.leverage}</strong></span>
                 </div>
               )}
             </div>
 
             {/* Order Type Selector */}
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-[#5A5D61] mb-1.5 block">Order Type</label>
+              <label className="text-[10px] uppercase tracking-wider mb-1.5 block font-semibold" style={{ color: 'var(--color-text-muted)' }}>Order Type</label>
               <div className="grid grid-cols-2 gap-2">
                 {ORDER_TYPES.map(t => {
                   const isSelected = orderType === t.value;
-                  const bgActive = t.isBuy ? '#1F4A40' : '#4A2A1E';
-                  const fgActive = t.isBuy ? '#3FA88C' : '#C1502E';
-                  const borderActive = t.isBuy ? '#265C50' : '#5C3426';
+                  const bgActive = t.isBuy ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)';
+                  const fgActive = t.isBuy ? '#059669' : '#E11D48';
+                  const borderActive = t.isBuy ? '#10B981' : '#F43F5E';
                   return (
                     <button
                       key={t.value}
                       type="button"
                       onClick={() => setOrderType(t.value)}
                       className={`px-3 py-2.5 rounded-lg text-xs font-bold font-display border transition-all flex flex-col items-center gap-0.5 ${
-                        isSelected ? '' : 'bg-[#1B1F23] text-[#8B8D91] border-[#262B30] hover:border-[#3A3F45]'
+                        isSelected ? '' : 'border-[var(--color-border-soft)] hover:bg-black/5 dark:hover:bg-white/[0.04]'
                       }`}
-                      style={isSelected ? { background: bgActive, color: fgActive, borderColor: borderActive } : {}}
+                      style={isSelected ? { background: bgActive, color: fgActive, borderColor: borderActive } : { background: 'var(--color-elevated)', color: 'var(--color-text-muted)' }}
                     >
                       <span className="flex items-center gap-1">
                         {t.isBuy ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
@@ -305,28 +308,28 @@ export function PendingOrders() {
             {/* Price Inputs */}
             <div className="grid grid-cols-1 gap-3">
               <div>
-                <label className="text-[10px] uppercase tracking-wider text-[#5A5D61] mb-1 block">Entry Price</label>
+                <label className="text-[10px] uppercase tracking-wider mb-1 block font-semibold" style={{ color: 'var(--color-text-muted)' }}>Entry Price</label>
                 <input
                   type="number" step="0.01" value={entryPrice} onChange={e => setEntryPrice(e.target.value)}
                   placeholder={liveGoldPrice ? `Current: $${liveGoldPrice.toFixed(2)}` : 'e.g. 2450.00'}
-                  className="w-full px-3 py-2 rounded-lg bg-[#0A0C0E] border border-[#262B30] text-sm font-mono-num text-[#EDEAE3] placeholder:text-[#5A5D61] focus:outline-none focus:border-[#C9A227] transition-colors"
+                  className="w-full px-3 py-2 rounded-lg text-sm font-mono-num terminal-input"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider text-[#3FA88C] mb-1 block">Take Profit</label>
+                  <label className="text-[10px] uppercase tracking-wider text-emerald-600 dark:text-[#3FA88C] mb-1 block font-semibold">Take Profit</label>
                   <input
                     type="number" step="0.01" value={takeProfit} onChange={e => setTakeProfit(e.target.value)}
                     placeholder="e.g. 2480.00"
-                    className="w-full px-3 py-2 rounded-lg bg-[#0A0C0E] border border-[#262B30] text-sm font-mono-num text-[#EDEAE3] placeholder:text-[#5A5D61] focus:outline-none focus:border-[#3FA88C] transition-colors"
+                    className="w-full px-3 py-2 rounded-lg text-sm font-mono-num terminal-input"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider text-[#C1502E] mb-1 block">Stop Loss</label>
+                  <label className="text-[10px] uppercase tracking-wider text-rose-600 dark:text-[#C1502E] mb-1 block font-semibold">Stop Loss</label>
                   <input
                     type="number" step="0.01" value={stopLoss} onChange={e => setStopLoss(e.target.value)}
                     placeholder="e.g. 2430.00"
-                    className="w-full px-3 py-2 rounded-lg bg-[#0A0C0E] border border-[#262B30] text-sm font-mono-num text-[#EDEAE3] placeholder:text-[#5A5D61] focus:outline-none focus:border-[#C1502E] transition-colors"
+                    className="w-full px-3 py-2 rounded-lg text-sm font-mono-num terminal-input"
                   />
                 </div>
               </div>
@@ -334,30 +337,30 @@ export function PendingOrders() {
 
             {/* Lot Size */}
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-[#5A5D61] mb-1 block">Lot Size</label>
+              <label className="text-[10px] uppercase tracking-wider mb-1 block font-semibold" style={{ color: 'var(--color-text-muted)' }}>Lot Size</label>
               <input
                 type="number" step="0.01" min="0.01" value={lotSize} onChange={e => setLotSize(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-[#0A0C0E] border border-[#262B30] text-sm font-mono-num text-[#EDEAE3] focus:outline-none focus:border-[#C9A227] transition-colors"
+                className="w-full px-3 py-2 rounded-lg text-sm font-mono-num terminal-input"
               />
             </div>
 
             {/* Strategy & Session */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] uppercase tracking-wider text-[#5A5D61] mb-1 block">Strategy</label>
+                <label className="text-[10px] uppercase tracking-wider mb-1 block font-semibold" style={{ color: 'var(--color-text-muted)' }}>Strategy</label>
                 <select
                   value={strategy} onChange={e => setStrategy(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#0A0C0E] border border-[#262B30] text-xs font-mono-num text-[#EDEAE3] focus:outline-none focus:border-[#C9A227] transition-colors"
+                  className="w-full px-3 py-2 rounded-lg text-xs font-mono-num terminal-select"
                 >
                   <option value="">Optional</option>
                   {STRATEGIES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-[10px] uppercase tracking-wider text-[#5A5D61] mb-1 block">Session</label>
+                <label className="text-[10px] uppercase tracking-wider mb-1 block font-semibold" style={{ color: 'var(--color-text-muted)' }}>Session</label>
                 <select
                   value={session} onChange={e => setSession(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#0A0C0E] border border-[#262B30] text-xs font-mono-num text-[#EDEAE3] focus:outline-none focus:border-[#C9A227] transition-colors"
+                  className="w-full px-3 py-2 rounded-lg text-xs font-mono-num terminal-select"
                 >
                   <option value="">Optional</option>
                   {SESSIONS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -367,10 +370,10 @@ export function PendingOrders() {
 
             {/* Expiry */}
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-[#5A5D61] mb-1 block">Expiry</label>
+              <label className="text-[10px] uppercase tracking-wider mb-1 block font-semibold" style={{ color: 'var(--color-text-muted)' }}>Expiry</label>
               <select
                 value={expiry} onChange={e => setExpiry(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-[#0A0C0E] border border-[#262B30] text-xs font-mono-num text-[#EDEAE3] focus:outline-none focus:border-[#C9A227] transition-colors"
+                className="w-full px-3 py-2 rounded-lg text-xs font-mono-num terminal-select"
               >
                 {EXPIRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
@@ -378,61 +381,64 @@ export function PendingOrders() {
 
             {/* Notes */}
             <div>
-              <label className="text-[10px] uppercase tracking-wider text-[#5A5D61] mb-1 block">Notes (optional)</label>
+              <label className="text-[10px] uppercase tracking-wider mb-1 block font-semibold" style={{ color: 'var(--color-text-muted)' }}>Notes (optional)</label>
               <textarea
                 value={notes} onChange={e => setNotes(e.target.value)}
                 rows={2}
                 placeholder="Trade rationale..."
-                className="w-full px-3 py-2 rounded-lg bg-[#0A0C0E] border border-[#262B30] text-xs font-body text-[#EDEAE3] placeholder:text-[#5A5D61] focus:outline-none focus:border-[#C9A227] resize-none transition-colors"
+                className="w-full px-3 py-2 rounded-lg text-xs font-body resize-none terminal-input"
               />
             </div>
 
             {/* Validation Error */}
             {validationError && (
-              <div className="px-3 py-2 rounded-lg bg-[#4A2A1E]/50 border border-[#C1502E]/40 text-xs text-[#C1502E] font-mono-num">
+              <div className="px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-xs text-rose-600 dark:text-[#C1502E] font-mono-num">
                 ⚠ {validationError}
               </div>
             )}
 
             {/* Margin Warning (non-blocking, broker-style) */}
             {!validationError && marginWarning && (
-              <div className="px-3 py-2 rounded-lg bg-[#3D3215]/50 border border-[#C9A227]/40 text-xs text-[#C9A227] font-mono-num">
+              <div className="px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-600 dark:text-[#C9A227] font-mono-num">
                 {marginWarning}
               </div>
             )}
 
             {/* Preview Panel — Broker-Style */}
             {preview && !validationError && (
-              <div className="p-3 rounded-lg bg-[#0A0C0E] border border-[#262B30] space-y-3">
-                <div className="text-[10px] uppercase tracking-wider text-[#8B8D91] mb-1">Order Preview</div>
+              <div
+                className="p-3 rounded-lg border space-y-3"
+                style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
+              >
+                <div className="text-[10px] uppercase tracking-wider mb-1 font-semibold" style={{ color: 'var(--color-text-muted)' }}>Order Preview</div>
 
                 {/* P&L & Risk Section */}
                 <div className="grid grid-cols-3 gap-2 text-xs font-mono-num">
                   <div>
-                    <span className="text-[#5A5D61]">Potential Profit</span>
-                    <div className="text-[#3FA88C] font-bold">+${preview.potentialProfit}</div>
+                    <span style={{ color: 'var(--color-text-dim)' }}>Potential Profit</span>
+                    <div className="text-emerald-600 dark:text-[#3FA88C] font-bold">+${preview.potentialProfit}</div>
                   </div>
                   <div>
-                    <span className="text-[#5A5D61]">Potential Loss</span>
-                    <div className="text-[#C1502E] font-bold">-${preview.potentialLoss}</div>
+                    <span style={{ color: 'var(--color-text-dim)' }}>Potential Loss</span>
+                    <div className="text-rose-600 dark:text-[#C1502E] font-bold">-${preview.potentialLoss}</div>
                   </div>
                   <div>
-                    <span className="text-[#5A5D61]">Risk : Reward</span>
-                    <div className="text-[#C9A227] font-bold">1 : {preview.riskReward}</div>
+                    <span style={{ color: 'var(--color-text-dim)' }}>Risk : Reward</span>
+                    <div className="text-amber-600 dark:text-[#C9A227] font-bold">1 : {preview.riskReward}</div>
                   </div>
                 </div>
 
                 {/* Broker Margin Section */}
-                <div className="pt-2 border-t border-[#1E2226]">
-                  <div className="text-[10px] uppercase tracking-wider text-[#5A5D61] mb-1.5">Margin Info</div>
+                <div className="pt-2 border-t" style={{ borderColor: 'var(--color-border-soft)' }}>
+                  <div className="text-[10px] uppercase tracking-wider mb-1.5 font-semibold" style={{ color: 'var(--color-text-dim)' }}>Margin Info</div>
                   <div className="grid grid-cols-2 gap-2 text-xs font-mono-num">
                     <div>
-                      <span className="text-[#5A5D61]">Balance</span>
-                      <div className="text-[#EDEAE3] font-bold">${preview.balance}</div>
+                      <span style={{ color: 'var(--color-text-dim)' }}>Balance</span>
+                      <div className="font-bold" style={{ color: 'var(--color-text-main)' }}>${preview.balance}</div>
                     </div>
                     <div>
-                      <span className="text-[#5A5D61]">Required Margin</span>
-                      <div className="text-[#C9A227] font-bold">${preview.requiredMargin}</div>
+                      <span style={{ color: 'var(--color-text-dim)' }}>Required Margin</span>
+                      <div className="text-amber-600 dark:text-[#C9A227] font-bold">${preview.requiredMargin}</div>
                     </div>
                     <div>
                       <span className="text-[#5A5D61]">Free Margin</span>
@@ -476,7 +482,7 @@ export function PendingOrders() {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="w-full py-3 rounded-lg font-bold text-sm font-display flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-[#C9A227] hover:bg-[#E4C468] text-[#0A0C0E] shadow-lg"
+              className="w-full py-3 rounded-xl font-bold text-sm font-display flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-[#C9A227] via-[#D4AF37] to-[#C9A227] hover:brightness-105 text-[#080A0D] shadow-lg shadow-[#C9A227]/25"
             >
               <Target size={16} />
               {isSubmitting ? 'Placing Order...' : 'Place Order'}
@@ -498,37 +504,52 @@ export function PendingOrders() {
 
           {/* Tabs & Clear History Header */}
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex gap-1 bg-[#0A0C0E] p-1 rounded-lg border border-[#262B30] w-fit">
+            <div
+              className="flex gap-1 p-1 rounded-xl border shadow-inner transition-colors w-fit"
+              style={{
+                background: 'var(--color-elevated)',
+                borderColor: 'var(--color-border-soft)',
+              }}
+            >
               {[
                 { key: 'pending', label: 'Pending', count: pendingCount },
                 { key: 'active', label: 'Active', count: activeCount },
                 { key: 'history', label: 'History', count: historyCount },
-              ].map(tab => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`px-3.5 py-1.5 rounded-md text-xs font-bold font-display transition-all flex items-center gap-1.5 ${
-                    activeTab === tab.key
-                      ? 'bg-[#C9A227] text-[#0A0C0E]'
-                      : 'text-[#8B8D91] hover:text-[#EDEAE3]'
-                  }`}
-                >
-                  {tab.label}
-                  {tab.count > 0 && (
-                    <span className={`text-[10px] font-mono-num px-1.5 py-0.5 rounded ${
-                      activeTab === tab.key ? 'bg-[#0A0C0E]/20 text-[#0A0C0E]' : 'bg-[#131619] text-[#5A5D61]'
-                    }`}>
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              ))}
+              ].map(tab => {
+                const isActive = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold font-display transition-all flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-[#C9A227] to-[#D4AF37] text-[#080A0D] shadow-sm'
+                        : 'hover:opacity-80'
+                    }`}
+                    style={!isActive ? { color: 'var(--color-text-muted)' } : undefined}
+                  >
+                    {tab.label}
+                    {tab.count > 0 && (
+                      <span
+                        className={`text-[10px] font-mono-num px-1.5 py-0.5 rounded font-bold ${
+                          isActive
+                            ? 'bg-black/20 text-[#080A0D]'
+                            : 'bg-black/10 dark:bg-white/10'
+                        }`}
+                        style={!isActive ? { color: 'var(--color-text-dim)' } : undefined}
+                      >
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {activeTab === 'history' && historyCount > 0 && (
               <button
                 onClick={handleClearHistory}
-                className="px-3 py-1.5 rounded-lg bg-[#4A2A1E]/40 hover:bg-[#4A2A1E] text-[#C1502E] text-xs font-semibold flex items-center gap-1.5 border border-[#5C3426] transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-700 dark:text-[#C1502E] text-xs font-semibold flex items-center gap-1.5 border border-rose-500/30 transition-colors"
                 title="Clear all completed and cancelled orders"
               >
                 <Trash2 size={13} /> Clear History
@@ -539,13 +560,13 @@ export function PendingOrders() {
           {/* Orders List */}
           {filteredOrders.length === 0 ? (
             <div className="py-12 text-center space-y-2">
-              <ListOrdered size={32} className="mx-auto text-[#5A5D61]" />
-              <p className="text-sm text-[#8B8D91] font-display">
+              <ListOrdered size={32} className="mx-auto" style={{ color: 'var(--color-text-dim)' }} />
+              <p className="text-sm font-display font-semibold" style={{ color: 'var(--color-text-main)' }}>
                 {activeTab === 'pending' && 'No pending orders'}
                 {activeTab === 'active' && 'No active positions'}
                 {activeTab === 'history' && 'No order history yet'}
               </p>
-              <p className="text-xs text-[#5A5D61]">
+              <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                 {activeTab === 'pending' && 'Place a new order using the form on the left.'}
                 {activeTab === 'active' && 'Orders become active when price hits your entry level.'}
                 {activeTab === 'history' && 'Completed and cancelled orders will appear here.'}

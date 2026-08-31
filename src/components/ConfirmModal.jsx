@@ -29,11 +29,12 @@ export function ConfirmModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
       {/* Modal Container */}
-      <div className="bg-[#131619] border border-[#262B30] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 relative">
+      <div className="terminal-card rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 relative">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 text-[#5A5D61] hover:text-[#EDEAE3] hover:bg-[#1B1F23] rounded-lg transition-colors"
+          className="absolute top-4 right-4 p-1.5 rounded-lg border hover:opacity-80 transition-colors"
+          style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
         >
           <X size={16} />
         </button>
@@ -45,21 +46,22 @@ export function ConfirmModal({
           </div>
 
           <div className="space-y-1 pr-6">
-            <h3 className="text-base font-bold font-display text-[#EDEAE3] leading-snug">
+            <h3 className="text-base font-bold font-display leading-snug" style={{ color: 'var(--color-text-main)' }}>
               {title}
             </h3>
-            <p className="text-xs text-[#8B8D91] font-body leading-relaxed">
+            <p className="text-xs font-body leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
               {description}
             </p>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#1E2226]">
+        <div className="flex items-center justify-end gap-3 pt-2 border-t" style={{ borderColor: 'var(--color-border-soft)' }}>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl text-xs font-semibold font-display bg-[#1B1F23] hover:bg-[#262B30] text-[#EDEAE3] border border-[#262B30] transition-all"
+            className="px-4 py-2.5 rounded-xl text-xs font-semibold font-display border transition-all hover:opacity-80"
+            style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
           >
             Cancel
           </button>

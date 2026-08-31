@@ -138,39 +138,40 @@ export function AccountManagerModal({ isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-xl bg-[#101418] border border-[#262B33] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-xl terminal-card rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Header */}
-        <div className="p-4 border-b border-[#1E232B] flex items-center justify-between bg-[#14181D]">
+        <div className="p-4 border-b flex items-center justify-between" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
           <div className="flex items-center gap-2">
-            <Building2 className="text-[#C9A227]" size={20} />
+            <Building2 className="text-amber-500 dark:text-[#C9A227]" size={20} />
             <div>
-              <h2 className="text-sm font-semibold text-[#EDEAE3]">
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-main)' }}>
                 Trading Sub-Accounts Manager
               </h2>
-              <p className="text-[11px] text-[#8B8D91]">
+              <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
                 Broker accounts, FTMO challenges, and strategy backtest accounts
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-[#8B8D91] hover:text-[#EDEAE3] hover:bg-[#1E232B] transition-all"
+            className="p-1.5 rounded-lg border hover:opacity-80 transition-all"
+            style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-[#262B33]">
+        <div className="p-5 overflow-y-auto flex-1 scrollbar-thin">
           {mode === 'list' ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-[#8B8D91] font-mono">
+                <span className="text-xs font-mono" style={{ color: 'var(--color-text-dim)' }}>
                   Active Accounts ({visibleAccounts.length})
                 </span>
                 <button
                   onClick={handleStartCreate}
-                  className="px-3 py-1.5 rounded-lg bg-[#C9A227] hover:bg-[#E6C65C] text-black font-semibold text-xs flex items-center gap-1.5 transition-all shadow-md"
+                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#C9A227] to-[#D4AF37] hover:brightness-105 text-[#080A0D] font-bold text-xs flex items-center gap-1.5 transition-all shadow-md"
                 >
                   <Plus size={14} />
                   <span>New Sub-Account</span>
@@ -179,15 +180,15 @@ export function AccountManagerModal({ isOpen, onClose }) {
 
               {/* Accounts Cards List */}
               {visibleAccounts.length === 0 ? (
-                <div className="p-8 text-center bg-[#14181D] border border-[#222730] rounded-xl space-y-3">
-                  <Building2 size={32} className="mx-auto text-[#C9A227]" />
-                  <div className="text-sm font-semibold text-[#EDEAE3]">No Trading Sub-Accounts Yet</div>
-                  <p className="text-xs text-[#8B8D91] max-w-sm mx-auto">
+                <div className="p-8 text-center border rounded-2xl space-y-3" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
+                  <Building2 size={32} className="mx-auto text-amber-500 dark:text-[#C9A227]" />
+                  <div className="text-sm font-semibold" style={{ color: 'var(--color-text-main)' }}>No Trading Sub-Accounts Yet</div>
+                  <p className="text-xs max-w-sm mx-auto" style={{ color: 'var(--color-text-muted)' }}>
                     Create your first real trading sub-account (e.g. Exness Live, FTMO Challenge, or IC Markets Demo) to organize your trades by broker and account type.
                   </p>
                   <button
                     onClick={handleStartCreate}
-                    className="px-4 py-2 rounded-lg bg-[#C9A227] hover:bg-[#E6C65C] text-black font-bold text-xs inline-flex items-center gap-1.5 transition-all shadow-md"
+                    className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#C9A227] to-[#D4AF37] hover:brightness-105 text-[#080A0D] font-bold text-xs inline-flex items-center gap-1.5 transition-all shadow-md"
                   >
                     <Plus size={14} />
                     <span>Create Your First Sub-Account</span>
@@ -204,9 +205,13 @@ export function AccountManagerModal({ isOpen, onClose }) {
                       key={account.id}
                       className={`p-3.5 rounded-xl border transition-all flex items-center justify-between ${
                         isSelected
-                          ? 'bg-[#181D24] border-[#C9A227]'
-                          : 'bg-[#14181D] border-[#222730] hover:border-[#333A46]'
+                          ? 'border-amber-500 ring-1 ring-amber-500/30 shadow-md'
+                          : 'hover:opacity-85'
                       }`}
+                      style={{
+                        background: 'var(--color-elevated)',
+                        borderColor: !isSelected ? 'var(--color-border-soft)' : undefined,
+                      }}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div
@@ -217,27 +222,27 @@ export function AccountManagerModal({ isOpen, onClose }) {
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-sm text-[#EDEAE3] truncate">
+                            <span className="font-semibold text-sm truncate" style={{ color: 'var(--color-text-main)' }}>
                               {account.name}
                             </span>
                             {account.isDefault && (
-                              <span className="px-2 py-0.5 rounded text-[10px] bg-[#C9A227]/20 text-[#C9A227] border border-[#C9A227]/30 font-medium">
+                              <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-700 dark:text-[#C9A227] border border-amber-500/30 font-bold">
                                 Default
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-[#8B8D91] mt-1 font-mono">
-                            <span className="text-[#C9A227] capitalize">{account.broker}</span>
+                          <div className="flex items-center gap-2 text-xs mt-1 font-mono" style={{ color: 'var(--color-text-dim)' }}>
+                            <span className="text-amber-600 dark:text-[#C9A227] font-semibold capitalize">{account.broker}</span>
                             <span>•</span>
                             <span>{ACCOUNT_TYPE_LABELS[account.accountType] || account.accountType}</span>
                             <span>•</span>
                             <span>{account.leverage}</span>
                             <span>•</span>
-                            <span className="text-[#22C55E]">
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold">
                               ${account.initialBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })} {account.currency}
                             </span>
                           </div>
-                          <div className="text-[11px] text-[#6B7280] mt-0.5">
+                          <div className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
                             {accountTrades.length} trades recorded
                           </div>
                         </div>
@@ -247,21 +252,23 @@ export function AccountManagerModal({ isOpen, onClose }) {
                         {!isSelected && (
                           <button
                             onClick={() => setActiveAccountId(account.id)}
-                            className="px-2.5 py-1.5 rounded-lg bg-[#1E232B] hover:bg-[#2A313C] text-xs text-[#EDEAE3] font-medium transition-all"
+                            className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold hover:opacity-80 transition-all"
+                            style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border-soft)', color: 'var(--color-text-main)' }}
                           >
                             Select
                           </button>
                         )}
                         <button
                           onClick={() => handleStartEdit(account)}
-                          className="p-1.5 rounded-lg text-[#8B8D91] hover:text-[#EDEAE3] hover:bg-[#1E232B] transition-all"
+                          className="p-1.5 rounded-lg border hover:opacity-80 transition-all"
+                          style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
                           title="Edit Sub-Account"
                         >
                           <Edit2 size={15} />
                         </button>
                         <button
                           onClick={() => handleArchive(account.id)}
-                          className="p-1.5 rounded-lg text-[#8B8D91] hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-all"
+                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all"
                           title="Archive Sub-Account"
                         >
                           <Archive size={15} />
@@ -276,28 +283,29 @@ export function AccountManagerModal({ isOpen, onClose }) {
           ) : (
             /* Create / Edit Form */
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="flex items-center justify-between border-b border-[#1E232B] pb-3">
-                <h3 className="text-sm font-semibold text-[#EDEAE3]">
+              <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-border-soft)' }}>
+                <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text-main)' }}>
                   {mode === 'create' ? 'Create New Sub-Account' : 'Edit Sub-Account'}
                 </h3>
                 <button
                   type="button"
                   onClick={() => setMode('list')}
-                  className="text-xs text-[#8B8D91] hover:text-[#EDEAE3]"
+                  className="text-xs hover:opacity-80"
+                  style={{ color: 'var(--color-text-muted)' }}
                 >
                   ← Back to List
                 </button>
               </div>
 
               {errorMsg && (
-                <div className="p-3 rounded-lg bg-[#EF4444]/10 border border-[#EF4444]/30 text-[#EF4444] text-xs">
+                <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs">
                   {errorMsg}
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] text-[#8B8D91] uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-dim)' }}>
                     Account Name *
                   </label>
                   <input
@@ -306,18 +314,18 @@ export function AccountManagerModal({ isOpen, onClose }) {
                     placeholder="e.g. Exness Live Standard"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14181D] border border-[#262B33] text-xs text-[#EDEAE3] focus:border-[#C9A227] focus:outline-none"
+                    className="w-full px-3 py-2 rounded-lg text-xs terminal-input"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-[#8B8D91] uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-dim)' }}>
                     Broker / Platform
                   </label>
                   <select
                     value={formData.broker}
                     onChange={(e) => setFormData({ ...formData, broker: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14181D] border border-[#262B33] text-xs text-[#EDEAE3] focus:border-[#C9A227] focus:outline-none"
+                    className="w-full px-3 py-2 rounded-lg text-xs terminal-select"
                   >
                     {BROKER_OPTIONS.map((b) => (
                       <option key={b} value={b}>{b}</option>
@@ -328,13 +336,13 @@ export function AccountManagerModal({ isOpen, onClose }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] text-[#8B8D91] uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-dim)' }}>
                     Account Type
                   </label>
                   <select
                     value={formData.accountType}
                     onChange={(e) => setFormData({ ...formData, accountType: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14181D] border border-[#262B33] text-xs text-[#EDEAE3] focus:border-[#C9A227] focus:outline-none"
+                    className="w-full px-3 py-2 rounded-lg text-xs terminal-select"
                   >
                     <option value="live">Live Account</option>
                     <option value="demo">Demo Account</option>
@@ -344,7 +352,7 @@ export function AccountManagerModal({ isOpen, onClose }) {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-[#8B8D91] uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-dim)' }}>
                     Account Number / Login (Optional)
                   </label>
                   <input
@@ -352,14 +360,14 @@ export function AccountManagerModal({ isOpen, onClose }) {
                     placeholder="e.g. 8821940"
                     value={formData.accountNumber}
                     onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14181D] border border-[#262B33] text-xs text-[#EDEAE3] focus:border-[#C9A227] focus:outline-none font-mono"
+                    className="w-full px-3 py-2 rounded-lg text-xs terminal-input font-mono"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-[11px] text-[#8B8D91] uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-dim)' }}>
                     Initial Balance ($)
                   </label>
                   <input
@@ -368,18 +376,18 @@ export function AccountManagerModal({ isOpen, onClose }) {
                     required
                     value={formData.initialBalance}
                     onChange={(e) => setFormData({ ...formData, initialBalance: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14181D] border border-[#262B33] text-xs text-[#EDEAE3] focus:border-[#C9A227] focus:outline-none font-mono"
+                    className="w-full px-3 py-2 rounded-lg text-xs terminal-input font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-[#8B8D91] uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-dim)' }}>
                     Base Currency
                   </label>
                   <select
                     value={formData.currency}
                     onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14181D] border border-[#262B33] text-xs text-[#EDEAE3] focus:border-[#C9A227] focus:outline-none"
+                    className="w-full px-3 py-2 rounded-lg text-xs terminal-select"
                   >
                     {CURRENCY_OPTIONS.map((c) => (
                       <option key={c} value={c}>{c}</option>
@@ -388,13 +396,13 @@ export function AccountManagerModal({ isOpen, onClose }) {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-[#8B8D91] uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-dim)' }}>
                     Account Mode
                   </label>
                   <select
                     value={formData.currencyMode}
                     onChange={(e) => setFormData({ ...formData, currencyMode: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14181D] border border-[#262B33] text-xs text-[#EDEAE3] focus:border-[#C9A227] focus:outline-none"
+                    className="w-full px-3 py-2 rounded-lg text-xs terminal-select"
                   >
                     <option value="standard">Standard ($)</option>
                     <option value="cent">Cent Account (USC)</option>
@@ -402,13 +410,13 @@ export function AccountManagerModal({ isOpen, onClose }) {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-[#8B8D91] uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-dim)' }}>
                     Leverage
                   </label>
                   <select
                     value={formData.leverage}
                     onChange={(e) => setFormData({ ...formData, leverage: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-[#14181D] border border-[#262B33] text-xs text-[#EDEAE3] focus:border-[#C9A227] focus:outline-none"
+                    className="w-full px-3 py-2 rounded-lg text-xs terminal-select"
                   >
                     {LEVERAGE_OPTIONS.map((lev) => (
                       <option key={lev} value={lev}>{lev}</option>
@@ -419,7 +427,7 @@ export function AccountManagerModal({ isOpen, onClose }) {
 
               {/* Color Preset Selector */}
               <div>
-                <label className="block text-[11px] text-[#8B8D91] uppercase tracking-wider mb-1.5">
+                <label className="block text-[11px] uppercase tracking-wider mb-1.5" style={{ color: 'var(--color-text-dim)' }}>
                   Account Theme Color Accent
                 </label>
                 <div className="flex items-center gap-2">
@@ -429,7 +437,7 @@ export function AccountManagerModal({ isOpen, onClose }) {
                       key={hex}
                       onClick={() => setFormData({ ...formData, colorHex: hex })}
                       className={`w-7 h-7 rounded-lg transition-transform flex items-center justify-center ${
-                        formData.colorHex === hex ? 'scale-110 ring-2 ring-white/50' : 'hover:scale-105'
+                        formData.colorHex === hex ? 'scale-110 ring-2 ring-amber-500' : 'hover:scale-105'
                       }`}
                       style={{ backgroundColor: hex }}
                     >
@@ -446,25 +454,26 @@ export function AccountManagerModal({ isOpen, onClose }) {
                   id="isDefault"
                   checked={formData.isDefault}
                   onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
-                  className="w-4 h-4 rounded bg-[#14181D] border-[#262B33] text-[#C9A227] focus:ring-[#C9A227]"
+                  className="w-4 h-4 rounded text-amber-500 focus:ring-amber-500"
                 />
-                <label htmlFor="isDefault" className="text-xs text-[#EDEAE3] select-none">
+                <label htmlFor="isDefault" className="text-xs select-none" style={{ color: 'var(--color-text-main)' }}>
                   Set as default account on application startup
                 </label>
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#1E232B]">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t" style={{ borderColor: 'var(--color-border-soft)' }}>
                 <button
                   type="button"
                   onClick={() => setMode('list')}
-                  className="px-4 py-2 rounded-lg bg-[#1E232B] hover:bg-[#2A313C] text-xs text-[#8B8D91] font-medium transition-all"
+                  className="px-4 py-2 rounded-lg border text-xs font-medium hover:opacity-80 transition-all"
+                  style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-lg bg-[#C9A227] hover:bg-[#E6C65C] text-black font-semibold text-xs transition-all shadow-md"
+                  className="px-5 py-2 rounded-lg bg-gradient-to-r from-[#C9A227] to-[#D4AF37] hover:brightness-105 text-[#080A0D] font-bold text-xs transition-all shadow-md"
                 >
                   {mode === 'create' ? 'Create Account' : 'Save Changes'}
                 </button>

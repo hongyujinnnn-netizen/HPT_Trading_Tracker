@@ -150,33 +150,34 @@ export function ImportMT5Modal({ isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-[#101418] border border-[#262B33] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-2xl terminal-card rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Header */}
-        <div className="p-4 border-b border-[#1E232B] flex items-center justify-between bg-[#14181D]">
+        <div className="p-4 border-b flex items-center justify-between" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
           <div className="flex items-center gap-2">
-            <FileText className="text-[#C9A227]" size={20} />
+            <FileText className="text-amber-500 dark:text-[#C9A227]" size={20} />
             <div>
-              <h2 className="text-sm font-semibold text-[#EDEAE3]">
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-main)' }}>
                 Import MetaTrader 5 Report (HTML / CSV)
               </h2>
-              <p className="text-[11px] text-[#8B8D91]">
+              <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
                 Position pairing, partial-close aggregation, and deposit classification engine
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-[#8B8D91] hover:text-[#EDEAE3] hover:bg-[#1E232B] transition-all"
+            className="p-1.5 rounded-lg border hover:opacity-80 transition-all"
+            style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Modal Content */}
-        <div className="p-5 overflow-y-auto flex-1 space-y-4 scrollbar-thin scrollbar-thumb-[#262B33]">
+        <div className="p-5 overflow-y-auto flex-1 space-y-4 scrollbar-thin">
           {/* Target Sub-Account Selector */}
           <div>
-            <label className="text-[11px] font-semibold text-[#C9A227] uppercase tracking-wider block mb-1.5">
+            <label className="text-[11px] font-semibold text-amber-600 dark:text-[#C9A227] uppercase tracking-wider block mb-1.5">
               Select Target Trading Sub-Account *
             </label>
             <select
@@ -185,7 +186,7 @@ export function ImportMT5Modal({ isOpen, onClose }) {
                 setSelectedAccountId(e.target.value);
                 if (file) parseFileContent(file);
               }}
-              className="w-full p-2.5 rounded-lg bg-[#14181D] border border-[#C9A227]/40 text-xs text-[#EDEAE3] font-semibold focus:border-[#C9A227] focus:outline-none"
+              className="w-full p-2.5 rounded-lg text-xs font-semibold terminal-select"
             >
               {visibleAccounts.map((acc) => (
                 <option key={acc.id} value={acc.id}>
@@ -196,7 +197,10 @@ export function ImportMT5Modal({ isOpen, onClose }) {
           </div>
 
           {/* File Drag and Drop Zone */}
-          <div className="p-6 border-2 border-dashed border-[#262B33] hover:border-[#C9A227]/50 rounded-xl bg-[#14181D]/60 text-center transition-all">
+          <div
+            className="p-6 border-2 border-dashed hover:border-amber-500/50 rounded-xl text-center transition-all"
+            style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
+          >
             <input
               type="file"
               accept=".html,.htm,.csv,.txt"
@@ -205,32 +209,32 @@ export function ImportMT5Modal({ isOpen, onClose }) {
               className="hidden"
             />
             <label htmlFor="mt5-file-input" className="cursor-pointer block space-y-2">
-              <Upload className="mx-auto text-[#C9A227] animate-bounce" size={28} />
-              <div className="text-xs font-semibold text-[#EDEAE3]">
+              <Upload className="mx-auto text-amber-500 dark:text-[#C9A227] animate-bounce" size={28} />
+              <div className="text-xs font-semibold" style={{ color: 'var(--color-text-main)' }}>
                 {file ? file.name : 'Click or Drag MT5 Report File (.html, .htm, .csv)'}
               </div>
-              <p className="text-[10px] text-[#8B8D91]">
+              <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
                 Exported from MT5 Terminal → History Tab → Save as Report
               </p>
             </label>
           </div>
 
           {parsing && (
-            <div className="p-4 rounded-xl bg-[#14181D] border border-[#262B33] flex items-center justify-center gap-2 text-xs text-[#C9A227]">
+            <div className="p-4 rounded-xl border flex items-center justify-center gap-2 text-xs text-amber-600 dark:text-[#C9A227]" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
               <RefreshCw size={16} className="animate-spin" />
               <span>Parsing MT5 deals, pairing positions &amp; checking deduplication...</span>
             </div>
           )}
 
           {parseError && (
-            <div className="p-3.5 rounded-xl bg-[#EF4444]/10 border border-[#EF4444]/30 text-xs text-[#EF4444] flex items-center gap-2">
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
               <AlertCircle size={16} />
               <span>{parseError}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="p-3.5 rounded-xl bg-[#10B981]/10 border border-[#10B981]/30 text-xs text-[#10B981] flex items-center gap-2">
+            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
               <CheckCircle2 size={16} />
               <span>{successMsg}</span>
             </div>
@@ -240,36 +244,36 @@ export function ImportMT5Modal({ isOpen, onClose }) {
           {parsedResult && !parsing && (
             <div className="space-y-4 animate-in fade-in">
               <div className="grid grid-cols-4 gap-2.5">
-                <div className="p-3 rounded-xl bg-[#10B981]/10 border border-[#10B981]/30 text-center">
-                  <div className="text-[10px] text-[#8B8D91] uppercase">New Trades</div>
-                  <div className="text-lg font-bold text-[#10B981]">{parsedResult.newTrades.length}</div>
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-center">
+                  <div className="text-[10px] uppercase font-semibold" style={{ color: 'var(--color-text-dim)' }}>New Trades</div>
+                  <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{parsedResult.newTrades.length}</div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-center">
-                  <div className="text-[10px] text-[#8B8D91] uppercase">Duplicates</div>
-                  <div className="text-lg font-bold text-[#F59E0B]">{parsedResult.duplicateTrades.length}</div>
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-center">
+                  <div className="text-[10px] uppercase font-semibold" style={{ color: 'var(--color-text-dim)' }}>Duplicates</div>
+                  <div className="text-lg font-bold text-amber-600 dark:text-amber-400">{parsedResult.duplicateTrades.length}</div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-[#3B82F6]/10 border border-[#3B82F6]/30 text-center">
-                  <div className="text-[10px] text-[#8B8D91] uppercase">Balance Ops</div>
-                  <div className="text-lg font-bold text-[#3B82F6]">{parsedResult.balanceOps.length}</div>
+                <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/30 text-center">
+                  <div className="text-[10px] uppercase font-semibold" style={{ color: 'var(--color-text-dim)' }}>Balance Ops</div>
+                  <div className="text-lg font-bold text-sky-600 dark:text-sky-400">{parsedResult.balanceOps.length}</div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-[#8B5CF6]/10 border border-[#8B5CF6]/30 text-center">
-                  <div className="text-[10px] text-[#8B8D91] uppercase">Open Positions</div>
-                  <div className="text-lg font-bold text-[#8B5CF6]">{parsedResult.openPositionCount}</div>
+                <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 text-center">
+                  <div className="text-[10px] uppercase font-semibold" style={{ color: 'var(--color-text-dim)' }}>Open Positions</div>
+                  <div className="text-lg font-bold text-purple-600 dark:text-purple-400">{parsedResult.openPositionCount}</div>
                 </div>
               </div>
 
               {/* Preview Table of Mapped Trades */}
-              <div className="border border-[#262B33] rounded-xl overflow-hidden bg-[#14181D]">
-                <div className="p-3 border-b border-[#262B33] bg-[#171C22] flex items-center justify-between text-xs font-semibold text-[#EDEAE3]">
+              <div className="border rounded-xl overflow-hidden" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
+                <div className="p-3 border-b flex items-center justify-between text-xs font-semibold" style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-main)' }}>
                   <span>Import Preview ({parsedResult.newTrades.length} new trades to commit)</span>
-                  <span className="text-[10px] text-[#8B8D91] font-mono">Position Anchors Checked</span>
+                  <span className="text-[10px] font-mono" style={{ color: 'var(--color-text-dim)' }}>Position Anchors Checked</span>
                 </div>
-                <div className="max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-[#262B33]">
+                <div className="max-h-48 overflow-y-auto scrollbar-thin">
                   <table className="w-full text-left text-[11px]">
-                    <thead className="bg-[#101418] text-[#8B8D91] sticky top-0">
+                    <thead className="sticky top-0 text-[10px] uppercase font-semibold" style={{ background: 'var(--color-surface)', color: 'var(--color-text-dim)' }}>
                       <tr>
                         <th className="p-2">Pos ID</th>
                         <th className="p-2">Side</th>
@@ -280,18 +284,18 @@ export function ImportMT5Modal({ isOpen, onClose }) {
                         <th className="p-2 text-right">Net PnL ($)</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#1E232B] font-mono">
+                    <tbody className="divide-y divide-slate-200 dark:divide-[#262B30] font-mono">
                       {parsedResult.newTrades.slice(0, 50).map((t, idx) => (
-                        <tr key={idx} className="hover:bg-[#1C2229]">
-                          <td className="p-2 text-[#C9A227]">#{t.brokerPositionId}</td>
-                          <td className={`p-2 font-bold ${t.side === 'Buy' ? 'text-[#3FA88C]' : 'text-[#EF4444]'}`}>
+                        <tr key={idx} className="hover:bg-black/5 dark:hover:bg-white/5">
+                          <td className="p-2 text-amber-600 dark:text-[#C9A227]">#{t.brokerPositionId}</td>
+                          <td className={`p-2 font-bold ${t.side === 'Buy' ? 'text-emerald-600 dark:text-[#3FA88C]' : 'text-rose-600 dark:text-[#EF4444]'}`}>
                             {t.side}
                           </td>
-                          <td className="p-2 text-[#EDEAE3]">{t.symbol}</td>
-                          <td className="p-2 text-[#8B8D91]">{t.lotSize}</td>
-                          <td className="p-2 text-[#EDEAE3]">{t.entryPrice}</td>
-                          <td className="p-2 text-[#EDEAE3]">{t.exitPrice}</td>
-                          <td className={`p-2 text-right font-bold ${t.pnl >= 0 ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
+                          <td className="p-2 font-semibold" style={{ color: 'var(--color-text-main)' }}>{t.symbol}</td>
+                          <td className="p-2" style={{ color: 'var(--color-text-dim)' }}>{t.lotSize}</td>
+                          <td className="p-2" style={{ color: 'var(--color-text-main)' }}>{t.entryPrice}</td>
+                          <td className="p-2" style={{ color: 'var(--color-text-main)' }}>{t.exitPrice}</td>
+                          <td className={`p-2 text-right font-bold ${t.pnl >= 0 ? 'text-emerald-600 dark:text-[#10B981]' : 'text-rose-600 dark:text-[#EF4444]'}`}>
                             {t.pnl >= 0 ? `+$${t.pnl}` : `-$${Math.abs(t.pnl)}`}
                           </td>
                         </tr>
@@ -305,17 +309,18 @@ export function ImportMT5Modal({ isOpen, onClose }) {
         </div>
 
         {/* Modal Footer Actions */}
-        <div className="p-4 border-t border-[#1E232B] bg-[#14181D] flex items-center justify-end gap-2">
+        <div className="p-4 border-t flex items-center justify-end gap-2" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-[#1E232B] hover:bg-[#2A313C] text-xs text-[#8B8D91] font-medium transition-all"
+            className="px-4 py-2 rounded-lg border text-xs font-semibold hover:opacity-80 transition-all"
+            style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
           >
             Cancel
           </button>
           <button
             onClick={handleCommitImport}
             disabled={!parsedResult || parsedResult.newTrades.length === 0 || importing}
-            className="px-5 py-2 rounded-lg bg-[#C9A227] hover:bg-[#E6C65C] disabled:opacity-40 disabled:cursor-not-allowed text-black font-semibold text-xs flex items-center gap-1.5 shadow-md transition-all"
+            className="px-5 py-2 rounded-lg bg-gradient-to-r from-[#C9A227] to-[#D4AF37] hover:brightness-105 disabled:opacity-40 disabled:cursor-not-allowed text-[#080A0D] font-bold text-xs flex items-center gap-1.5 shadow-md transition-all"
           >
             <Check size={14} />
             <span>{importing ? 'Committing Import...' : `Confirm & Import (${parsedResult?.newTrades?.length || 0} Trades)`}</span>

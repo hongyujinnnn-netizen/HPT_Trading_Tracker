@@ -143,7 +143,7 @@ export function AuthGate() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#0A0C0E] text-[#EDEAE3] p-4 font-body select-none">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 font-body select-none" style={{ background: 'var(--color-bg)', color: 'var(--color-text-main)' }}>
       {/* Background ambient lighting */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#C9A227]/10 rounded-full blur-3xl" />
@@ -156,20 +156,20 @@ export function AuthGate() {
           <div className="inline-flex items-center justify-center mb-2">
             <LogoIcon size={56} />
           </div>
-          <h1 className="text-2xl font-bold font-display text-[#EDEAE3]">TradePulse Gold</h1>
-          <p className="text-xs text-[#8B8D91]">Institutional XAU/USD Trading Journal &amp; Analytics</p>
+          <h1 className="text-2xl font-bold font-display" style={{ color: 'var(--color-text-main)' }}>TradePulse Gold</h1>
+          <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Institutional XAU/USD Trading Journal &amp; Analytics</p>
         </div>
 
         {/* Missing Supabase Env Guide Banner */}
         {!isSupabaseConfigured && (
-          <div className="p-4 bg-[#4A2A1E]/80 border border-[#C1502E] rounded-xl text-xs space-y-2 animate-fade-in">
-            <div className="flex items-center gap-2 text-[#C1502E] font-bold">
+          <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs space-y-2 animate-fade-in">
+            <div className="flex items-center gap-2 text-amber-600 dark:text-[#C9A227] font-bold">
               <AlertTriangle size={16} /> Cloud Database Configuration Needed
             </div>
-            <p className="text-[#EDEAE3]/90 leading-relaxed">
+            <p className="leading-relaxed" style={{ color: 'var(--color-text-main)' }}>
               To connect your secure Supabase database, define your credentials in <code>.env.local</code>:
             </p>
-            <div className="p-2 bg-[#0A0C0E] rounded font-mono text-[11px] text-[#C9A227]">
+            <div className="p-2.5 rounded font-mono text-[11px] text-amber-600 dark:text-[#C9A227]" style={{ background: 'var(--color-elevated)' }}>
               VITE_SUPABASE_URL=https://your-project.supabase.co<br />
               VITE_SUPABASE_ANON_KEY=your-anon-key
             </div>
@@ -177,54 +177,55 @@ export function AuthGate() {
         )}
 
         {/* Main Auth Card */}
-        <div className="bg-[#131619] border border-[#262B30] rounded-2xl p-6 md:p-8 shadow-2xl space-y-6 backdrop-blur-md">
+        <div className="terminal-card rounded-2xl p-6 md:p-8 shadow-2xl space-y-6 backdrop-blur-md">
           {/* Navigation / Mode Switch */}
           {mode !== 'reset' && mode !== 'pending' && (
-            <div className="flex bg-[#1B1F23] p-1 rounded-lg border border-[#262B30] text-xs font-semibold">
+            <div className="flex p-1 rounded-xl border text-xs font-semibold" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
               <button
                 onClick={() => { setMode('signin'); setErrorMsg(null); setSuccessMsg(null); }}
-                className={`flex-1 py-2 rounded-md transition-all ${
-                  mode === 'signin' ? 'bg-[#C9A227] text-[#0A0C0E] font-bold shadow' : 'text-[#8B8D91] hover:text-[#EDEAE3]'
+                className={`flex-1 py-2 rounded-lg transition-all ${
+                  mode === 'signin' ? 'bg-gradient-to-r from-[#C9A227] to-[#D4AF37] text-[#080A0D] font-bold shadow' : 'hover:opacity-80'
                 }`}
+                style={{ color: mode === 'signin' ? '#080A0D' : 'var(--color-text-muted)' }}
               >
                 Sign In
               </button>
               <button
                 onClick={() => { setMode('signup'); setErrorMsg(null); setSuccessMsg(null); }}
-                className={`flex-1 py-2 rounded-md transition-all ${
-                  mode === 'signup' ? 'bg-[#C9A227] text-[#0A0C0E] font-bold shadow' : 'text-[#8B8D91] hover:text-[#EDEAE3]'
+                className={`flex-1 py-2 rounded-lg transition-all ${
+                  mode === 'signup' ? 'bg-gradient-to-r from-[#C9A227] to-[#D4AF37] text-[#080A0D] font-bold shadow' : 'hover:opacity-80'
                 }`}
+                style={{ color: mode === 'signup' ? '#080A0D' : 'var(--color-text-muted)' }}
               >
                 Create Account
               </button>
             </div>
           )}
 
-          {/* Form Banner Error / Success Messages */}
           {errorMsg && (
-            <div className="p-3.5 bg-[#4A2A1E]/60 border border-[#C1502E] rounded-lg text-xs text-[#E68A6E] font-semibold flex items-start gap-2.5">
-              <AlertTriangle size={16} className="shrink-0 text-[#C1502E] mt-0.5" />
+            <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-600 dark:text-rose-400 flex items-start gap-2">
+              <AlertTriangle size={15} className="shrink-0 mt-0.5" />
               <span>{errorMsg}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="p-3.5 bg-[#1F4A40]/60 border border-[#3FA88C] rounded-lg text-xs text-[#3FA88C] font-semibold flex items-start gap-2.5">
-              <CheckCircle2 size={16} className="shrink-0 text-[#3FA88C] mt-0.5" />
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-emerald-600 dark:text-emerald-400 flex items-start gap-2">
+              <CheckCircle2 size={15} className="shrink-0 mt-0.5" />
               <span>{successMsg}</span>
             </div>
           )}
 
-          {/* PENDING EMAIL CONFIRMATION VIEW */}
           {mode === 'pending' ? (
+            /* EMAIL CONFIRMATION PENDING VIEW */
             <div className="space-y-5 text-center py-2">
-              <div className="w-12 h-12 rounded-full bg-[#3FA88C]/15 border border-[#3FA88C] text-[#3FA88C] flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
                 <Mail size={22} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-[#EDEAE3]">Check Your Email</h3>
-                <p className="text-xs text-[#8B8D91] mt-1 leading-relaxed">
-                  We sent a confirmation link to <strong className="text-[#EDEAE3]">{email}</strong>. Please click the link in your inbox to confirm your account.
+                <h3 className="text-base font-bold" style={{ color: 'var(--color-text-main)' }}>Check Your Email</h3>
+                <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
+                  We sent a confirmation link to <strong style={{ color: 'var(--color-text-main)' }}>{email}</strong>. Please click the link in your inbox to confirm your account.
                 </p>
               </div>
 
@@ -233,7 +234,8 @@ export function AuthGate() {
                   type="button"
                   disabled={loading || resendCooldown > 0}
                   onClick={handleResendConfirmation}
-                  className="w-full py-2.5 rounded-lg bg-[#1B1F23] hover:bg-[#262B30] border border-[#262B30] text-[#EDEAE3] text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                  className="w-full py-2.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                  style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)', color: 'var(--color-text-main)' }}
                 >
                   <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                   {resendCooldown > 0 ? `Resend Email (${resendCooldown}s)` : 'Resend Confirmation Email'}
@@ -242,7 +244,8 @@ export function AuthGate() {
                 <button
                   type="button"
                   onClick={() => { setMode('signin'); setErrorMsg(null); setSuccessMsg(null); }}
-                  className="text-xs text-[#8B8D91] hover:text-[#C9A227] flex items-center justify-center gap-1 mx-auto"
+                  className="text-xs hover:text-amber-600 dark:hover:text-[#C9A227] flex items-center justify-center gap-1 mx-auto"
+                  style={{ color: 'var(--color-text-muted)' }}
                 >
                   <ArrowLeft size={13} /> Back to Sign In
                 </button>
@@ -251,13 +254,13 @@ export function AuthGate() {
           ) : mode === 'reset' ? (
             /* RESET PASSWORD VIEW */
             <form onSubmit={handleAuth} className="space-y-4">
-              <div className="flex items-center gap-2 border-b border-[#262B30] pb-3">
-                <KeyRound size={18} className="text-[#C9A227]" />
-                <h3 className="text-sm font-bold text-[#EDEAE3]">Set New Password</h3>
+              <div className="flex items-center gap-2 border-b pb-3" style={{ borderColor: 'var(--color-border-soft)' }}>
+                <KeyRound size={18} className="text-amber-600 dark:text-[#C9A227]" />
+                <h3 className="text-sm font-bold" style={{ color: 'var(--color-text-main)' }}>Set New Password</h3>
               </div>
 
               <div>
-                <label className="text-[11px] uppercase font-bold text-[#8B8D91] tracking-wider block mb-1">
+                <label className="text-[11px] uppercase font-bold tracking-wider block mb-1" style={{ color: 'var(--color-text-dim)' }}>
                   New Password (min 8 chars)
                 </label>
                 <div className="relative">
@@ -268,12 +271,13 @@ export function AuthGate() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full px-3 py-2.5 bg-[#1B1F23] border border-[#262B30] rounded-lg text-xs text-[#EDEAE3] outline-none focus:border-[#C9A227] pr-10"
+                    className="w-full px-3 py-2.5 rounded-lg text-xs terminal-input pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8B8D91] hover:text-[#EDEAE3]"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 hover:opacity-80"
+                    style={{ color: 'var(--color-text-muted)' }}
                     aria-label="Toggle password visibility"
                   >
                     {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -282,7 +286,7 @@ export function AuthGate() {
               </div>
 
               <div>
-                <label className="text-[11px] uppercase font-bold text-[#8B8D91] tracking-wider block mb-1">
+                <label className="text-[11px] uppercase font-bold tracking-wider block mb-1" style={{ color: 'var(--color-text-dim)' }}>
                   Confirm New Password
                 </label>
                 <input
@@ -292,21 +296,17 @@ export function AuthGate() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className={`w-full px-3 py-2.5 bg-[#1B1F23] border rounded-lg text-xs text-[#EDEAE3] outline-none transition-colors ${
-                    confirmPassword && confirmPassword !== newPassword
-                      ? 'border-[#C1502E] focus:border-[#C1502E]'
-                      : 'border-[#262B30] focus:border-[#C9A227]'
-                  }`}
+                  className="w-full px-3 py-2.5 rounded-lg text-xs terminal-input"
                 />
                 {confirmPassword && confirmPassword !== newPassword && (
-                  <p className="text-[10px] text-[#C1502E] mt-1">Passwords do not match</p>
+                  <p className="text-[10px] text-rose-500 mt-1">Passwords do not match</p>
                 )}
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 rounded-lg bg-[#C9A227] hover:bg-[#E4C468] text-[#0A0C0E] font-bold text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                className="w-full py-2.5 rounded-lg bg-gradient-to-r from-[#C9A227] to-[#D4AF37] hover:brightness-105 text-[#080A0D] font-bold text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50 shadow-md"
               >
                 <CheckCircle2 size={14} /> Update Password
               </button>
@@ -314,17 +314,17 @@ export function AuthGate() {
           ) : mode === 'forgot' ? (
             /* FORGOT PASSWORD VIEW */
             <form onSubmit={handleAuth} className="space-y-4">
-              <div className="flex items-center gap-2 border-b border-[#262B30] pb-3">
-                <KeyRound size={18} className="text-[#C9A227]" />
-                <h3 className="text-sm font-bold text-[#EDEAE3]">Reset Account Password</h3>
+              <div className="flex items-center gap-2 border-b pb-3" style={{ borderColor: 'var(--color-border-soft)' }}>
+                <KeyRound size={18} className="text-amber-600 dark:text-[#C9A227]" />
+                <h3 className="text-sm font-bold" style={{ color: 'var(--color-text-main)' }}>Reset Account Password</h3>
               </div>
 
-              <p className="text-xs text-[#8B8D91]">
+              <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                 Enter your registered email address and we will send you a password reset link.
               </p>
 
               <div>
-                <label className="text-[11px] uppercase font-bold text-[#8B8D91] tracking-wider block mb-1">
+                <label className="text-[11px] uppercase font-bold tracking-wider block mb-1" style={{ color: 'var(--color-text-dim)' }}>
                   Email Address
                 </label>
                 <input
@@ -333,14 +333,14 @@ export function AuthGate() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="trader@example.com"
-                  className="w-full px-3 py-2.5 bg-[#1B1F23] border border-[#262B30] rounded-lg text-xs text-[#EDEAE3] outline-none focus:border-[#C9A227]"
+                  className="w-full px-3 py-2.5 rounded-lg text-xs terminal-input"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 rounded-lg bg-[#C9A227] hover:bg-[#E4C468] text-[#0A0C0E] font-bold text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                className="w-full py-2.5 rounded-lg bg-gradient-to-r from-[#C9A227] to-[#D4AF37] hover:brightness-105 text-[#080A0D] font-bold text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50 shadow-md"
               >
                 <Mail size={14} /> Send Reset Link
               </button>
@@ -348,7 +348,8 @@ export function AuthGate() {
               <button
                 type="button"
                 onClick={() => { setMode('signin'); setErrorMsg(null); setSuccessMsg(null); }}
-                className="text-xs text-[#8B8D91] hover:text-[#C9A227] flex items-center justify-center gap-1 mx-auto pt-2"
+                className="text-xs hover:text-amber-600 dark:hover:text-[#C9A227] flex items-center justify-center gap-1 mx-auto pt-2"
+                style={{ color: 'var(--color-text-muted)' }}
               >
                 <ArrowLeft size={13} /> Back to Sign In
               </button>
@@ -357,7 +358,7 @@ export function AuthGate() {
             /* SIGN IN & SIGN UP FORMS */
             <form onSubmit={handleAuth} className="space-y-4">
               <div>
-                <label className="text-[11px] uppercase font-bold text-[#8B8D91] tracking-wider block mb-1">
+                <label className="text-[11px] uppercase font-bold tracking-wider block mb-1" style={{ color: 'var(--color-text-dim)' }}>
                   Email Address
                 </label>
                 <input
@@ -366,20 +367,20 @@ export function AuthGate() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="trader@example.com"
-                  className="w-full px-3 py-2.5 bg-[#1B1F23] border border-[#262B30] rounded-lg text-xs text-[#EDEAE3] outline-none focus:border-[#C9A227]"
+                  className="w-full px-3 py-2.5 rounded-lg text-xs terminal-input"
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-[11px] uppercase font-bold text-[#8B8D91] tracking-wider block">
+                  <label className="text-[11px] uppercase font-bold tracking-wider block" style={{ color: 'var(--color-text-dim)' }}>
                     Password
                   </label>
                   {mode === 'signin' && (
                     <button
                       type="button"
                       onClick={() => { setMode('forgot'); setErrorMsg(null); setSuccessMsg(null); }}
-                      className="text-[11px] text-[#C9A227] hover:underline"
+                      className="text-[11px] text-amber-600 dark:text-[#C9A227] hover:underline"
                     >
                       Forgot password?
                     </button>
@@ -393,12 +394,13 @@ export function AuthGate() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full px-3 py-2.5 bg-[#1B1F23] border border-[#262B30] rounded-lg text-xs text-[#EDEAE3] outline-none focus:border-[#C9A227] pr-10"
+                    className="w-full px-3 py-2.5 rounded-lg text-xs terminal-input pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8B8D91] hover:text-[#EDEAE3]"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 hover:opacity-80"
+                    style={{ color: 'var(--color-text-muted)' }}
                   >
                     {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
@@ -408,7 +410,7 @@ export function AuthGate() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 rounded-lg bg-[#C9A227] hover:bg-[#E4C468] text-[#0A0C0E] font-bold text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                className="w-full py-2.5 rounded-lg bg-gradient-to-r from-[#C9A227] to-[#D4AF37] hover:brightness-105 text-[#080A0D] font-bold text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50 shadow-md"
               >
                 {mode === 'signup' ? <UserPlus size={14} /> : <LogIn size={14} />}
                 {mode === 'signup' ? 'Create Secure Account' : 'Sign In to Journal'}
@@ -418,7 +420,8 @@ export function AuthGate() {
                 <button
                   type="button"
                   onClick={() => handleOAuth('google')}
-                  className="w-full py-2 rounded-lg bg-[#1B1F23] hover:bg-[#262B30] border border-[#262B30] text-[#EDEAE3] text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+                  className="w-full py-2 rounded-lg border text-xs font-semibold flex items-center justify-center gap-2 transition-colors hover:opacity-80"
+                  style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)', color: 'var(--color-text-main)' }}
                 >
                   Sign in with Google
                 </button>
@@ -427,11 +430,11 @@ export function AuthGate() {
           )}
 
           {/* Demo Mode Action */}
-          <div className="pt-3 border-t border-[#262B30] text-center space-y-2">
+          <div className="pt-3 border-t text-center space-y-2" style={{ borderColor: 'var(--color-border-soft)' }}>
             <button
               type="button"
               onClick={toggleDemoMode}
-              className="text-xs font-semibold text-[#C9A227] hover:text-[#E4C468] flex items-center justify-center gap-1.5 mx-auto"
+              className="text-xs font-semibold text-amber-600 dark:text-[#C9A227] hover:brightness-110 flex items-center justify-center gap-1.5 mx-auto"
             >
               <Sparkles size={13} /> Preview Demo Account (Read Only)
             </button>

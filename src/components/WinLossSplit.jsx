@@ -29,8 +29,12 @@ export function WinLossSplit({ trades = [], stats = {} }) {
   return (
     <div className="terminal-card p-5 space-y-4 flex flex-col justify-between select-none h-full">
       <div>
-        <h3 className="text-base font-bold font-display text-[#EDEAE3]">Win / Loss Split</h3>
-        <p className="text-xs text-[#8B8D91]">{totalTrades} trades logged</p>
+        <h3 className="text-base font-bold font-display" style={{ color: 'var(--color-text-main)' }}>
+          Win / Loss Split
+        </h3>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+          {totalTrades} trades logged
+        </p>
       </div>
 
       <div className="flex items-center justify-between gap-4 my-auto py-2">
@@ -56,10 +60,13 @@ export function WinLossSplit({ trades = [], stats = {} }) {
           </ResponsiveContainer>
 
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-            <span className="text-xl font-black font-mono-num text-[#EDEAE3] leading-none">
+            <span
+              className="text-xl font-black font-mono-num leading-none"
+              style={{ color: 'var(--color-text-main)' }}
+            >
               {winRate}%
             </span>
-            <span className="text-[10px] font-semibold text-[#8B8D91] mt-0.5">
+            <span className="text-[10px] font-semibold mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
               win rate
             </span>
           </div>
@@ -69,26 +76,26 @@ export function WinLossSplit({ trades = [], stats = {} }) {
         <div className="flex-1 space-y-3 font-mono-num text-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm bg-[#3FA88C]" />
-              <span className="text-[#EDEAE3] font-medium">Wins</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#34D399] shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+              <span className="font-medium" style={{ color: 'var(--color-text-muted)' }}>Wins</span>
             </div>
-            <span className="font-bold text-[#EDEAE3]">{winsCount}</span>
+            <span className="font-bold text-[#34D399]">{winsCount}</span>
           </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm bg-[#C1502E]" />
-              <span className="text-[#EDEAE3] font-medium">Losses</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#FB7185] shadow-[0_0_8px_rgba(251,113,133,0.5)]" />
+              <span className="font-medium" style={{ color: 'var(--color-text-muted)' }}>Losses</span>
             </div>
-            <span className="font-bold text-[#EDEAE3]">{lossesCount}</span>
+            <span className="font-bold text-[#FB7185]">{lossesCount}</span>
           </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm bg-[#5A5D61]" />
-              <span className="text-[#EDEAE3] font-medium">Breakeven</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#64748B]" />
+              <span className="font-medium" style={{ color: 'var(--color-text-muted)' }}>Breakeven</span>
             </div>
-            <span className="font-bold text-[#EDEAE3]">{breakevenCount}</span>
+            <span className="font-bold" style={{ color: 'var(--color-text-dim)' }}>{breakevenCount}</span>
           </div>
         </div>
       </div>

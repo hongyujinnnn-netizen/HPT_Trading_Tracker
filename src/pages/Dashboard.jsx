@@ -234,17 +234,23 @@ export function Dashboard() {
       {/* Top Header with Layout Selector */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold font-display text-[#EDEAE3] flex items-center gap-2">
-            {greeting}, {userName} <span className="inline-block animate-bounce">👋</span>
+          <h1 className="text-2xl font-bold font-display tracking-tight text-slate-900 dark:text-[#F1F3F5] flex items-center gap-2">
+            {greeting}, <span className="bg-gradient-to-r from-amber-600 to-amber-500 dark:from-[#EDEAE3] dark:via-[#F3D371] dark:to-[#C9A227] bg-clip-text text-transparent">{userName}</span> <span className="inline-block animate-bounce">👋</span>
           </h1>
-          <p className="text-xs text-[#8B8D91] mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-[#94A3B8] mt-0.5">
             Institutional edge analytics, discipline metrics, and real-time execution tracking.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           {/* Saved Layout Mode Selector */}
-          <div className="flex items-center bg-[#131619] p-1 rounded-lg border border-[#262B30] text-xs">
+          <div
+            className="flex items-center p-1 rounded-xl border text-xs shadow-inner"
+            style={{
+              background: 'var(--color-elevated)',
+              borderColor: 'var(--color-border-soft)',
+            }}
+          >
             {[
               { id: 'overview', label: 'Default Overview', icon: LayoutDashboard },
               { id: 'morning', label: 'Morning Review', icon: Coffee },
@@ -256,10 +262,10 @@ export function Dashboard() {
                 <button
                   key={layout.id}
                   onClick={() => handleLayoutChange(layout.id)}
-                  className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1.5 transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all duration-200 ${
                     isSelected
-                      ? 'bg-[#2A2311] text-[#C9A227] border border-[#C9A227]/40 shadow-sm'
-                      : 'text-[#8B8D91] hover:text-[#EDEAE3]'
+                      ? 'bg-gradient-to-b from-[#C9A227] to-[#B38E1B] text-[#080A0D] font-bold shadow-md shadow-[#C9A227]/25'
+                      : 'text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-[#F1F3F5]'
                   }`}
                   title={`Switch to ${layout.label} layout`}
                 >
@@ -271,17 +277,26 @@ export function Dashboard() {
           </div>
 
           {/* Session pill */}
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#131619] border border-[#262B30] text-xs font-mono-num">
-            <span className="w-2 h-2 rounded-full bg-[#3FA88C] animate-pulse" />
-            <span className="text-[#8B8D91]">
-              <strong className="text-[#EDEAE3] font-medium">{sessionInfo.name}</strong> · {sessionInfo.timeLeft}
+          <div
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-mono-num shadow-sm"
+            style={{
+              background: 'var(--color-elevated)',
+              borderColor: 'var(--color-border-soft)',
+            }}
+          >
+            <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
+            <span style={{ color: 'var(--color-text-muted)' }}>
+              <strong style={{ color: 'var(--color-text-main)' }}>{sessionInfo.name}</strong> · {sessionInfo.timeLeft}
             </span>
           </div>
 
           {/* View Live Gold Chart */}
           <button
             onClick={() => setActivePage('chart')}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#131619] hover:bg-[#262B30] text-[#C9A227] font-semibold text-xs border border-[#C9A227]/40 transition-colors"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg text-amber-600 dark:text-[#E5B83B] font-semibold text-xs border border-amber-500/40 transition-colors shadow-sm"
+            style={{
+              background: 'var(--color-elevated)',
+            }}
           >
             <CandlestickChart size={15} /> Gold Chart
           </button>
@@ -289,7 +304,7 @@ export function Dashboard() {
           {/* + New Trade Button */}
           <button
             onClick={() => setActivePage('add')}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#E5B82C] hover:bg-[#F2C93B] text-[#0A0C0E] font-bold text-xs shadow-md transition-colors"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg bg-gradient-to-r from-[#C9A227] via-[#E4C468] to-[#C9A227] hover:brightness-110 text-[#080A0D] font-extrabold text-xs shadow-lg shadow-[#C9A227]/30 active:scale-95 transition-all"
           >
             <Plus size={15} /> New Trade
           </button>
@@ -309,51 +324,55 @@ export function Dashboard() {
         <StatCard
           label="Net P&L"
           value={`${stats.totalPnl >= 0 ? '+' : ''}$${stats.totalPnl.toLocaleString()}`}
-          valueColor={stats.totalPnl >= 0 ? '#3FA88C' : '#C1502E'}
+          valueColor={stats.totalPnl >= 0 ? '#34D399' : '#FB7185'}
           delta="Realized balance return"
           deltaType={stats.totalPnl >= 0 ? 'up' : 'down'}
+          tone={stats.totalPnl >= 0 ? 'profit' : 'loss'}
           sparklineData={[3200, 3500, 3300, 3900, 4200, 4100, 4500, 4812]}
-          sparklineColor="#3FA88C"
+          sparklineColor={stats.totalPnl >= 0 ? '#34D399' : '#FB7185'}
         />
 
         <StatCard
           label="Win Rate"
           value={`${stats.winRate}%`}
-          valueColor="#E4C468"
+          valueColor="#E5B83B"
           delta="Cumulative win rate"
           deltaType="up"
+          tone="gold"
           sparklineData={[58, 60, 59, 62, 61, 63, 64.3]}
-          sparklineColor="#E4C468"
+          sparklineColor="#E5B83B"
         />
 
         <StatCard
           label="Dollar Expectancy"
           value={`${expectancyData.expectancy >= 0 ? '+' : ''}$${expectancyData.expectancy}`}
-          valueColor={expectancyData.expectancy >= 0 ? '#3FA88C' : '#C1502E'}
+          valueColor={expectancyData.expectancy >= 0 ? '#34D399' : '#FB7185'}
           delta={expectancyData.sizingAdvice}
           deltaType={expectancyData.expectancy >= 0 ? 'up' : 'down'}
+          tone={expectancyData.expectancy >= 0 ? 'profit' : 'loss'}
           sparklineData={[50, 60, 40, 80, 75, 90]}
-          sparklineColor="#C9A227"
+          sparklineColor={expectancyData.expectancy >= 0 ? '#34D399' : '#FB7185'}
         />
 
         <StatCard
           label="Avg R : R"
           value={`1 : ${stats.avgRR}`}
-          valueColor="#EDEAE3"
           delta="Risk:Reward Ratio"
           deltaType="up"
+          tone="profit"
           sparklineData={[1.9, 2.0, 2.1, 2.0, 2.2, 2.3]}
-          sparklineColor="#3FA88C"
+          sparklineColor="#34D399"
         />
 
         <StatCard
           label="Max Drawdown"
           value={`-${stats.maxDrawdownPct}%`}
-          valueColor={stats.maxDrawdownPct > 10 ? '#C1502E' : '#EDEAE3'}
+          valueColor={stats.maxDrawdownPct > 10 ? '#FB7185' : undefined}
           delta={stats.maxDrawdownPct > 10 ? 'Circuit Breaker Hit' : 'within 10% limit'}
           deltaType={stats.maxDrawdownPct > 10 ? 'down' : 'neutral'}
+          tone={stats.maxDrawdownPct > 10 ? 'loss' : 'neutral'}
           sparklineData={[-2, -4, -3, -5, -8, -6.8]}
-          sparklineColor="#C1502E"
+          sparklineColor="#FB7185"
         />
       </div>
 
@@ -398,20 +417,20 @@ export function Dashboard() {
                       <div key={s.name}>
                         <div className="flex items-center justify-between text-xs mb-1">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-[#EDEAE3] font-display">{s.name}</span>
-                            <span className="text-[10px] text-[#5A5D61] font-mono-num">{s.hours}</span>
+                            <span className="font-semibold font-display" style={{ color: 'var(--color-text-main)' }}>{s.name}</span>
+                            <span className="text-[10px] font-mono-num" style={{ color: 'var(--color-text-dim)' }}>{s.hours}</span>
                           </div>
                           <div className="flex items-center gap-2 font-mono-num">
-                            <span className="text-[#8B8D91]">{s.winRate}% win</span>
-                            <span style={{ color: isProf ? '#3FA88C' : '#C1502E' }} className="font-bold min-w-16 text-right">
+                            <span style={{ color: 'var(--color-text-muted)' }}>{s.winRate}% win</span>
+                            <span style={{ color: isProf ? '#10B981' : '#EF4444' }} className="font-bold min-w-16 text-right">
                               {s.pnl >= 0 ? '+' : ''}${s.pnl}
                             </span>
                           </div>
                         </div>
-                        <div className="h-1.5 rounded bg-[#1B1F23] overflow-hidden">
+                        <div className="h-1.5 rounded overflow-hidden" style={{ background: 'var(--color-elevated)' }}>
                           <div
                             className="h-full rounded transition-all duration-500"
-                            style={{ width: `${widthPct}%`, background: isProf ? '#3FA88C' : '#C1502E' }}
+                            style={{ width: `${widthPct}%`, background: isProf ? '#10B981' : '#EF4444' }}
                           />
                         </div>
                       </div>
@@ -420,8 +439,8 @@ export function Dashboard() {
                 </div>
               </div>
 
-              <p className="text-[11px] text-[#8B8D91] pt-3 mt-4 border-t border-[#1E2226] leading-relaxed">
-                <strong className="text-[#C9A227]">Preparation Rule:</strong> Verify upcoming high-impact economic news 15 minutes prior to session opens.
+              <p className="text-[11px] pt-3 mt-4 border-t leading-relaxed" style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}>
+                <strong className="text-amber-600 dark:text-[#C9A227]">Preparation Rule:</strong> Verify upcoming high-impact economic news 15 minutes prior to session opens.
               </p>
             </div>
           </div>
@@ -429,7 +448,7 @@ export function Dashboard() {
           {/* Recent Trades & Discipline Alerts */}
           <div className="terminal-card p-5">
             <SectionLabel right={
-              <button onClick={() => setActivePage('mistakes')} className="text-xs text-[#C9A227] hover:underline flex items-center gap-1">
+              <button onClick={() => setActivePage('mistakes')} className="text-xs text-amber-600 dark:text-[#C9A227] hover:underline flex items-center gap-1">
                 Discipline Center <ChevronRight size={12} />
               </button>
             }>
@@ -441,14 +460,15 @@ export function Dashboard() {
                 <div
                   key={t.id}
                   onClick={() => setSelectedTrade(t)}
-                  className="flex items-center justify-between p-3 rounded-lg bg-[#1B1F23]/60 hover:bg-[#1B1F23] border border-[#1E2226] cursor-pointer transition-colors"
+                  className="flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors hover:opacity-85"
+                  style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-[#5A5D61] font-mono-num w-16">{t.date}</span>
+                    <span className="text-xs font-mono-num w-16" style={{ color: 'var(--color-text-dim)' }}>{t.date}</span>
                     <Pill tone={t.side === 'Buy' ? 'profit' : 'loss'}>{t.side}</Pill>
-                    <span className="text-xs text-[#EDEAE3] font-medium">{t.strategy}</span>
+                    <span className="text-xs font-medium" style={{ color: 'var(--color-text-main)' }}>{t.strategy}</span>
                     {t.mistakes && t.mistakes.length > 0 && (
-                      <span className="text-[11px] text-[#C1502E] flex items-center gap-1 bg-[#4A2A1E]/30 px-2 py-0.5 rounded border border-[#5C3426]">
+                      <span className="text-[11px] text-rose-600 dark:text-rose-400 flex items-center gap-1 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/30">
                         <AlertTriangle size={11} /> {t.mistakes[0]}
                       </span>
                     )}
@@ -480,34 +500,55 @@ export function Dashboard() {
                 right={
                   <div className="flex items-center gap-2">
                     {/* Equity vs Underwater Toggle */}
-                    <div className="flex gap-1 bg-[#131619] p-0.5 rounded border border-[#262B30]">
+                    <div
+                      className="flex gap-1 p-0.5 rounded-lg border transition-colors shadow-inner"
+                      style={{
+                        background: 'var(--color-elevated)',
+                        borderColor: 'var(--color-border-soft)',
+                      }}
+                    >
                       <button
                         onClick={() => setChartMode('equity')}
-                        className={`text-[10px] px-2 py-0.5 rounded font-mono-num font-semibold transition-colors ${
-                          chartMode === 'equity' ? 'bg-[#C9A227] text-[#0A0C0E]' : 'text-[#8B8D91] hover:text-[#EDEAE3]'
+                        className={`text-[10px] px-2.5 py-1 rounded-md font-mono-num font-semibold transition-all ${
+                          chartMode === 'equity'
+                            ? 'bg-gradient-to-b from-[#C9A227] to-[#B38E1B] text-[#080A0D] shadow-sm font-bold'
+                            : 'hover:opacity-80'
                         }`}
+                        style={chartMode !== 'equity' ? { color: 'var(--color-text-muted)' } : undefined}
                       >
                         $ Equity
                       </button>
                       <button
                         onClick={() => setChartMode('underwater')}
-                        className={`text-[10px] px-2 py-0.5 rounded font-mono-num font-semibold transition-colors ${
-                          chartMode === 'underwater' ? 'bg-[#C1502E] text-white' : 'text-[#8B8D91] hover:text-[#EDEAE3]'
+                        className={`text-[10px] px-2.5 py-1 rounded-md font-mono-num font-semibold transition-all ${
+                          chartMode === 'underwater'
+                            ? 'bg-[#F43F5E] text-white shadow-sm font-bold'
+                            : 'hover:opacity-80'
                         }`}
+                        style={chartMode !== 'underwater' ? { color: 'var(--color-text-muted)' } : undefined}
                       >
                         % Drawdown
                       </button>
                     </div>
 
                     {/* Time Range Filter */}
-                    <div className="flex gap-1 bg-[#1B1F23] p-0.5 rounded border border-[#262B30]">
+                    <div
+                      className="flex gap-1 p-0.5 rounded-lg border transition-colors shadow-inner"
+                      style={{
+                        background: 'var(--color-elevated)',
+                        borderColor: 'var(--color-border-soft)',
+                      }}
+                    >
                       {['7D', '30D', 'ALL'].map((r) => (
                         <button
                           key={r}
                           onClick={() => setTimeRange(r)}
-                          className={`text-[10px] px-2 py-0.5 rounded font-mono-num font-semibold ${
-                            timeRange === r ? 'bg-[#C9A227] text-[#0A0C0E]' : 'text-[#8B8D91] hover:text-[#EDEAE3]'
+                          className={`text-[10px] px-2.5 py-1 rounded-md font-mono-num font-semibold transition-all ${
+                            timeRange === r
+                              ? 'bg-gradient-to-b from-[#C9A227] to-[#B38E1B] text-[#080A0D] shadow-sm font-bold'
+                              : 'hover:opacity-80'
                           }`}
+                          style={timeRange !== r ? { color: 'var(--color-text-muted)' } : undefined}
                         >
                           {r}
                         </button>
@@ -524,18 +565,26 @@ export function Dashboard() {
                   <AreaChart data={equityCurveData} margin={{ left: -15, right: 10 }}>
                     <defs>
                       <linearGradient id="eqGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#C9A227" stopOpacity={0.35} />
+                        <stop offset="0%" stopColor="#C9A227" stopOpacity={0.45} />
+                        <stop offset="50%" stopColor="#C9A227" stopOpacity={0.12} />
                         <stop offset="100%" stopColor="#C9A227" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid stroke="#1E2226" vertical={false} />
-                    <XAxis dataKey="d" tick={{ fill: '#5A5D61', fontSize: 11 }} axisLine={{ stroke: '#1E2226' }} tickLine={false} />
-                    <YAxis tick={{ fill: '#5A5D61', fontSize: 11 }} axisLine={false} tickLine={false} domain={['dataMin - 300', 'dataMax + 300']} />
+                    <CartesianGrid stroke="var(--color-border-soft)" vertical={false} />
+                    <XAxis dataKey="d" tick={{ fill: 'var(--color-text-dim)', fontSize: 11 }} axisLine={{ stroke: 'var(--color-border-soft)' }} tickLine={false} />
+                    <YAxis tick={{ fill: 'var(--color-text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} domain={['dataMin - 300', 'dataMax + 300']} />
                     <Tooltip
-                      contentStyle={{ background: '#1B1F23', border: '1px solid #262B30', borderRadius: 6, fontSize: 12, color: '#EDEAE3' }}
-                      itemStyle={{ color: '#C9A227' }}
+                      contentStyle={{
+                        background: 'var(--color-surface)',
+                        border: '1px solid var(--color-border-dark)',
+                        borderRadius: 8,
+                        fontSize: 12,
+                        color: 'var(--color-text-main)',
+                        boxShadow: 'var(--card-shadow)',
+                      }}
+                      itemStyle={{ color: '#E5B83B' }}
                     />
-                    <Area type="monotone" dataKey="v" stroke="#C9A227" strokeWidth={2.5} fill="url(#eqGradient)" />
+                    <Area type="monotone" dataKey="v" stroke="#E5B83B" strokeWidth={2.5} fill="url(#eqGradient)" />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
@@ -543,20 +592,27 @@ export function Dashboard() {
                   <AreaChart data={underwaterCurveData} margin={{ left: -15, right: 10 }}>
                     <defs>
                       <linearGradient id="underwaterGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#C1502E" stopOpacity={0.05} />
-                        <stop offset="100%" stopColor="#C1502E" stopOpacity={0.4} />
+                        <stop offset="0%" stopColor="#F43F5E" stopOpacity={0.05} />
+                        <stop offset="100%" stopColor="#F43F5E" stopOpacity={0.4} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid stroke="#1E2226" vertical={false} />
-                    <XAxis dataKey="d" tick={{ fill: '#5A5D61', fontSize: 11 }} axisLine={{ stroke: '#1E2226' }} tickLine={false} />
-                    <YAxis domain={[-15, 0]} tick={{ fill: '#5A5D61', fontSize: 11 }} axisLine={false} tickLine={false} unit="%" />
+                    <CartesianGrid stroke="var(--color-border-soft)" vertical={false} />
+                    <XAxis dataKey="d" tick={{ fill: 'var(--color-text-dim)', fontSize: 11 }} axisLine={{ stroke: 'var(--color-border-soft)' }} tickLine={false} />
+                    <YAxis domain={[-15, 0]} tick={{ fill: 'var(--color-text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} unit="%" />
                     <Tooltip
-                      contentStyle={{ background: '#1B1F23', border: '1px solid #262B30', borderRadius: 6, fontSize: 12, color: '#EDEAE3' }}
-                      itemStyle={{ color: '#C1502E' }}
+                      contentStyle={{
+                        background: 'var(--color-surface)',
+                        border: '1px solid rgba(244, 63, 94, 0.4)',
+                        borderRadius: 8,
+                        fontSize: 12,
+                        color: 'var(--color-text-main)',
+                        boxShadow: 'var(--card-shadow)',
+                      }}
+                      itemStyle={{ color: '#FB7185' }}
                     />
-                    <ReferenceLine y={0} stroke="#3FA88C" />
-                    <ReferenceLine y={-10} stroke="#C1502E" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Circuit Breaker -10%', fill: '#C1502E', fontSize: 10 }} />
-                    <Area type="monotone" dataKey="drawdownPct" stroke="#C1502E" strokeWidth={2} fill="url(#underwaterGradient)" />
+                    <ReferenceLine y={0} stroke="#34D399" />
+                    <ReferenceLine y={-10} stroke="#F43F5E" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Circuit Breaker -10%', fill: '#FB7185', fontSize: 10 }} />
+                    <Area type="monotone" dataKey="drawdownPct" stroke="#F43F5E" strokeWidth={2} fill="url(#underwaterGradient)" />
                   </AreaChart>
                 </ResponsiveContainer>
               )}
@@ -565,7 +621,7 @@ export function Dashboard() {
             {/* Session Timeline */}
             <div className="terminal-card p-5 flex flex-col justify-between">
               <div>
-                <SectionLabel right={<span className="text-[10px] font-mono-num text-[#5A5D61]">24H CYCLE</span>}>
+                <SectionLabel right={<span className="text-[10px] font-mono-num text-slate-400 dark:text-[#5A5D61]">24H CYCLE</span>}>
                   Session Performance
                 </SectionLabel>
 
@@ -577,17 +633,17 @@ export function Dashboard() {
                       <div key={s.name}>
                         <div className="flex items-center justify-between text-xs mb-1">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-[#EDEAE3] font-display">{s.name}</span>
-                            <span className="text-[10px] text-[#5A5D61] font-mono-num">{s.hours}</span>
+                            <span className="font-semibold font-display" style={{ color: 'var(--color-text-main)' }}>{s.name}</span>
+                            <span className="text-[10px] font-mono-num" style={{ color: 'var(--color-text-dim)' }}>{s.hours}</span>
                           </div>
                           <div className="flex items-center gap-2 font-mono-num">
-                            <span className="text-[#8B8D91]">{s.winRate}% win</span>
+                            <span style={{ color: 'var(--color-text-muted)' }}>{s.winRate}% win</span>
                             <span style={{ color: isProf ? '#3FA88C' : '#C1502E' }} className="font-bold min-w-16 text-right">
                               {s.pnl >= 0 ? '+' : ''}${s.pnl}
                             </span>
                           </div>
                         </div>
-                        <div className="h-1.5 rounded bg-[#1B1F23] overflow-hidden">
+                        <div className="h-1.5 rounded overflow-hidden" style={{ background: 'var(--color-elevated)' }}>
                           <div
                             className="h-full rounded transition-all duration-500"
                             style={{ width: `${widthPct}%`, background: isProf ? '#3FA88C' : '#C1502E' }}
@@ -599,8 +655,14 @@ export function Dashboard() {
                 </div>
               </div>
 
-              <p className="text-[11px] text-[#8B8D91] pt-3 mt-4 border-t border-[#1E2226] leading-relaxed">
-                <strong className="text-[#C9A227]">Insight:</strong> London session yields your highest win rate (64%). Avoid trading late in London Close.
+              <p
+                className="text-[11px] pt-3 mt-4 border-t leading-relaxed"
+                style={{
+                  color: 'var(--color-text-muted)',
+                  borderColor: 'var(--color-border-soft)',
+                }}
+              >
+                <strong className="text-amber-500 dark:text-[#C9A227]">Insight:</strong> London session yields your highest win rate (64%). Avoid trading late in London Close.
               </p>
             </div>
           </div>
@@ -629,9 +691,9 @@ export function Dashboard() {
 
               <ResponsiveContainer width="100%" height={190}>
                 <BarChart data={strategyStats} layout="vertical" margin={{ left: -10 }}>
-                  <XAxis type="number" tick={{ fill: '#5A5D61', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fill: '#8B8D91', fontSize: 11 }} axisLine={false} tickLine={false} width={90} />
-                  <Tooltip contentStyle={{ background: '#1B1F23', border: '1px solid #262B30', borderRadius: 6, fontSize: 12 }} />
+                  <XAxis type="number" tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" tick={{ fill: 'var(--color-text-main)', fontSize: 11 }} axisLine={false} tickLine={false} width={95} />
+                  <Tooltip contentStyle={{ background: 'var(--color-surface-card)', border: '1px solid var(--color-border-soft)', borderRadius: 8, fontSize: 12, color: 'var(--color-text-main)' }} />
                   <Bar dataKey="pnl" radius={[0, 4, 4, 0]}>
                     {strategyStats.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -651,27 +713,33 @@ export function Dashboard() {
                 Recent Logged Trades &amp; Discipline Alerts
               </SectionLabel>
 
-              <div className="space-y-2.5 mt-2">
+              <div className="space-y-2 mt-2">
                 {displayTrades.slice(0, 5).map((t) => (
                   <div
                     key={t.id}
                     onClick={() => setSelectedTrade(t)}
-                    className="flex items-center justify-between p-2.5 rounded-lg bg-[#1B1F23]/60 hover:bg-[#1B1F23] border border-[#1E2226] cursor-pointer transition-colors"
+                    className="flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all hover:scale-[1.005] shadow-sm"
+                    style={{
+                      background: 'var(--color-elevated)',
+                      borderColor: 'var(--color-border-soft)',
+                    }}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-[#5A5D61] font-mono-num w-14">{t.date}</span>
+                      <span className="text-xs font-mono-num w-16" style={{ color: 'var(--color-text-muted)' }}>{t.date}</span>
                       <Pill tone={t.side === 'Buy' ? 'profit' : 'loss'}>{t.side}</Pill>
-                      <span className="text-xs text-[#EDEAE3] font-medium">{t.strategy}</span>
+                      <span className="text-xs font-semibold" style={{ color: 'var(--color-text-main)' }}>{t.strategy}</span>
                       {t.mistakes && t.mistakes.length > 0 && (
-                        <span className="text-[11px] text-[#C1502E] flex items-center gap-1 bg-[#4A2A1E]/30 px-2 py-0.5 rounded border border-[#5C3426]">
+                        <span className="text-[11px] flex items-center gap-1 px-2 py-0.5 rounded-md border font-medium bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30">
                           <AlertTriangle size={11} /> {t.mistakes[0]}
                         </span>
                       )}
                     </div>
 
                     <div className="flex items-center gap-3 font-mono-num text-xs">
-                      <span className="text-[#8B8D91] hidden sm:inline">1:{t.rr ? Number(t.rr).toFixed(1) : '1.0'} RR</span>
-                      <span className={`font-bold ${t.pnl >= 0 ? 'text-[#3FA88C]' : 'text-[#C1502E]'}`}>
+                      <span className="hidden sm:inline" style={{ color: 'var(--color-text-dim)' }}>
+                        1:{t.rr ? Number(t.rr).toFixed(1) : '1.0'} RR
+                      </span>
+                      <span className={`font-bold ${t.pnl >= 0 ? 'text-emerald-600 dark:text-[#34D399]' : 'text-rose-600 dark:text-[#FB7185]'}`}>
                         {t.pnl >= 0 ? '+' : ''}${t.pnl}
                       </span>
                     </div>

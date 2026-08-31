@@ -73,6 +73,55 @@ export function TradeProvider({ children }) {
 
   const [pushPermission, setPushPermission] = useState(() => getPushPermission());
 
+  // ─── Theme Engine (Dark / Light / System) ───────────────────────────────────
+  const [theme, setThemeState] = useState(() => {
+    try {
+      return localStorage.getItem('tradepulse_theme') || 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
+
+  const applyTheme = useCallback((resolvedTheme) => {
+    if (resolvedTheme === 'light') {
+      document.documentElement.classList.add('light');
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+    }
+  }, []);
+
+  useEffect(() => {
+    let mediaQuery = null;
+    let handler = null;
+
+    if (theme === 'system') {
+      mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      handler = (e) => applyTheme(e.matches ? 'dark' : 'light');
+      applyTheme(mediaQuery.matches ? 'dark' : 'light');
+      mediaQuery.addEventListener('change', handler);
+    } else {
+      applyTheme(theme);
+    }
+
+    return () => {
+      if (mediaQuery && handler) {
+        mediaQuery.removeEventListener('change', handler);
+      }
+    };
+  }, [theme, applyTheme]);
+
+  const setTheme = useCallback((value) => {
+    setThemeState(value);
+    try {
+      localStorage.setItem('tradepulse_theme', value);
+    } catch (e) {
+      console.warn('Failed to persist theme', e);
+    }
+  }, []);
+
+
   useEffect(() => {
     try {
       localStorage.setItem('tradepulse_notifications', JSON.stringify(notifications.slice(0, 100)));
@@ -963,6 +1012,9 @@ export function TradeProvider({ children }) {
         toggleNotificationSound,
         pushPermission,
         enablePushNotifications,
+        // Theme
+        theme,
+        setTheme,
         // Price Alerts
         priceAlerts,
         addPriceAlert,

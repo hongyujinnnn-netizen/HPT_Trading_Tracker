@@ -46,8 +46,8 @@ export function MistakeCenter() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-xl font-bold font-display text-[#EDEAE3]">Mistake Detector &amp; Discipline Center</h1>
-        <p className="text-xs text-[#8B8D91]">
+        <h1 className="text-xl font-bold font-display" style={{ color: 'var(--color-text-main)' }}>Mistake Detector &amp; Discipline Center</h1>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
           Automated rule engine audit identifying your behavioral trading leaks and their dollar cost
         </p>
       </div>
@@ -111,15 +111,19 @@ export function MistakeCenter() {
               count: mistakeAnalysis.counts[MISTAKE_TYPES.BAD_ENTRY],
             },
           ].map((item) => (
-            <div key={item.title} className="p-4 rounded-lg bg-[#1B1F23] border border-[#1E2226] flex flex-col justify-between">
+            <div
+              key={item.title}
+              className="p-4 rounded-xl border flex flex-col justify-between"
+              style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
+            >
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-bold font-display text-[#EDEAE3] flex items-center gap-1.5">
-                    <AlertTriangle size={14} className="text-[#C1502E]" /> {item.title}
+                  <span className="text-sm font-bold font-display flex items-center gap-1.5" style={{ color: 'var(--color-text-main)' }}>
+                    <AlertTriangle size={14} className="text-rose-600 dark:text-[#C1502E]" /> {item.title}
                   </span>
                   <Pill tone={item.count > 0 ? 'loss' : 'profit'}>{item.count} flagged</Pill>
                 </div>
-                <p className="text-xs text-[#8B8D91] font-body leading-relaxed">{item.desc}</p>
+                <p className="text-xs font-body leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>{item.desc}</p>
               </div>
             </div>
           ))}

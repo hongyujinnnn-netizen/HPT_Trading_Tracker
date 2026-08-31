@@ -177,20 +177,20 @@ export function MarketNews() {
         );
       }
       return (
-        <span className="px-2 py-0.5 rounded text-[10px] font-mono-num bg-[#131619] text-[#8B8D91] border border-[#262B30] font-semibold">
+        <span className="px-2 py-0.5 rounded text-[10px] font-mono-num bg-slate-100 dark:bg-[#131619] text-slate-600 dark:text-[#8B8D91] border border-slate-200 dark:border-[#262B30] font-semibold">
           Upcoming
         </span>
       );
     } else {
       if (isToday) {
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono-num bg-[#152E25] text-[#3FA88C] border border-[#3FA88C]/40 font-bold flex items-center gap-1">
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono-num bg-emerald-500/15 text-emerald-700 dark:bg-[#152E25] dark:text-[#3FA88C] border border-emerald-500/30 dark:border-[#3FA88C]/40 font-bold flex items-center gap-1">
             <CheckCircle2 size={10} /> Released Today
           </span>
         );
       }
       return (
-        <span className="px-2 py-0.5 rounded text-[10px] font-mono-num bg-[#1B1F23] text-[#5A5D61] border border-[#262B30]">
+        <span className="px-2 py-0.5 rounded text-[10px] font-mono-num bg-slate-100 dark:bg-[#1B1F23] text-slate-400 dark:text-[#5A5D61] border border-slate-200 dark:border-[#262B30]">
           Passed
         </span>
       );
@@ -200,8 +200,8 @@ export function MarketNews() {
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       <div>
-        <h1 className="text-xl font-bold font-display text-[#EDEAE3]">Gold Market &amp; Economic Calendar Tracker</h1>
-        <p className="text-xs text-[#8B8D91]">
+        <h1 className="text-xl font-bold font-display" style={{ color: 'var(--color-text-main)' }}>Gold Market &amp; Economic Calendar Tracker</h1>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
           Real-time high &amp; medium impact USD economic releases. Filtered to display upcoming releases only (past events removed).
         </p>
       </div>
@@ -210,34 +210,34 @@ export function MarketNews() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="terminal-card p-4 flex items-center justify-between border-l-4 border-l-[#3FA88C]">
           <div>
-            <span className="text-[11px] uppercase tracking-wider text-[#8B8D91]">XAU/USD Spot Price</span>
-            <div className="text-xl font-bold font-mono-num text-[#EDEAE3]">
+            <span className="text-[11px] uppercase tracking-wider block font-semibold" style={{ color: 'var(--color-text-dim)' }}>XAU/USD Spot Price</span>
+            <div className="text-xl font-bold font-mono-num" style={{ color: 'var(--color-text-main)' }}>
               ${goldPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
-          <Zap size={20} className="text-[#3FA88C] animate-pulse" />
+          <Zap size={20} className="text-emerald-500 dark:text-[#3FA88C] animate-pulse" />
         </div>
 
         <div className="terminal-card p-4 flex items-center justify-between border-l-4 border-l-[#C9A227]">
           <div>
-            <span className="text-[11px] uppercase tracking-wider text-[#8B8D91]">Live Average Spread</span>
-            <div className="text-xl font-bold font-mono-num text-[#C9A227]">{spread} points</div>
+            <span className="text-[11px] uppercase tracking-wider block font-semibold" style={{ color: 'var(--color-text-dim)' }}>Live Average Spread</span>
+            <div className="text-xl font-bold font-mono-num text-amber-600 dark:text-[#C9A227]">{spread} points</div>
           </div>
-          <Flame size={20} className="text-[#C9A227]" />
+          <Flame size={20} className="text-amber-500 dark:text-[#C9A227]" />
         </div>
 
         <div className="terminal-card p-4 flex items-center justify-between border-l-4 border-l-[#C1502E]">
           <div>
-            <span className="text-[11px] uppercase tracking-wider text-[#8B8D91]">News Volatility Status</span>
-            <div className="text-xl font-bold font-display text-[#C1502E]">{volatility.toUpperCase()}</div>
+            <span className="text-[11px] uppercase tracking-wider block font-semibold" style={{ color: 'var(--color-text-dim)' }}>News Volatility Status</span>
+            <div className="text-xl font-bold font-display text-rose-600 dark:text-[#C1502E]">{volatility.toUpperCase()}</div>
           </div>
-          <AlertTriangle size={20} className="text-[#C1502E]" />
+          <AlertTriangle size={20} className="text-rose-600 dark:text-[#C1502E]" />
         </div>
       </div>
 
       {/* Economic Calendar List */}
       <div className="terminal-card p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#262B30] pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3" style={{ borderColor: 'var(--color-border-soft)' }}>
           <div>
             <SectionLabel
               right={
@@ -248,50 +248,57 @@ export function MarketNews() {
             >
               Economic Calendar Releases (USD)
             </SectionLabel>
-            <p className="text-xs text-[#8B8D91] mt-0.5">
-              Showing <strong className="text-[#C9A227] font-mono-num">{filteredEvents.length}</strong> active release event(s)
+            <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+              Showing <strong className="text-amber-600 dark:text-[#C9A227] font-mono-num">{filteredEvents.length}</strong> active release event(s)
             </p>
           </div>
 
           {/* Release Filter Tabs */}
-          <div className="flex items-center bg-[#131619] p-1 rounded-lg border border-[#262B30] text-xs">
+          <div
+            className="flex items-center p-1 rounded-xl border text-xs"
+            style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
+          >
             {[
               { id: 'upcoming', label: 'Upcoming Releases' },
               { id: 'today', label: 'Today Only' },
               { id: 'week', label: 'Next 7 Days' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setFilterTab(tab.id)}
-                className={`px-3 py-1 rounded-md font-semibold transition-colors ${
-                  filterTab === tab.id
-                    ? 'bg-[#2A2311] text-[#C9A227] border border-[#C9A227]/40 shadow-sm'
-                    : 'text-[#8B8D91] hover:text-[#EDEAE3]'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+            ].map((tab) => {
+              const isActive = filterTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setFilterTab(tab.id)}
+                  className={`px-3 py-1 rounded-lg font-semibold transition-colors ${
+                    isActive
+                      ? 'bg-gradient-to-r from-[#C9A227] to-[#D4AF37] text-[#080A0D] shadow-sm'
+                      : 'hover:opacity-80'
+                  }`}
+                  style={!isActive ? { color: 'var(--color-text-muted)' } : undefined}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-8 text-xs text-[#8B8D91]">
-            <Loader2 size={14} className="animate-spin text-[#C9A227]" />
+          <div className="flex items-center justify-center gap-2 py-8 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+            <Loader2 size={14} className="animate-spin text-amber-500 dark:text-[#C9A227]" />
             Loading calendar events...
           </div>
         ) : filteredEvents.length === 0 ? (
           <div className="py-10 text-center space-y-2">
-            <Calendar size={28} className="mx-auto text-[#5A5D61]" />
-            <p className="text-sm text-[#8B8D91] font-display">
+            <Calendar size={28} className="mx-auto" style={{ color: 'var(--color-text-dim)' }} />
+            <p className="text-sm font-display font-semibold" style={{ color: 'var(--color-text-main)' }}>
               No upcoming economic releases found for this filter.
             </p>
-            <p className="text-xs text-[#5A5D61]">
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
               Past releases (like earlier dates this week) have been filtered out to keep your execution focus clean.
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-[#1E2226]">
+          <div className="divide-y divide-slate-200 dark:divide-[#262B30]">
             {[...filteredEvents].sort((a, b) => {
               const tA = new Date(a.event_time || a.timestamp || 0).getTime();
               const tB = new Date(b.event_time || b.timestamp || 0).getTime();
@@ -303,10 +310,10 @@ export function MarketNews() {
               const currency = event.currency;
 
               return (
-                <div key={event.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[#1B1F23]/30 px-2 rounded-lg transition-colors">
+                <div key={event.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.04] px-2 rounded-lg transition-colors">
                   <div className="flex items-start gap-4">
                     <div className="flex flex-col gap-1 w-32 shrink-0 pt-0.5">
-                      <span className="text-xs font-mono-num text-[#8B8D91]">
+                      <span className="text-xs font-mono-num" style={{ color: 'var(--color-text-muted)' }}>
                         {formatTimeLabel(event)}
                       </span>
                       <div>
@@ -316,11 +323,11 @@ export function MarketNews() {
 
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-bold font-display text-[#EDEAE3]">{title}</span>
+                        <span className="text-sm font-bold font-display" style={{ color: 'var(--color-text-main)' }}>{title}</span>
                         <Pill tone={impactTone(impact)}>{String(impact).toUpperCase()}</Pill>
-                        {currency && <span className="text-[10px] font-mono-num text-[#5A5D61]">{currency}</span>}
+                        {currency && <span className="text-[10px] font-mono-num" style={{ color: 'var(--color-text-dim)' }}>{currency}</span>}
                       </div>
-                      {note && <p className="text-xs text-[#8B8D91] font-body max-w-xl leading-relaxed">{note}</p>}
+                      {note && <p className="text-xs font-body max-w-xl leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>{note}</p>}
                     </div>
                   </div>
 
@@ -328,14 +335,14 @@ export function MarketNews() {
                     <div className="flex items-center gap-4 text-xs font-mono-num pl-36 sm:pl-0 shrink-0">
                       {event.forecast && (
                         <div>
-                          <span className="text-[#5A5D61] block text-[10px]">FORECAST</span>
-                          <span className="text-[#EDEAE3] font-semibold">{event.forecast}</span>
+                          <span className="block text-[10px]" style={{ color: 'var(--color-text-dim)' }}>FORECAST</span>
+                          <span className="font-semibold" style={{ color: 'var(--color-text-main)' }}>{event.forecast}</span>
                         </div>
                       )}
                       {event.previous && (
                         <div>
-                          <span className="text-[#5A5D61] block text-[10px]">PREVIOUS</span>
-                          <span className="text-[#8B8D91]">{event.previous}</span>
+                          <span className="block text-[10px]" style={{ color: 'var(--color-text-dim)' }}>PREVIOUS</span>
+                          <span style={{ color: 'var(--color-text-muted)' }}>{event.previous}</span>
                         </div>
                       )}
                     </div>

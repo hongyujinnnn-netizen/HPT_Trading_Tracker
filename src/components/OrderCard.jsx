@@ -102,7 +102,11 @@ export function OrderCard({ order, currentPrice, onCancel, onDelete, onSelect })
   return (
     <div
       onClick={handleCardClick}
-      className="p-4 rounded-xl bg-[#131619] border border-[#262B30] hover:border-[#C9A227]/60 transition-all space-y-3 cursor-pointer group hover:shadow-lg"
+      className="p-4 rounded-xl border hover:border-amber-500/60 transition-all space-y-3 cursor-pointer group hover:shadow-lg"
+      style={{
+        background: 'var(--color-elevated)',
+        borderColor: 'var(--color-border-soft)',
+      }}
     >
       {/* Header Row */}
       <div className="flex items-center justify-between">
@@ -115,7 +119,7 @@ export function OrderCard({ order, currentPrice, onCancel, onDelete, onSelect })
             {ORDER_TYPE_LABELS[order.order_type]}
           </span>
           <Pill tone={statusCfg.tone}>{statusCfg.label}</Pill>
-          <span className="text-[10px] font-mono-num text-[#5A5D61]">{lotSize} lots</span>
+          <span className="text-[10px] font-mono-num" style={{ color: 'var(--color-text-dim)' }}>{lotSize} lots</span>
 
           {subAccount && (
             <span
@@ -136,7 +140,8 @@ export function OrderCard({ order, currentPrice, onCancel, onDelete, onSelect })
           {/* View Details Button */}
           <button
             onClick={() => onSelect && onSelect(order)}
-            className="p-1.5 rounded-lg text-[#8B8D91] hover:text-[#C9A227] hover:bg-[#1B1F23] transition-colors flex items-center gap-1 text-xs"
+            className="p-1.5 rounded-lg hover:text-amber-500 hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex items-center gap-1 text-xs"
+            style={{ color: 'var(--color-text-muted)' }}
             title="View Order Details"
           >
             <Eye size={14} />
@@ -159,7 +164,7 @@ export function OrderCard({ order, currentPrice, onCancel, onDelete, onSelect })
           {isActionable && onCancel && (
             <button
               onClick={() => onCancel(order.id)}
-              className="p-1.5 rounded-lg text-[#8B8D91] hover:text-[#C1502E] hover:bg-[#4A2A1E]/50 transition-colors"
+              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors"
               title="Cancel Order"
             >
               <X size={14} />
@@ -169,7 +174,7 @@ export function OrderCard({ order, currentPrice, onCancel, onDelete, onSelect })
           {!isActionable && onDelete && (
             <button
               onClick={() => onDelete(order.id)}
-              className="p-1.5 rounded-lg text-[#5A5D61] hover:text-[#C1502E] hover:bg-[#4A2A1E]/50 transition-colors"
+              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors"
               title="Delete Order Record"
             >
               <Trash2 size={14} />
@@ -181,16 +186,16 @@ export function OrderCard({ order, currentPrice, onCancel, onDelete, onSelect })
       {/* Price Grid */}
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <span className="text-[10px] uppercase tracking-wider text-[#5A5D61] block">Entry</span>
-          <span className="text-sm font-bold font-mono-num text-[#EDEAE3]">${formatPrice(entry)}</span>
+          <span className="text-[10px] uppercase tracking-wider block" style={{ color: 'var(--color-text-dim)' }}>Entry</span>
+          <span className="text-sm font-bold font-mono-num" style={{ color: 'var(--color-text-main)' }}>${formatPrice(entry)}</span>
         </div>
         <div>
-          <span className="text-[10px] uppercase tracking-wider text-[#3FA88C] block">Take Profit</span>
-          <span className="text-sm font-bold font-mono-num text-[#3FA88C]">${formatPrice(tp)}</span>
+          <span className="text-[10px] uppercase tracking-wider text-emerald-600 dark:text-[#3FA88C] block">Take Profit</span>
+          <span className="text-sm font-bold font-mono-num text-emerald-600 dark:text-[#3FA88C]">${formatPrice(tp)}</span>
         </div>
         <div>
-          <span className="text-[10px] uppercase tracking-wider text-[#C1502E] block">Stop Loss</span>
-          <span className="text-sm font-bold font-mono-num text-[#C1502E]">${formatPrice(sl)}</span>
+          <span className="text-[10px] uppercase tracking-wider text-rose-600 dark:text-[#C1502E] block">Stop Loss</span>
+          <span className="text-sm font-bold font-mono-num text-rose-600 dark:text-[#C1502E]">${formatPrice(sl)}</span>
         </div>
       </div>
 
@@ -199,10 +204,10 @@ export function OrderCard({ order, currentPrice, onCancel, onDelete, onSelect })
         <div className="space-y-1">
           <div className="flex items-center justify-between text-[10px] font-mono-num">
             <span className="text-[#C1502E]">SL</span>
-            <span className="text-[#8B8D91]">Current: ${formatPrice(currentPrice)}</span>
+            <span style={{ color: 'var(--color-text-muted)' }}>Current: ${formatPrice(currentPrice)}</span>
             <span className="text-[#3FA88C]">TP</span>
           </div>
-          <div className="relative h-2 rounded-full bg-[#1B1F23] overflow-hidden">
+          <div className="relative h-2 rounded-full overflow-hidden" style={{ background: 'var(--color-surface)' }}>
             {/* Entry price marker */}
             <div
               className="absolute top-0 bottom-0 w-0.5 bg-[#C9A227] z-10"
@@ -224,7 +229,7 @@ export function OrderCard({ order, currentPrice, onCancel, onDelete, onSelect })
       )}
 
       {/* Footer: metadata & timing */}
-      <div className="flex items-center justify-between text-[10px] font-mono-num text-[#5A5D61] pt-1 border-t border-[#1E2226]">
+      <div className="flex items-center justify-between text-[10px] font-mono-num pt-1 border-t" style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-dim)' }}>
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1 text-[#8B8D91]" title="Setup / Placed Time">
             <Clock size={10} className="text-[#C9A227]" /> Setup: {formatTime(order.created_at)}

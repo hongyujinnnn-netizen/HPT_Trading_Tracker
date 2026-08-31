@@ -16,10 +16,14 @@ import {
   Clock,
   Flame,
   ExternalLink,
-  ShieldAlert,
+  ShieldCheck,
+  Radio,
+  Sliders,
+  Check,
+  ArrowUpRight,
+  Eye,
 } from 'lucide-react';
 import { useTrade } from '../context/TradeContext';
-import { Pill } from './Pill';
 
 const ICON_MAP = {
   circuit_breaker: AlertOctagon,
@@ -34,17 +38,77 @@ const ICON_MAP = {
   default: Bell,
 };
 
-const COLOR_MAP = {
-  circuit_breaker: { text: '#E46868', bg: '#2E1815', border: '#C1502E' },
-  edge_alert: { text: '#C9A227', bg: '#2A2311', border: '#C9A227' },
-  expectancy: { text: '#E46868', bg: '#2E1815', border: '#C1502E' },
-  alert: { text: '#C9A227', bg: '#2A2311', border: '#C9A227' },
-  triggered: { text: '#C9A227', bg: '#2A2311', border: '#C9A227' },
-  closed_tp: { text: '#3FA88C', bg: '#152E25', border: '#3FA88C' },
-  closed_sl: { text: '#C1502E', bg: '#4A2A1E', border: '#C1502E' },
-  expired: { text: '#8B8D91', bg: '#1B1F23', border: '#5A5D61' },
-  news: { text: '#C9A227', bg: '#1B1F23', border: '#C9A227' },
-  default: { text: '#8B8D91', bg: '#1B1F23', border: '#262B30' },
+const CATEGORY_STYLES = {
+  circuit_breaker: {
+    accent: '#FB7185',
+    bg: 'rgba(244, 63, 94, 0.12)',
+    border: 'rgba(244, 63, 94, 0.3)',
+    pill: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+    tag: 'RISK VIOLATION',
+  },
+  edge_alert: {
+    accent: '#F3D371',
+    bg: 'rgba(201, 162, 39, 0.12)',
+    border: 'rgba(201, 162, 39, 0.3)',
+    pill: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+    tag: 'EDGE ALERT',
+  },
+  expectancy: {
+    accent: '#FB7185',
+    bg: 'rgba(244, 63, 94, 0.12)',
+    border: 'rgba(244, 63, 94, 0.3)',
+    pill: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+    tag: 'EXPECTANCY',
+  },
+  alert: {
+    accent: '#F3D371',
+    bg: 'rgba(201, 162, 39, 0.12)',
+    border: 'rgba(201, 162, 39, 0.3)',
+    pill: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+    tag: 'PRICE LEVEL',
+  },
+  triggered: {
+    accent: '#34D399',
+    bg: 'rgba(52, 211, 153, 0.12)',
+    border: 'rgba(52, 211, 153, 0.3)',
+    pill: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    tag: 'TRIGGERED',
+  },
+  closed_tp: {
+    accent: '#34D399',
+    bg: 'rgba(52, 211, 153, 0.12)',
+    border: 'rgba(52, 211, 153, 0.3)',
+    pill: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    tag: 'TAKE PROFIT',
+  },
+  closed_sl: {
+    accent: '#FB7185',
+    bg: 'rgba(244, 63, 94, 0.12)',
+    border: 'rgba(244, 63, 94, 0.3)',
+    pill: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+    tag: 'STOP LOSS',
+  },
+  expired: {
+    accent: '#94A3B8',
+    bg: 'rgba(148, 163, 184, 0.12)',
+    border: 'rgba(148, 163, 184, 0.25)',
+    pill: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
+    tag: 'EXPIRED',
+  },
+  news: {
+    accent: '#F3D371',
+    bg: 'rgba(201, 162, 39, 0.12)',
+    border: 'rgba(201, 162, 39, 0.3)',
+    pill: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+    tag: 'MACRO NEWS',
+  },
+  default: {
+    accent: '#94A3B8',
+    bg: 'rgba(148, 163, 184, 0.1)',
+    border: 'rgba(148, 163, 184, 0.2)',
+    pill: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
+    tag: 'SYSTEM',
+  },
 };
 
 export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) {
@@ -58,6 +122,7 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
     toggleNotificationSound,
     pushPermission,
     enablePushNotifications,
+    theme,
   } = useTrade();
 
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'unread' | 'risk' | 'orders'
@@ -100,175 +165,265 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[#131619] border border-[#262B30] rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="p-5 border-b border-[#262B30] flex items-center justify-between bg-[#1B1F23]/80">
+    <>
+      {/* Soft Dimming Backdrop */}
+      <div
+        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[3px] transition-opacity"
+        onClick={onClose}
+      />
+
+      {/* Modern Trading Telemetry Flyout */}
+      <div className="absolute right-0 top-full mt-2.5 w-[440px] max-w-[calc(100vw-1.5rem)] z-50 rounded-2xl overflow-hidden shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6),0_0_25px_rgba(201,162,39,0.08)] border animate-fade-in flex flex-col max-h-[85vh] bg-[#0A0D12]/95 dark:bg-[#0A0D12]/95 light:bg-white/95 backdrop-blur-2xl transition-all"
+        style={{
+          borderColor: 'var(--color-border-soft)',
+        }}
+      >
+        {/* Subtle Top Gold Highlight Glow Line */}
+        <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#F3D371]/60 to-transparent" />
+
+        {/* Header Bar */}
+        <div className="p-4 border-b flex items-center justify-between bg-black/20 dark:bg-black/30 light:bg-slate-50/50"
+          style={{ borderColor: 'var(--color-border-soft)' }}
+        >
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#2A2311] border border-[#C9A227]/40 flex items-center justify-center text-[#C9A227]">
-              <Bell size={18} />
+            {/* Luminous Logo Badge with Pulse */}
+            <div className="relative flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2A210F] to-[#120F07] border border-[#C9A227]/40 flex items-center justify-center text-[#F3D371] shadow-inner">
+                <Bell size={17} />
+              </div>
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#34D399] shadow-[0_0_8px_#34D399]" />
             </div>
+
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold font-display text-[#EDEAE3]">Notifications &amp; Alerts</h3>
+                <h3 className="text-sm font-bold font-display tracking-tight text-slate-900 dark:text-[#EDEAE3]">
+                  Telemetry Alerts
+                </h3>
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono-num font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  LIVE
+                </span>
                 {unreadCount > 0 && (
-                  <span className="px-2 py-0.2 rounded-full text-[10px] font-mono-num font-bold bg-[#C9A227] text-[#0A0C0E]">
-                    {unreadCount} new
+                  <span className="px-2 py-0.2 rounded-full text-[10px] font-mono-num font-extrabold bg-gradient-to-r from-[#C9A227] to-[#E4C468] text-[#080A0D] shadow-sm">
+                    {unreadCount} NEW
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-[#8B8D91]">
-                Real-time risk warnings, circuit breaker trips, price alerts, and order lifecycle
+              <p className="text-[11px] font-mono-num text-slate-500 dark:text-[#94A3B8] mt-0.5">
+                XAU/USD Sentinel • Risk &amp; Trigger Engine
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Audio Toggle */}
+          <div className="flex items-center gap-1.5">
+            {/* Sound Chime Toggle */}
             <button
               onClick={toggleNotificationSound}
-              className={`p-2 rounded-lg border transition-colors ${
+              className={`p-1.5 rounded-lg border transition-all ${
                 isSoundEnabled
-                  ? 'bg-[#152E25] text-[#3FA88C] border-[#1F4A40]'
-                  : 'bg-[#1B1F23] text-[#5A5D61] border-[#262B30] hover:text-[#EDEAE3]'
+                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shadow-sm'
+                  : 'text-slate-400 border-transparent hover:bg-white/[0.06]'
               }`}
-              title={isSoundEnabled ? 'Notification Sound Enabled' : 'Notification Sound Muted'}
+              title={isSoundEnabled ? 'Audio Alert Enabled' : 'Audio Alert Muted'}
             >
-              {isSoundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+              {isSoundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
             </button>
 
-            {/* Close Button */}
+            {/* Dismiss Button */}
             <button
               onClick={onClose}
-              className="p-2 text-[#8B8D91] hover:text-[#EDEAE3] hover:bg-[#1B1F23] rounded-lg transition-colors"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors"
+              title="Close Panel"
             >
-              <X size={18} />
+              <X size={16} />
             </button>
           </div>
         </div>
 
-        {/* Push Notification Permission Banner (if not granted) */}
+        {/* Push Notification Permission Toast */}
         {pushPermission !== 'granted' && (
-          <div className="px-5 py-3 bg-[#2A2311]/60 border-b border-[#C9A227]/30 flex items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2 text-[#EDEAE3]">
-              <BellRing size={15} className="text-[#C9A227] shrink-0" />
-              <span>Enable native browser notifications for background price &amp; circuit breaker alerts.</span>
+          <div className="px-4 py-2.5 bg-gradient-to-r from-[#2A210F]/80 to-[#120F07]/90 border-b border-[#C9A227]/30 flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-[#EDEAE3] text-[11px]">
+              <BellRing size={14} className="text-[#F3D371] shrink-0 animate-bounce" />
+              <span>Enable OS browser push for background price hits.</span>
             </div>
             <button
               onClick={enablePushNotifications}
-              className="px-3 py-1 rounded bg-[#C9A227] hover:bg-[#E4C468] text-[#0A0C0E] font-bold text-[11px] shrink-0 transition-colors"
+              className="px-2.5 py-1 rounded bg-[#C9A227] hover:bg-[#E4C468] text-[#080A0D] font-bold text-[10px] shrink-0 transition-colors shadow-sm"
             >
-              Enable Push
+              Turn On
             </button>
           </div>
         )}
 
-        {/* Filter Tabs & Bulk Actions */}
-        <div className="px-5 py-2.5 border-b border-[#262B30] flex flex-wrap items-center justify-between gap-2 bg-[#1B1F23]/40 text-xs">
-          <div className="flex items-center gap-1 bg-[#131619] p-0.5 rounded-lg border border-[#262B30]">
+        {/* Tab Strip & Actions */}
+        <div className="px-4 py-2 border-b flex items-center justify-between gap-2 text-xs bg-black/10 dark:bg-black/20"
+          style={{ borderColor: 'var(--color-border-soft)' }}
+        >
+          {/* Segmented Filter Pills */}
+          <div className="flex items-center gap-1 p-0.5 rounded-xl border bg-black/20 dark:bg-white/[0.03]"
+            style={{ borderColor: 'var(--color-border-soft)' }}
+          >
             {[
               { id: 'all', label: 'All' },
               { id: 'unread', label: `Unread (${unreadCount})` },
-              { id: 'risk', label: 'Risk & Edge' },
+              { id: 'risk', label: 'Risk' },
               { id: 'orders', label: 'Orders' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-2.5 py-1 rounded font-semibold text-[11px] transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-[#2A2311] text-[#C9A227] border border-[#C9A227]/40'
-                    : 'text-[#8B8D91] hover:text-[#EDEAE3]'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+            ].map((tab) => {
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-3 py-1 rounded-lg font-semibold text-[11px] transition-all ${
+                    active
+                      ? 'bg-gradient-to-b from-[#C9A227] to-[#B38E1B] text-[#080A0D] font-bold shadow-md shadow-[#C9A227]/20 scale-[1.02]'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-[11px]">
             {unreadCount > 0 && (
               <button
                 onClick={markAllNotificationsAsRead}
-                className="text-[11px] text-[#8B8D91] hover:text-[#3FA88C] flex items-center gap-1 transition-colors"
+                className="text-slate-400 hover:text-[#34D399] flex items-center gap-1 transition-colors"
                 title="Mark all as read"
               >
-                <CheckCheck size={13} /> Mark Read
+                <CheckCheck size={13} />
+                <span className="hidden sm:inline">Mark Read</span>
               </button>
             )}
             {notifications.length > 0 && (
               <button
                 onClick={clearAllNotifications}
-                className="text-[11px] text-[#8B8D91] hover:text-[#C1502E] flex items-center gap-1 transition-colors ml-1"
-                title="Clear all notification history"
+                className="text-slate-500 hover:text-rose-400 flex items-center gap-1 transition-colors"
+                title="Clear all alerts"
               >
-                <Trash2 size={13} /> Clear
+                <Trash2 size={12} />
               </button>
             )}
           </div>
         </div>
 
-        {/* Notification List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2.5 max-h-[50vh]">
+        {/* Notification Feed or Executive Empty State */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2.5 max-h-[52vh]">
           {filteredNotifications.length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center text-center space-y-2">
-              <Bell size={28} className="text-[#5A5D61]" />
-              <p className="text-sm font-semibold text-[#EDEAE3] font-display">No notifications found</p>
-              <p className="text-xs text-[#8B8D91] max-w-xs">
-                Your notifications for triggered orders, risk limits, and price alerts will appear here.
+            /* Institutional Empty State: Telemetry Radar Deck */
+            <div className="py-8 px-4 flex flex-col items-center justify-center text-center">
+              {/* Radar Rings Graphic */}
+              <div className="relative flex items-center justify-center mb-4">
+                <div className="w-16 h-16 rounded-full bg-[#C9A227]/10 border border-[#C9A227]/25 flex items-center justify-center text-[#F3D371] shadow-[0_0_25px_rgba(201,162,39,0.18)]">
+                  <ShieldCheck size={28} className="text-[#F3D371]" />
+                </div>
+                <div className="absolute w-22 h-22 rounded-full border border-[#C9A227]/15 animate-ping opacity-30" />
+                <div className="absolute w-28 h-28 rounded-full border border-emerald-500/10 pointer-events-none" />
+              </div>
+
+              <h4 className="text-sm font-bold font-display text-slate-900 dark:text-[#EDEAE3] tracking-tight">
+                All Systems Operational
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-[#94A3B8] max-w-xs mt-1 leading-relaxed">
+                Zero discipline breaches or triggered risk alarms. Sentinel is actively monitoring spot gold price velocity.
               </p>
+
+              {/* 3 Telemetry Health Chips */}
+              <div className="w-full grid grid-cols-3 gap-2 mt-5 pt-4 border-t" style={{ borderColor: 'var(--color-border-soft)' }}>
+                <div className="p-2 rounded-xl border text-left" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
+                  <div className="flex items-center gap-1 text-emerald-500 text-[10px] font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    Safe
+                  </div>
+                  <span className="text-[10px] font-mono-num block mt-0.5" style={{ color: 'var(--color-text-dim)' }}>Drawdown</span>
+                </div>
+
+                <div className="p-2 rounded-xl border text-left" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
+                  <div className="flex items-center gap-1 text-amber-500 text-[10px] font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    Armed
+                  </div>
+                  <span className="text-[10px] font-mono-num block mt-0.5" style={{ color: 'var(--color-text-dim)' }}>Breaker 50%</span>
+                </div>
+
+                <div className="p-2 rounded-xl border text-left" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
+                  <div className="flex items-center gap-1 text-emerald-500 text-[10px] font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    Active
+                  </div>
+                  <span className="text-[10px] font-mono-num block mt-0.5" style={{ color: 'var(--color-text-dim)' }}>OANDA / OKX</span>
+                </div>
+              </div>
             </div>
           ) : (
+            /* Notification Cards */
             filteredNotifications.map((notif) => {
               const Icon = ICON_MAP[notif.type] || ICON_MAP.default;
-              const color = COLOR_MAP[notif.type] || COLOR_MAP.default;
+              const cat = CATEGORY_STYLES[notif.type] || CATEGORY_STYLES.default;
 
               return (
                 <div
                   key={notif.id}
                   onClick={() => markNotificationAsRead(notif.id)}
-                  className={`p-3.5 rounded-xl border flex items-start justify-between gap-3 cursor-pointer transition-all hover:scale-[1.01] ${
-                    notif.isRead
-                      ? 'bg-[#1B1F23]/60 border-[#262B30] text-[#8B8D91]'
-                      : 'bg-[#1B1F23] border-[#3FA88C]/30 text-[#EDEAE3] shadow-md'
+                  className={`group relative p-3.5 rounded-xl border flex items-start justify-between gap-3 cursor-pointer transition-all duration-200 hover:opacity-90 ${
+                    notif.isRead ? 'opacity-70' : 'shadow-md'
                   }`}
-                  style={!notif.isRead ? { borderColor: color.border } : {}}
+                  style={{
+                    background: notif.isRead ? 'var(--color-surface)' : 'var(--color-elevated)',
+                    borderColor: 'var(--color-border-soft)',
+                    borderLeftWidth: '3px',
+                    borderLeftColor: cat.accent,
+                  }}
                 >
                   <div className="flex items-start gap-3 flex-1 min-w-0">
+                    {/* Icon Tile */}
                     <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                      style={{ background: color.bg, color: color.text }}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 border"
+                      style={{
+                        background: cat.bg,
+                        borderColor: cat.border,
+                        color: cat.accent,
+                      }}
                     >
-                      <Icon size={16} />
+                      <Icon size={15} />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-bold font-display" style={{ color: color.text }}>
-                          {notif.title}
-                        </span>
-                        <span className="text-[10px] text-[#5A5D61] font-mono-num shrink-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono-num font-extrabold border ${cat.pill}`}>
+                            {cat.tag}
+                          </span>
+                          <span className="text-xs font-bold font-display" style={{ color: cat.accent }}>
+                            {notif.title}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-mono-num shrink-0" style={{ color: 'var(--color-text-dim)' }}>
                           {formatTime(notif.timestamp)}
                         </span>
                       </div>
 
-                      <p className="text-xs text-[#EDEAE3]/90 mt-0.5 font-body leading-relaxed break-words">
+                      <p className="text-xs font-body leading-relaxed text-slate-700 dark:text-[#EDEAE3]/90 break-words">
                         {notif.message}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0 self-center">
+                  {/* Actions on Item */}
+                  <div className="flex items-center gap-1 shrink-0 self-center">
                     {!notif.isRead && (
-                      <span className="w-2 h-2 rounded-full bg-[#C9A227]" title="Unread" />
+                      <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_6px_#C9A227]" title="Unread" />
                     )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         removeNotification(notif.id);
                       }}
-                      className="p-1 text-[#5A5D61] hover:text-[#C1502E] rounded transition-colors"
-                      title="Delete notification"
+                      className="p-1 rounded-md text-slate-400 hover:text-rose-500 transition-colors opacity-60 group-hover:opacity-100"
+                      title="Dismiss"
                     >
                       <X size={13} />
                     </button>
@@ -279,20 +434,27 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
           )}
         </div>
 
-        {/* Footer Quick Action: Manage Price Alerts */}
-        <div className="p-4 border-t border-[#262B30] bg-[#1B1F23]/60 flex items-center justify-between text-xs">
-          <span className="text-[#8B8D91]">Need to track a specific gold level?</span>
+        {/* Footer Quick Action Console */}
+        <div className="p-3 px-4 border-t flex items-center justify-between text-xs bg-black/20 dark:bg-black/30"
+          style={{ borderColor: 'var(--color-border-soft)' }}
+        >
+          <div className="flex items-center gap-1.5 text-slate-500 text-[11px] font-mono-num">
+            <Radio size={12} className="text-emerald-400 animate-pulse" />
+            <span>24/7 Gold Stream</span>
+          </div>
+
           <button
             onClick={() => {
               onClose();
               if (onOpenPriceAlerts) onOpenPriceAlerts();
             }}
-            className="text-[#C9A227] hover:underline font-semibold flex items-center gap-1"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#C9A227]/20 to-[#E4C468]/20 hover:from-[#C9A227]/30 hover:to-[#E4C468]/30 border border-[#C9A227]/40 text-[#F3D371] font-semibold text-xs transition-all shadow-sm group"
           >
-            Set Price Targets <ExternalLink size={12} />
+            <span>Set Price Target Alert</span>
+            <ArrowUpRight size={13} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }

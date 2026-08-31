@@ -16,8 +16,8 @@ export function PsychologyCorrelationWidget({ trades = [] }) {
           <SectionLabel right={
             <span className={`px-2 py-0.5 rounded text-[10px] font-mono-num font-bold flex items-center gap-1 ${
               psychData.isDisciplinedDominant
-                ? 'bg-[#152E25] text-[#3FA88C] border border-[#3FA88C]/40'
-                : 'bg-[#4A2A1E] text-[#C1502E] border border-[#C1502E]/40'
+                ? 'bg-emerald-500/15 text-emerald-700 dark:bg-[#152E25] dark:text-[#3FA88C] border border-emerald-500/30 dark:border-[#3FA88C]/40'
+                : 'bg-rose-500/15 text-rose-700 dark:bg-[#4A2A1E] dark:text-[#C1502E] border border-rose-500/30 dark:border-[#C1502E]/40'
             }`}>
               {psychData.isDisciplinedDominant ? <ShieldCheck size={11} /> : <AlertTriangle size={11} />}
               {psychData.isDisciplinedDominant ? 'Discipline Ahead' : 'Behavioral Leak Detected'}
@@ -25,15 +25,15 @@ export function PsychologyCorrelationWidget({ trades = [] }) {
           }>
             Psychology &amp; Behavioral P&amp;L Correlation
           </SectionLabel>
-          <p className="text-xs text-[#8B8D91] mt-0.5">
+          <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
             Compare returns between planned executions and emotional trading states (FOMO, Revenge, Impulsive).
           </p>
         </div>
 
         {psychData.totalEmotionalPnl < 0 && (
           <div className="text-right">
-            <span className="text-[10px] text-[#5A5D61] block">Cost of Emotional Leaks</span>
-            <span className="text-xs font-bold font-mono-num text-[#C1502E]">
+            <span className="text-[10px] block" style={{ color: 'var(--color-text-dim)' }}>Cost of Emotional Leaks</span>
+            <span className="text-xs font-bold font-mono-num text-rose-600 dark:text-[#C1502E]">
               -${Math.abs(psychData.totalEmotionalPnl).toLocaleString()}
             </span>
           </div>
@@ -41,8 +41,8 @@ export function PsychologyCorrelationWidget({ trades = [] }) {
       </div>
 
       {psychData.emotionList.length === 0 ? (
-        <div className="h-40 flex flex-col items-center justify-center text-xs text-[#8B8D91] gap-2">
-          <Heart size={24} className="text-[#5A5D61]" />
+        <div className="h-40 flex flex-col items-center justify-center text-xs gap-2" style={{ color: 'var(--color-text-muted)' }}>
+          <Heart size={24} style={{ color: 'var(--color-text-dim)' }} />
           <span>Tag your trades with emotional states (Planned, FOMO, Revenge) to unlock psychology analytics.</span>
         </div>
       ) : (
@@ -54,20 +54,21 @@ export function PsychologyCorrelationWidget({ trades = [] }) {
             return (
               <div
                 key={item.emotion}
-                className="p-3 rounded-xl bg-[#131619] border border-[#262B30] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs transition-colors hover:border-[#3FA88C]/30"
+                className="p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs transition-colors hover:border-emerald-500/30"
+                style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
               >
                 <div className="flex items-center gap-3">
-                  <span className={`w-2 h-2 rounded-full ${isPlanned ? 'bg-[#3FA88C]' : 'bg-[#C1502E]'}`} />
+                  <span className={`w-2 h-2 rounded-full ${isPlanned ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                   <div>
-                    <div className="font-semibold text-[#EDEAE3] flex items-center gap-2">
+                    <div className="font-semibold flex items-center gap-2" style={{ color: 'var(--color-text-main)' }}>
                       <span>{item.emotion}</span>
                       {isPlanned && (
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#152E25] text-[#3FA88C] font-mono-num">
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-700 dark:bg-[#152E25] dark:text-[#3FA88C] font-mono-num">
                           Rule-Compliant
                         </span>
                       )}
                     </div>
-                    <div className="text-[10px] text-[#8B8D91] font-mono-num">
+                    <div className="text-[10px] font-mono-num" style={{ color: 'var(--color-text-muted)' }}>
                       {item.count} trade(s) · {item.winRate}% win rate ({item.wins}W / {item.losses}L)
                     </div>
                   </div>

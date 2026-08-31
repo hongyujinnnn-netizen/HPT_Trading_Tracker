@@ -30,17 +30,18 @@ import { calculateExpectancy, calculateSharpeRatio } from '../utils/edgeAnalytic
 // ── Helpers ──────────────────────────────────────────────────────────
 function StatRow({ label, value, sub, accent = false, warn = false }) {
   return (
-    <div className="flex items-center justify-between py-2.5 border-b border-[#1E2328] last:border-0">
-      <span className="text-xs text-[#8B8D91]">{label}</span>
+    <div className="flex items-center justify-between py-2.5 border-b last:border-0" style={{ borderColor: 'var(--color-border-soft)' }}>
+      <span className="text-xs" style={{ color: 'var(--color-text-dim)' }}>{label}</span>
       <div className="text-right">
         <span
           className={`text-xs font-bold font-mono-num ${
-            warn ? 'text-[#E85D5D]' : accent ? 'text-[#C9A227]' : 'text-[#EDEAE3]'
+            warn ? 'text-rose-600 dark:text-[#E85D5D]' : accent ? 'text-amber-600 dark:text-[#C9A227]' : ''
           }`}
+          style={!warn && !accent ? { color: 'var(--color-text-main)' } : undefined}
         >
           {value}
         </span>
-        {sub && <div className="text-[10px] text-[#555A60] mt-0.5">{sub}</div>}
+        {sub && <div className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>{sub}</div>}
       </div>
     </div>
   );
@@ -60,7 +61,7 @@ function BadgeChip({ icon: Icon, label, color = '#C9A227', bg = '#2A2311' }) {
 
 function MiniBar({ pct, color }) {
   return (
-    <div className="w-full h-1.5 bg-[#1E2328] rounded-full overflow-hidden">
+    <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--color-elevated)' }}>
       <div
         className="h-full rounded-full transition-all duration-700"
         style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: color }}
@@ -241,7 +242,7 @@ export function Profile() {
           {/* Identity */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-lg font-bold font-display text-[#EDEAE3] truncate">{email.split('@')[0]}</h1>
+              <h1 className="text-lg font-bold font-display truncate" style={{ color: 'var(--color-text-main)' }}>{email.split('@')[0]}</h1>
               <span
                 className="px-2 py-0.5 rounded text-[10px] font-bold"
                 style={{ background: rank.glow, color: rank.color }}
@@ -249,24 +250,25 @@ export function Profile() {
                 {rank.label}
               </span>
             </div>
-            <div className="text-xs text-[#555A60] font-mono-num mb-2">{email}</div>
+            <div className="text-xs font-mono-num mb-2" style={{ color: 'var(--color-text-muted)' }}>{email}</div>
             {userId && (
               <button
                 onClick={copyId}
-                className="flex items-center gap-1.5 text-[10px] text-[#555A60] hover:text-[#8B8D91] transition-colors font-mono-num"
+                className="flex items-center gap-1.5 text-[10px] hover:opacity-80 transition-colors font-mono-num"
+                style={{ color: 'var(--color-text-dim)' }}
               >
                 <span className="truncate max-w-[180px]">ID: {userId.slice(0, 18)}...</span>
-                {copied ? <Check size={10} className="text-[#3FA88C]" /> : <Copy size={10} />}
+                {copied ? <Check size={10} className="text-emerald-500 dark:text-[#3FA88C]" /> : <Copy size={10} />}
               </button>
             )}
-            <div className="flex items-center gap-1.5 mt-2 text-[11px] text-[#555A60]">
+            <div className="flex items-center gap-1.5 mt-2 text-[11px]" style={{ color: 'var(--color-text-dim)' }}>
               <Calendar size={11} />
               <span>Member since {joinedDate}</span>
               {isCloudActive && (
                 <>
-                  <span className="text-[#262B30]">•</span>
-                  <Cloud size={11} className="text-[#3FA88C]" />
-                  <span className="text-[#3FA88C]">Cloud Sync Active</span>
+                  <span>•</span>
+                  <Cloud size={11} className="text-emerald-500 dark:text-[#3FA88C]" />
+                  <span className="text-emerald-600 dark:text-[#3FA88C]">Cloud Sync Active</span>
                 </>
               )}
             </div>
@@ -277,16 +279,16 @@ export function Profile() {
             <div
               className="w-16 h-16 rounded-full flex items-center justify-center relative"
               style={{
-                background: `conic-gradient(${rank.color} ${profileScore.overall * 3.6}deg, #1E2328 0deg)`,
+                background: `conic-gradient(${rank.color} ${profileScore.overall * 3.6}deg, var(--color-border-soft) 0deg)`,
               }}
             >
-              <div className="w-12 h-12 rounded-full bg-[#131619] flex items-center justify-center flex-col">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center flex-col" style={{ background: 'var(--color-surface)' }}>
                 <span className="text-sm font-bold font-mono-num" style={{ color: rank.color }}>
                   {profileScore.overall}
                 </span>
               </div>
             </div>
-            <div className="text-[10px] text-[#555A60] mt-1">Trader Score</div>
+            <div className="text-[10px] mt-1" style={{ color: 'var(--color-text-dim)' }}>Trader Score</div>
           </div>
         </div>
 
@@ -301,7 +303,7 @@ export function Profile() {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex gap-1 bg-[#131619] p-1 rounded-xl border border-[#1E2328]">
+      <div className="flex gap-1 p-1 rounded-xl border" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
         {[
           { key: 'overview', label: 'Performance' },
           { key: 'psychology', label: 'Psychology' },
@@ -312,9 +314,10 @@ export function Profile() {
             onClick={() => setActiveTab(tab.key)}
             className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
               activeTab === tab.key
-                ? 'bg-[#C9A227] text-[#0A0C0E]'
-                : 'text-[#8B8D91] hover:text-[#EDEAE3]'
+                ? 'bg-gradient-to-r from-[#C9A227] to-[#D4AF37] text-[#080A0D] font-bold shadow-sm'
+                : 'hover:opacity-80'
             }`}
+            style={activeTab !== tab.key ? { color: 'var(--color-text-muted)' } : undefined}
           >
             {tab.label}
           </button>
@@ -331,14 +334,14 @@ export function Profile() {
               {profileScore.dimensions.map((d) => (
                 <div key={d.label}>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-[11px] text-[#8B8D91]">{d.label}</span>
+                    <span className="text-[11px]" style={{ color: 'var(--color-text-dim)' }}>{d.label}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-mono-num text-[#EDEAE3]">{d.value}</span>
-                      <span className="text-[10px] text-[#555A60]">target {d.target}</span>
-                      <span className="text-[11px] font-bold font-mono-num text-[#C9A227]">{Math.round(d.score)}pts</span>
+                      <span className="text-[11px] font-mono-num font-semibold" style={{ color: 'var(--color-text-main)' }}>{d.value}</span>
+                      <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>target {d.target}</span>
+                      <span className="text-[11px] font-bold font-mono-num text-amber-600 dark:text-[#C9A227]">{Math.round(d.score)}pts</span>
                     </div>
                   </div>
-                  <MiniBar pct={d.score} color={d.score >= 70 ? '#3FA88C' : d.score >= 40 ? '#C9A227' : '#E85D5D'} />
+                  <MiniBar pct={d.score} color={d.score >= 70 ? '#10B981' : d.score >= 40 ? '#F59E0B' : '#EF4444'} />
                 </div>
               ))}
             </div>
@@ -394,20 +397,20 @@ export function Profile() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full" style={{ background: color }} />
-                          <span className="text-xs text-[#EDEAE3]">{s.name}</span>
-                          <span className="text-[10px] text-[#555A60]">{s.trades} trades</span>
+                          <span className="text-xs font-semibold" style={{ color: 'var(--color-text-main)' }}>{s.name}</span>
+                          <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{s.trades} trades</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-[11px] text-[#8B8D91]">{s.winRate}% WR</span>
+                          <span className="text-[11px]" style={{ color: 'var(--color-text-dim)' }}>{s.winRate}% WR</span>
                           <span
                             className="text-xs font-bold font-mono-num"
-                            style={{ color: s.pnl >= 0 ? '#3FA88C' : '#E85D5D' }}
+                            style={{ color: s.pnl >= 0 ? '#10B981' : '#EF4444' }}
                           >
                             {s.pnl >= 0 ? '+' : ''}${s.pnl.toFixed(2)}
                           </span>
                         </div>
                       </div>
-                      <MiniBar pct={(Math.abs(s.pnl) / maxPnl) * 100} color={s.pnl >= 0 ? color : '#E85D5D'} />
+                      <MiniBar pct={(Math.abs(s.pnl) / maxPnl) * 100} color={s.pnl >= 0 ? color : '#EF4444'} />
                     </div>
                   );
                 })}
@@ -423,12 +426,12 @@ export function Profile() {
           {/* Emotion vs PnL Breakdown */}
           <div className="terminal-card p-5 space-y-4">
             <SectionLabel>Emotion vs. P&L Correlation</SectionLabel>
-            <p className="text-[11px] text-[#555A60]">
+            <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
               Behavioral audit — which mental states lead to profitable trades?
             </p>
             <div className="space-y-3">
               {emotionStats.length === 0 && (
-                <div className="text-xs text-[#555A60] py-4 text-center">No trade emotion data yet.</div>
+                <div className="text-xs py-4 text-center" style={{ color: 'var(--color-text-muted)' }}>No trade emotion data yet.</div>
               )}
               {emotionStats.map((e) => {
                 const color = emotionColors[e.emotion] || '#8B8D91';
@@ -438,12 +441,12 @@ export function Profile() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full" style={{ background: color }} />
-                        <span className="text-xs text-[#EDEAE3]">{e.emotion}</span>
-                        <span className="text-[10px] text-[#555A60]">{e.trades} trades</span>
+                        <span className="text-xs font-semibold" style={{ color: 'var(--color-text-main)' }}>{e.emotion}</span>
+                        <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{e.trades} trades</span>
                       </div>
                       <span
                         className="text-xs font-bold font-mono-num"
-                        style={{ color: e.avgPnl >= 0 ? '#3FA88C' : '#E85D5D' }}
+                        style={{ color: e.avgPnl >= 0 ? '#10B981' : '#EF4444' }}
                       >
                         {e.avgPnl >= 0 ? '+' : ''}${e.avgPnl.toFixed(2)}/trade
                       </span>
@@ -500,20 +503,20 @@ export function Profile() {
                 note: 'Entry price away from strategy trigger',
               },
             ].map((item) => (
-              <div key={item.label} className="flex items-center justify-between py-2 border-b border-[#1E2328] last:border-0">
+              <div key={item.label} className="flex items-center justify-between py-2 border-b last:border-0" style={{ borderColor: 'var(--color-border-soft)' }}>
                 <div className="flex items-center gap-2">
                   <item.icon
                     size={13}
-                    className={item.warn ? 'text-[#E85D5D]' : 'text-[#3FA88C]'}
+                    className={item.warn ? 'text-rose-600 dark:text-[#E85D5D]' : 'text-emerald-600 dark:text-[#3FA88C]'}
                   />
                   <div>
-                    <div className="text-xs text-[#EDEAE3]">{item.label}</div>
-                    <div className="text-[10px] text-[#555A60]">{item.note}</div>
+                    <div className="text-xs font-semibold" style={{ color: 'var(--color-text-main)' }}>{item.label}</div>
+                    <div className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{item.note}</div>
                   </div>
                 </div>
                 <span
                   className="text-sm font-bold font-mono-num"
-                  style={{ color: item.warn && item.value > 0 ? '#E85D5D' : item.warn ? '#555A60' : '#3FA88C' }}
+                  style={{ color: item.warn && item.value > 0 ? '#EF4444' : item.warn ? 'var(--color-text-muted)' : '#10B981' }}
                 >
                   {item.value}
                 </span>
@@ -533,16 +536,16 @@ export function Profile() {
               }
               const entries = Object.entries(mistakeMap).sort((a, b) => b[1] - a[1]);
               if (entries.length === 0) {
-                return <div className="text-xs text-[#3FA88C] py-3 text-center flex items-center justify-center gap-2"><CheckCircle2 size={14} />No mistakes detected in your trades. Clean journal!</div>;
+                return <div className="text-xs text-emerald-600 dark:text-[#3FA88C] py-3 text-center flex items-center justify-center gap-2"><CheckCircle2 size={14} />No mistakes detected in your trades. Clean journal!</div>;
               }
               const maxCount = entries[0][1];
               return entries.map(([mistake, count]) => (
                 <div key={mistake} className="space-y-1">
                   <div className="flex justify-between text-[11px]">
-                    <span className="text-[#EDEAE3]">{mistake}</span>
-                    <span className="text-[#E85D5D] font-bold font-mono-num">{count}×</span>
+                    <span style={{ color: 'var(--color-text-main)' }}>{mistake}</span>
+                    <span className="text-rose-600 dark:text-[#E85D5D] font-bold font-mono-num">{count}×</span>
                   </div>
-                  <MiniBar pct={(count / maxCount) * 100} color="#E85D5D" />
+                  <MiniBar pct={(count / maxCount) * 100} color="#EF4444" />
                 </div>
               ));
             })()}
@@ -557,39 +560,40 @@ export function Profile() {
           <div className="terminal-card p-5 space-y-4">
             <SectionLabel>Trading Accounts</SectionLabel>
             {tradingAccounts.length === 0 ? (
-              <div className="text-xs text-[#555A60] py-4 text-center">No sub-accounts configured.</div>
+              <div className="text-xs py-4 text-center" style={{ color: 'var(--color-text-muted)' }}>No sub-accounts configured.</div>
             ) : (
               <div className="space-y-2.5">
                 {tradingAccounts.map((acc) => (
                   <div
                     key={acc.id}
                     className={`flex items-center gap-3 p-3 rounded-xl border ${
-                      acc.isArchived ? 'border-[#1E2328] opacity-40' : 'border-[#262B30] bg-[#0F1215]'
+                      acc.isArchived ? 'opacity-40' : ''
                     }`}
+                    style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
                   >
                     <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-[#0A0C0E] flex-shrink-0"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-[#0A0C0E] flex-shrink-0 shadow-sm"
                       style={{ background: acc.colorHex || '#C9A227' }}
                     >
                       {acc.name.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-semibold text-[#EDEAE3] truncate">{acc.name}</span>
+                        <span className="text-xs font-semibold truncate" style={{ color: 'var(--color-text-main)' }}>{acc.name}</span>
                         {acc.isDefault && (
-                          <span className="text-[9px] px-1.5 py-0.5 bg-[#C9A227]/20 text-[#C9A227] rounded font-bold">DEFAULT</span>
+                          <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/20 text-amber-700 dark:text-[#C9A227] rounded font-bold">DEFAULT</span>
                         )}
                         {acc.isArchived && (
-                          <span className="text-[9px] px-1.5 py-0.5 bg-[#1E2328] text-[#555A60] rounded font-bold">ARCHIVED</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold" style={{ background: 'var(--color-surface)', color: 'var(--color-text-muted)' }}>ARCHIVED</span>
                         )}
                       </div>
-                      <div className="text-[10px] text-[#555A60]">{acc.broker} · {acc.accountType?.toUpperCase()} · {acc.leverage}</div>
+                      <div className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{acc.broker} · {acc.accountType?.toUpperCase()} · {acc.leverage}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs font-bold font-mono-num text-[#C9A227]">
+                      <div className="text-xs font-bold font-mono-num text-amber-600 dark:text-[#C9A227]">
                         ${parseFloat(acc.initialBalance || 0).toLocaleString()}
                       </div>
-                      <div className="text-[10px] text-[#555A60]">{acc.currency}</div>
+                      <div className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{acc.currency}</div>
                     </div>
                   </div>
                 ))}
@@ -601,7 +605,7 @@ export function Profile() {
           <div className="terminal-card p-5 space-y-4">
             <SectionLabel>Active Target Plans</SectionLabel>
             {targetPlans.length === 0 ? (
-              <div className="text-xs text-[#555A60] py-4 text-center">No target plans configured yet.</div>
+              <div className="text-xs py-4 text-center" style={{ color: 'var(--color-text-muted)' }}>No target plans configured yet.</div>
             ) : (
               <div className="space-y-3">
                 {targetPlans.map((plan) => {
@@ -609,19 +613,20 @@ export function Profile() {
                     ? Math.min(100, ((settings.accountBalance - plan.startingBalance) / (plan.targetBalance - plan.startingBalance)) * 100)
                     : 0;
                   const isActive = plan.id === activePlan?.id;
-                  const statusColors = { active: '#3FA88C', achieved: '#C9A227', breached: '#E85D5D', paused: '#8B8D91' };
+                  const statusColors = { active: '#10B981', achieved: '#F59E0B', breached: '#EF4444', paused: '#64748B' };
                   return (
                     <div
                       key={plan.id}
-                      className={`p-4 rounded-xl border ${isActive ? 'border-[#C9A227]/40 bg-[#2A2311]/30' : 'border-[#1E2328] bg-[#0F1215]'}`}
+                      className={`p-4 rounded-xl border ${isActive ? 'border-amber-500 ring-1 ring-amber-500/30' : ''}`}
+                      style={{ background: 'var(--color-elevated)', borderColor: !isActive ? 'var(--color-border-soft)' : undefined }}
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-[#EDEAE3]">{plan.name}</span>
-                            {isActive && <span className="text-[9px] px-1.5 py-0.5 bg-[#C9A227]/20 text-[#C9A227] rounded font-bold">ACTIVE</span>}
+                            <span className="text-xs font-semibold" style={{ color: 'var(--color-text-main)' }}>{plan.name}</span>
+                            {isActive && <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/20 text-amber-700 dark:text-[#C9A227] rounded font-bold">ACTIVE</span>}
                           </div>
-                          <div className="text-[10px] text-[#555A60] mt-0.5">
+                          <div className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
                             ${plan.startingBalance} ➔ ${plan.targetBalance} · {plan.riskPerTradePct}% risk · {plan.targetRR}:1 RR
                           </div>
                         </div>
@@ -636,11 +641,11 @@ export function Profile() {
                         </span>
                       </div>
                       <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] text-[#555A60]">
+                        <div className="flex justify-between text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
                           <span>Progress to Target</span>
-                          <span className="font-mono-num text-[#C9A227]">{Math.max(0, Math.round(progress))}%</span>
+                          <span className="font-mono-num text-amber-600 dark:text-[#C9A227] font-bold">{Math.max(0, Math.round(progress))}%</span>
                         </div>
-                        <MiniBar pct={Math.max(0, progress)} color="#C9A227" />
+                        <MiniBar pct={Math.max(0, progress)} color="#F59E0B" />
                       </div>
                     </div>
                   );
@@ -665,13 +670,13 @@ export function Profile() {
 
           {/* Danger Zone */}
           {userSession && (
-            <div className="terminal-card p-5 border-[#E85D5D]/20">
+            <div className="terminal-card p-5 border-rose-500/30">
               <SectionLabel>Session</SectionLabel>
               <div className="mt-4 flex flex-col gap-3">
                 <div className="flex items-center justify-between text-xs">
                   <div>
-                    <div className="text-[#EDEAE3] font-semibold">{email}</div>
-                    <div className="text-[#555A60] text-[10px] mt-0.5">Signed in with email · UID: {userId.slice(0, 12)}…</div>
+                    <div className="font-semibold" style={{ color: 'var(--color-text-main)' }}>{email}</div>
+                    <div className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>Signed in with email · UID: {userId.slice(0, 12)}…</div>
                   </div>
                   <button
                     onClick={signOut}

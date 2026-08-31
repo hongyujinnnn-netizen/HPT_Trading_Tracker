@@ -151,12 +151,11 @@ export function OrderDetailModal({ order, currentPrice, onClose, onCancel, onDel
       setActivePage('history');
     }
   };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[#131619] border border-[#262B30] rounded-xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl flex flex-col">
+      <div className="terminal-card rounded-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="p-5 border-b border-[#1E2226] flex items-center justify-between sticky top-0 bg-[#131619] z-10">
+        <div className="p-5 border-b flex items-center justify-between sticky top-0 z-10" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
           <div className="flex items-center gap-3">
             <span
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold font-mono-num border"
@@ -167,20 +166,21 @@ export function OrderDetailModal({ order, currentPrice, onClose, onCancel, onDel
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-base font-bold font-display text-[#EDEAE3]">
+                <span className="text-base font-bold font-display" style={{ color: 'var(--color-text-main)' }}>
                   XAU/USD Order #{order.id ? String(order.id).slice(-6) : '—'}
                 </span>
                 <Pill tone={statusCfg.tone}>
                   <StatusIcon size={12} /> {statusCfg.label}
                 </Pill>
               </div>
-              <p className="text-xs text-[#8B8D91] mt-0.5">{statusCfg.desc}</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>{statusCfg.desc}</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 text-[#8B8D91] hover:text-[#EDEAE3] hover:bg-[#1B1F23] rounded-lg transition-colors"
+            className="p-2 rounded-lg border hover:opacity-80 transition-colors"
+            style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
           >
             <X size={18} />
           </button>
@@ -191,16 +191,16 @@ export function OrderDetailModal({ order, currentPrice, onClose, onCancel, onDel
 
           {/* Realized/Unrealized P&L Banner */}
           {realizedPnl !== null && (
-            <div className={`p-4 rounded-xl flex items-center justify-between border ${realizedPnl >= 0 ? 'bg-[#1F4A40]/25 border-[#265C50]' : 'bg-[#4A2A1E]/25 border-[#5C3426]'}`}>
+            <div className={`p-4 rounded-xl flex items-center justify-between border ${realizedPnl >= 0 ? 'bg-emerald-500/15 border-emerald-500/30' : 'bg-rose-500/15 border-rose-500/30'}`}>
               <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#8B8D91]">Realized Net P&L</span>
-                <div className={`text-2xl font-bold font-mono-num ${realizedPnl >= 0 ? 'text-[#3FA88C]' : 'text-[#C1502E]'}`}>
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Realized Net P&L</span>
+                <div className={`text-2xl font-bold font-mono-num ${realizedPnl >= 0 ? 'text-emerald-600 dark:text-[#3FA88C]' : 'text-rose-600 dark:text-[#C1502E]'}`}>
                   {realizedPnl >= 0 ? '+' : ''}${realizedPnl.toFixed(2)}
                 </div>
               </div>
               <div className="text-right">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#8B8D91]">Status Outcome</span>
-                <div className="text-sm font-bold font-display text-[#EDEAE3]">
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Status Outcome</span>
+                <div className="text-sm font-bold font-display" style={{ color: 'var(--color-text-main)' }}>
                   {order.status === 'closed_tp' ? 'Take Profit Hit ✅' : 'Stop Loss Hit ❌'}
                 </div>
               </div>
@@ -208,104 +208,104 @@ export function OrderDetailModal({ order, currentPrice, onClose, onCancel, onDel
           )}
 
           {unrealizedPnl !== null && (
-            <div className={`p-4 rounded-xl flex items-center justify-between border ${unrealizedPnl >= 0 ? 'bg-[#1F4A40]/25 border-[#265C50]' : 'bg-[#4A2A1E]/25 border-[#5C3426]'}`}>
+            <div className={`p-4 rounded-xl flex items-center justify-between border ${unrealizedPnl >= 0 ? 'bg-emerald-500/15 border-emerald-500/30' : 'bg-rose-500/15 border-rose-500/30'}`}>
               <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#8B8D91]">Unrealized Active P&L</span>
-                <div className={`text-2xl font-bold font-mono-num ${unrealizedPnl >= 0 ? 'text-[#3FA88C]' : 'text-[#C1502E]'}`}>
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Unrealized Active P&L</span>
+                <div className={`text-2xl font-bold font-mono-num ${unrealizedPnl >= 0 ? 'text-emerald-600 dark:text-[#3FA88C]' : 'text-rose-600 dark:text-[#C1502E]'}`}>
                   {unrealizedPnl >= 0 ? '+' : ''}${unrealizedPnl.toFixed(2)}
                 </div>
               </div>
               {currentPrice && (
                 <div className="text-right font-mono-num">
-                  <span className="text-xs text-[#8B8D91] block">Current Live Price</span>
-                  <span className="text-base font-bold text-[#EDEAE3]">${formatPrice(currentPrice)}</span>
+                  <span className="text-xs block" style={{ color: 'var(--color-text-muted)' }}>Current Live Price</span>
+                  <span className="text-base font-bold" style={{ color: 'var(--color-text-main)' }}>${formatPrice(currentPrice)}</span>
                 </div>
               )}
             </div>
           )}
 
           {/* TIMING & DURATION HIGHLIGHT PANEL */}
-          <div className="terminal-card p-4 space-y-3 bg-[#1B1F23]/80 border-[#262B30]">
-            <div className="flex items-center justify-between border-b border-[#262B30] pb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#C9A227] flex items-center gap-1.5">
+          <div className="p-4 space-y-3 rounded-xl border" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
+            <div className="flex items-center justify-between border-b pb-2" style={{ borderColor: 'var(--color-border-soft)' }}>
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-[#C9A227] flex items-center gap-1.5">
                 <Clock size={14} /> Order Timeline &amp; Up Time Details
               </span>
-              <span className="text-xs font-mono-num text-[#8B8D91] flex items-center gap-1">
-                <Hourglass size={12} className="text-[#C9A227]" /> Total Lifetime: <strong className="text-[#EDEAE3]">{totalLifetime}</strong>
+              <span className="text-xs font-mono-num flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
+                <Hourglass size={12} className="text-amber-500" /> Total Lifetime: <strong style={{ color: 'var(--color-text-main)' }}>{totalLifetime}</strong>
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               {/* Placed / Setup Time */}
-              <div className="p-3 rounded-lg bg-[#0A0C0E] border border-[#262B30]">
-                <span className="text-[10px] uppercase tracking-wider text-[#5A5D61] block mb-0.5">
+              <div className="p-3 rounded-lg border" style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border-soft)' }}>
+                <span className="text-[10px] uppercase tracking-wider block mb-0.5" style={{ color: 'var(--color-text-dim)' }}>
                   1. Setup Time (Placed At)
                 </span>
-                <div className="font-mono-num font-semibold text-[#EDEAE3] text-sm">
+                <div className="font-mono-num font-semibold text-sm" style={{ color: 'var(--color-text-main)' }}>
                   {formatFullTime(order.created_at)}
                 </div>
-                <div className="text-[11px] text-[#8B8D91] mt-1 flex items-center gap-1">
+                <div className="text-[11px] mt-1 flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
                   <span>Up Time / Waiting Duration:</span>
-                  <span className="font-bold font-mono-num text-[#C9A227]">{upTime}</span>
+                  <span className="font-bold font-mono-num text-amber-600 dark:text-[#C9A227]">{upTime}</span>
                 </div>
               </div>
 
               {/* Triggered Time */}
-              <div className="p-3 rounded-lg bg-[#0A0C0E] border border-[#262B30]">
-                <span className="text-[10px] uppercase tracking-wider text-[#5A5D61] block mb-0.5">
+              <div className="p-3 rounded-lg border" style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border-soft)' }}>
+                <span className="text-[10px] uppercase tracking-wider block mb-0.5" style={{ color: 'var(--color-text-dim)' }}>
                   2. Start / Trigger Time
                 </span>
-                <div className="font-mono-num font-semibold text-[#EDEAE3] text-sm flex items-center gap-1">
+                <div className="font-mono-num font-semibold text-sm flex items-center gap-1" style={{ color: 'var(--color-text-main)' }}>
                   {order.triggered_at ? (
                     <>
-                      <Zap size={14} className="text-[#C9A227]" />
+                      <Zap size={14} className="text-amber-500" />
                       {formatFullTime(order.triggered_at)}
                     </>
                   ) : (
-                    <span className="text-[#5A5D61] italic">Not triggered yet</span>
+                    <span className="italic" style={{ color: 'var(--color-text-dim)' }}>Not triggered yet</span>
                   )}
                 </div>
                 {order.triggered_price && (
-                  <div className="text-[11px] text-[#8B8D91] mt-1">
-                    Fill Price: <strong className="text-[#EDEAE3] font-mono-num">${formatPrice(order.triggered_price)}</strong>
+                  <div className="text-[11px] mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                    Fill Price: <strong className="font-mono-num" style={{ color: 'var(--color-text-main)' }}>${formatPrice(order.triggered_price)}</strong>
                   </div>
                 )}
               </div>
 
               {/* End / Closed Time */}
-              <div className="p-3 rounded-lg bg-[#0A0C0E] border border-[#262B30]">
-                <span className="text-[10px] uppercase tracking-wider text-[#5A5D61] block mb-0.5">
+              <div className="p-3 rounded-lg border" style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border-soft)' }}>
+                <span className="text-[10px] uppercase tracking-wider block mb-0.5" style={{ color: 'var(--color-text-dim)' }}>
                   3. End / Closed Time
                 </span>
-                <div className="font-mono-num font-semibold text-[#EDEAE3] text-sm">
+                <div className="font-mono-num font-semibold text-sm" style={{ color: 'var(--color-text-main)' }}>
                   {order.closed_at ? (
                     formatFullTime(order.closed_at)
                   ) : (
-                    <span className="text-[#3FA88C] italic font-normal">Still Active / Pending</span>
+                    <span className="text-emerald-600 dark:text-[#3FA88C] italic font-normal">Still Active / Pending</span>
                   )}
                 </div>
                 {order.closed_price && (
-                  <div className="text-[11px] text-[#8B8D91] mt-1">
-                    Closed Price: <strong className="text-[#EDEAE3] font-mono-num">${formatPrice(order.closed_price)}</strong>
+                  <div className="text-[11px] mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                    Closed Price: <strong className="font-mono-num" style={{ color: 'var(--color-text-main)' }}>${formatPrice(order.closed_price)}</strong>
                   </div>
                 )}
               </div>
 
               {/* Expiry Time & Active Duration */}
-              <div className="p-3 rounded-lg bg-[#0A0C0E] border border-[#262B30]">
-                <span className="text-[10px] uppercase tracking-wider text-[#5A5D61] block mb-0.5">
+              <div className="p-3 rounded-lg border" style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border-soft)' }}>
+                <span className="text-[10px] uppercase tracking-wider block mb-0.5" style={{ color: 'var(--color-text-dim)' }}>
                   4. Expiry / Active Holding Duration
                 </span>
                 {activeDuration ? (
-                  <div className="text-xs text-[#EDEAE3]">
-                    Active Holding Time: <strong className="font-mono-num text-[#3FA88C] text-sm block">{activeDuration}</strong>
+                  <div className="text-xs" style={{ color: 'var(--color-text-main)' }}>
+                    Active Holding Time: <strong className="font-mono-num text-emerald-600 dark:text-[#3FA88C] text-sm block">{activeDuration}</strong>
                   </div>
                 ) : order.expires_at ? (
-                  <div className="text-xs font-mono-num text-[#EDEAE3]">
-                    Expires At: <span className="text-[#C1502E] font-semibold">{formatFullTime(order.expires_at)}</span>
+                  <div className="text-xs font-mono-num" style={{ color: 'var(--color-text-main)' }}>
+                    Expires At: <span className="text-rose-500 font-semibold">{formatFullTime(order.expires_at)}</span>
                   </div>
                 ) : (
-                  <div className="text-xs text-[#8B8D91] italic">Good 'Til Cancelled (GTC - No Expiry)</div>
+                  <div className="text-xs italic" style={{ color: 'var(--color-text-muted)' }}>Good 'Til Cancelled (GTC - No Expiry)</div>
                 )}
               </div>
             </div>
@@ -313,49 +313,49 @@ export function OrderDetailModal({ order, currentPrice, onClose, onCancel, onDel
 
           {/* Price Levels & Financial Parameters */}
           <div className="space-y-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#8B8D91]">
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
               Order Specifications &amp; Risk Parameters
             </span>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#1B1F23] p-4 rounded-lg border border-[#1E2226]">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl border" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
               <div>
-                <span className="text-[11px] uppercase tracking-wider text-[#5A5D61] block">Target Entry</span>
-                <span className="text-sm font-bold font-mono-num text-[#EDEAE3]">${formatPrice(entry)}</span>
+                <span className="text-[11px] uppercase tracking-wider block" style={{ color: 'var(--color-text-dim)' }}>Target Entry</span>
+                <span className="text-sm font-bold font-mono-num" style={{ color: 'var(--color-text-main)' }}>${formatPrice(entry)}</span>
               </div>
               <div>
-                <span className="text-[11px] uppercase tracking-wider text-[#3FA88C] block">Take Profit</span>
-                <span className="text-sm font-bold font-mono-num text-[#3FA88C]">${formatPrice(tp)}</span>
+                <span className="text-[11px] uppercase tracking-wider text-emerald-600 dark:text-[#3FA88C] block">Take Profit</span>
+                <span className="text-sm font-bold font-mono-num text-emerald-600 dark:text-[#3FA88C]">${formatPrice(tp)}</span>
               </div>
               <div>
-                <span className="text-[11px] uppercase tracking-wider text-[#C1502E] block">Stop Loss</span>
-                <span className="text-sm font-bold font-mono-num text-[#C1502E]">${formatPrice(sl)}</span>
+                <span className="text-[11px] uppercase tracking-wider text-rose-600 dark:text-[#C1502E] block">Stop Loss</span>
+                <span className="text-sm font-bold font-mono-num text-rose-600 dark:text-[#C1502E]">${formatPrice(sl)}</span>
               </div>
               <div>
-                <span className="text-[11px] uppercase tracking-wider text-[#C9A227] block">Volume / Lots</span>
-                <span className="text-sm font-bold font-mono-num text-[#C9A227]">{lotSize} Lots</span>
+                <span className="text-[11px] uppercase tracking-wider text-amber-600 dark:text-[#C9A227] block">Volume / Lots</span>
+                <span className="text-sm font-bold font-mono-num text-amber-600 dark:text-[#C9A227]">{lotSize} Lots</span>
               </div>
 
               <div>
-                <span className="text-[11px] uppercase tracking-wider text-[#5A5D61] block">Potential Profit</span>
-                <span className="text-sm font-semibold font-mono-num text-[#3FA88C]">
+                <span className="text-[11px] uppercase tracking-wider block" style={{ color: 'var(--color-text-dim)' }}>Potential Profit</span>
+                <span className="text-sm font-semibold font-mono-num text-emerald-600 dark:text-[#3FA88C]">
                   +${potentialProfit.toFixed(2)}
                 </span>
               </div>
               <div>
-                <span className="text-[11px] uppercase tracking-wider text-[#5A5D61] block">Potential Loss</span>
-                <span className="text-sm font-semibold font-mono-num text-[#C1502E]">
+                <span className="text-[11px] uppercase tracking-wider block" style={{ color: 'var(--color-text-dim)' }}>Potential Loss</span>
+                <span className="text-sm font-semibold font-mono-num text-rose-600 dark:text-[#C1502E]">
                   -${Math.abs(potentialLoss).toFixed(2)}
                 </span>
               </div>
               <div>
-                <span className="text-[11px] uppercase tracking-wider text-[#5A5D61] block">Risk : Reward</span>
-                <span className="text-sm font-semibold font-mono-num text-[#C9A227]">
+                <span className="text-[11px] uppercase tracking-wider block" style={{ color: 'var(--color-text-dim)' }}>Risk : Reward</span>
+                <span className="text-sm font-semibold font-mono-num text-amber-600 dark:text-[#C9A227]">
                   1 : {riskReward.toFixed(2)}
                 </span>
               </div>
               <div>
-                <span className="text-[11px] uppercase tracking-wider text-[#5A5D61] block">Live Distance</span>
-                <span className="text-sm font-mono-num text-[#EDEAE3]">
+                <span className="text-[11px] uppercase tracking-wider block" style={{ color: 'var(--color-text-dim)' }}>Live Distance</span>
+                <span className="text-sm font-mono-num" style={{ color: 'var(--color-text-main)' }}>
                   {distanceToEntry ? `$${distanceToEntry}` : '—'}
                 </span>
               </div>
@@ -365,37 +365,37 @@ export function OrderDetailModal({ order, currentPrice, onClose, onCancel, onDel
           {/* Strategy, Session & Rationale Notes */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#8B8D91]">
+              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
                 Strategy &amp; Trading Session
               </span>
-              <div className="p-3 bg-[#1B1F23] rounded-lg border border-[#1E2226] space-y-1.5 text-xs">
+              <div className="p-3 rounded-xl border space-y-1.5 text-xs" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
                 <div className="flex justify-between">
-                  <span className="text-[#5A5D61]">Strategy:</span>
-                  <span className="font-semibold text-[#EDEAE3]">{order.strategy || 'Unspecified'}</span>
+                  <span style={{ color: 'var(--color-text-dim)' }}>Strategy:</span>
+                  <span className="font-semibold" style={{ color: 'var(--color-text-main)' }}>{order.strategy || 'Unspecified'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#5A5D61]">Session:</span>
-                  <span className="font-semibold text-[#C9A227]">{order.session || 'Unspecified'}</span>
+                  <span style={{ color: 'var(--color-text-dim)' }}>Session:</span>
+                  <span className="font-semibold text-amber-600 dark:text-[#C9A227]">{order.session || 'Unspecified'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#5A5D61]">Symbol:</span>
-                  <span className="font-mono-num text-[#8B8D91]">{order.symbol || 'XAUUSD'}</span>
+                  <span style={{ color: 'var(--color-text-dim)' }}>Symbol:</span>
+                  <span className="font-mono-num" style={{ color: 'var(--color-text-muted)' }}>{order.symbol || 'XAUUSD'}</span>
                 </div>
               </div>
             </div>
 
             {linkedTrade && (
               <div className="space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#3FA88C]">
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-[#3FA88C]">
                   Linked Journal Trade
                 </span>
-                <div className="p-3 bg-[#1F4A40]/20 rounded-lg border border-[#265C50] space-y-2 text-xs">
-                  <p className="text-[#8B8D91]">
-                    This completed order generated Trade record <strong className="text-[#EDEAE3]">#{linkedTrade.id}</strong> in your journal.
+                <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/30 space-y-2 text-xs">
+                  <p style={{ color: 'var(--color-text-muted)' }}>
+                    This completed order generated Trade record <strong style={{ color: 'var(--color-text-main)' }}>#{linkedTrade.id}</strong> in your journal.
                   </p>
                   <button
                     onClick={handleOpenLinkedTrade}
-                    className="w-full py-1.5 px-3 rounded bg-[#3FA88C] hover:bg-[#48BD9D] text-[#0A0C0E] font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                    className="w-full py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
                   >
                     <ExternalLink size={13} /> View Trade Journal Record
                   </button>
@@ -407,10 +407,10 @@ export function OrderDetailModal({ order, currentPrice, onClose, onCancel, onDel
           {/* Order Rationale / Notes */}
           {order.notes && (
             <div className="space-y-1.5">
-              <span className="text-xs font-semibold uppercase text-[#8B8D91] flex items-center gap-1.5">
+              <span className="text-xs font-semibold uppercase flex items-center gap-1.5" style={{ color: 'var(--color-text-muted)' }}>
                 <FileText size={14} /> Trade Rationale &amp; Order Notes
               </span>
-              <div className="bg-[#1B1F23] p-3.5 rounded-lg border border-[#1E2226] text-sm text-[#EDEAE3] leading-relaxed whitespace-pre-wrap font-body">
+              <div className="p-3.5 rounded-xl border text-sm leading-relaxed whitespace-pre-wrap font-body" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)', color: 'var(--color-text-main)' }}>
                 {order.notes}
               </div>
             </div>
@@ -418,7 +418,7 @@ export function OrderDetailModal({ order, currentPrice, onClose, onCancel, onDel
         </div>
 
         {/* Modal Actions Footer */}
-        <div className="p-4 border-t border-[#1E2226] bg-[#131619] flex items-center justify-between">
+        <div className="p-4 border-t flex items-center justify-between" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
           <div>
             {isActionable && onCancel && (
               <button
@@ -426,7 +426,7 @@ export function OrderDetailModal({ order, currentPrice, onClose, onCancel, onDel
                   onCancel(order.id);
                   onClose();
                 }}
-                className="px-3.5 py-2 rounded-lg bg-[#4A2A1E]/40 hover:bg-[#4A2A1E] text-[#C1502E] border border-[#5C3426] text-xs font-bold flex items-center gap-1.5 transition-colors"
+                className="px-3.5 py-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center gap-1.5 transition-colors"
               >
                 <X size={14} /> Cancel Order
               </button>
@@ -437,7 +437,7 @@ export function OrderDetailModal({ order, currentPrice, onClose, onCancel, onDel
                   onDelete(order.id);
                   onClose();
                 }}
-                className="px-3.5 py-2 rounded-lg bg-[#4A2A1E]/40 hover:bg-[#4A2A1E] text-[#C1502E] border border-[#5C3426] text-xs font-bold flex items-center gap-1.5 transition-colors"
+                className="px-3.5 py-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center gap-1.5 transition-colors"
               >
                 <Trash2 size={14} /> Delete Record
               </button>
@@ -446,7 +446,8 @@ export function OrderDetailModal({ order, currentPrice, onClose, onCancel, onDel
 
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-lg bg-[#1B1F23] hover:bg-[#262B30] text-[#EDEAE3] text-xs font-semibold border border-[#262B30] transition-colors"
+            className="px-5 py-2 rounded-lg border text-xs font-semibold transition-colors hover:opacity-80"
+            style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border-soft)', color: 'var(--color-text-main)' }}
           >
             Close
           </button>

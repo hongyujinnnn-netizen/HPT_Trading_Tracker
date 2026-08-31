@@ -82,16 +82,16 @@ export function StrategyCompare() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-xl font-bold font-display text-[#EDEAE3]">Strategy Comparison &amp; Edge Breakdown</h1>
-        <p className="text-xs text-[#8B8D91]">Compare statistical win rates, profit factor, and net expectancy across your trading setups</p>
+        <h1 className="text-xl font-bold font-display" style={{ color: 'var(--color-text-main)' }}>Strategy Comparison &amp; Edge Breakdown</h1>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>Compare statistical win rates, profit factor, and net expectancy across your trading setups</p>
       </div>
 
       {/* Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {stratData.map((s) => (
           <div key={s.name} className="terminal-card p-5 space-y-4 relative overflow-hidden group">
-            <div className="flex items-center justify-between border-b border-[#1E2226] pb-3">
-              <span className="font-bold text-base font-display text-[#EDEAE3]">{s.name}</span>
+            <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-border-soft)' }}>
+              <span className="font-bold text-base font-display" style={{ color: 'var(--color-text-main)' }}>{s.name}</span>
               <Pill tone={s.pnl >= 0 ? 'profit' : 'loss'}>
                 {s.pnl >= 0 ? '+' : ''}${s.pnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </Pill>
@@ -100,17 +100,17 @@ export function StrategyCompare() {
             {/* Win Rate Progress Bar */}
             <div className="space-y-1">
               <div className="flex justify-between text-[11px] font-mono-num">
-                <span className="text-[#8B8D91]">Win Rate</span>
-                <span className="font-bold" style={{ color: s.winRate >= 50 ? '#3FA88C' : '#C1502E' }}>
+                <span style={{ color: 'var(--color-text-dim)' }}>Win Rate</span>
+                <span className="font-bold" style={{ color: s.winRate >= 50 ? '#059669' : '#E11D48' }}>
                   {s.winRate}% ({s.wins}W / {s.losses}L)
                 </span>
               </div>
-              <div className="h-1.5 w-full bg-[#1B1F23] rounded-full overflow-hidden">
+              <div className="h-2 w-full rounded-full overflow-hidden p-0.5" style={{ background: 'var(--color-elevated)' }}>
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{
                     width: `${s.winRate}%`,
-                    backgroundColor: s.winRate >= 50 ? '#3FA88C' : '#C1502E',
+                    backgroundColor: s.winRate >= 50 ? '#10B981' : '#F43F5E',
                   }}
                 />
               </div>
@@ -118,23 +118,23 @@ export function StrategyCompare() {
 
             <div className="space-y-2 text-xs font-body pt-1">
               <div className="flex justify-between">
-                <span className="text-[#8B8D91]">Total Executions:</span>
-                <span className="font-mono-num font-semibold text-[#EDEAE3]">{s.totalTrades} trades</span>
+                <span style={{ color: 'var(--color-text-dim)' }}>Total Executions:</span>
+                <span className="font-mono-num font-semibold" style={{ color: 'var(--color-text-main)' }}>{s.totalTrades} trades</span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-[#8B8D91]">Avg Risk-Reward:</span>
-                <span className="font-mono-num font-semibold text-[#C9A227]">1 : {s.avgRR}</span>
+                <span style={{ color: 'var(--color-text-dim)' }}>Avg Risk-Reward:</span>
+                <span className="font-mono-num font-semibold text-amber-600 dark:text-[#C9A227]">1 : {s.avgRR}</span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-[#8B8D91]">Profit Factor:</span>
-                <span className="font-mono-num font-semibold text-[#EDEAE3]">{s.profitFactor}</span>
+                <span style={{ color: 'var(--color-text-dim)' }}>Profit Factor:</span>
+                <span className="font-mono-num font-semibold" style={{ color: 'var(--color-text-main)' }}>{s.profitFactor}</span>
               </div>
 
-              <div className="flex justify-between pt-2 border-t border-[#1E2226]">
-                <span className="text-[#8B8D91]">Expectancy / Trade:</span>
-                <span className={`font-mono-num font-bold ${s.expectancy >= 0 ? 'text-[#3FA88C]' : 'text-[#C1502E]'}`}>
+              <div className="flex justify-between pt-2 border-t" style={{ borderColor: 'var(--color-border-soft)' }}>
+                <span style={{ color: 'var(--color-text-dim)' }}>Expectancy / Trade:</span>
+                <span className={`font-mono-num font-bold ${s.expectancy >= 0 ? 'text-emerald-600 dark:text-[#3FA88C]' : 'text-rose-600 dark:text-[#C1502E]'}`}>
                   {s.expectancy >= 0 ? '+' : ''}${s.expectancy}
                 </span>
               </div>
@@ -144,11 +144,11 @@ export function StrategyCompare() {
       </div>
 
       {/* Strategic Recommendation Note */}
-      <div className="terminal-card p-5 space-y-2 bg-[#1B1F23]/60 border-l-4 border-l-[#C9A227]">
-        <SectionLabel right={<Sparkles size={13} className="text-[#C9A227]" />}>
+      <div className="terminal-card p-5 space-y-2 border-l-4 border-l-[#C9A227]" style={{ background: 'var(--color-elevated)' }}>
+        <SectionLabel right={<Sparkles size={13} className="text-amber-500 dark:text-[#C9A227]" />}>
           Quantitative Strategic Advisory
         </SectionLabel>
-        <p className="text-xs text-[#8B8D91] leading-relaxed">
+        <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
           {advisory}
         </p>
       </div>

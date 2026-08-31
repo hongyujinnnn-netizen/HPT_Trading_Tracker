@@ -49,7 +49,7 @@ const CRYPTO_GOLD_SYMBOLS = [
 ];
 
 export function GoldChart() {
-  const { trades, pendingOrders, setActivePage, setSelectedTrade } = useTrade();
+  const { trades, pendingOrders, setActivePage, setSelectedTrade, theme } = useTrade();
 
   // Explicit Market Mode State: source + symbol
   const [marketMode, setMarketMode] = useState(() => {
@@ -121,6 +121,7 @@ export function GoldChart() {
     
     sentimentContainerRef.current.innerHTML = '';
 
+    const isLight = theme === 'light';
     const container = document.createElement('div');
     container.className = 'tradingview-widget-container';
     container.style.width = '100%';
@@ -143,12 +144,12 @@ export function GoldChart() {
       showIntervalTabs: true,
       displayMode: 'single',
       locale: 'en',
-      colorTheme: 'dark',
+      colorTheme: isLight ? 'light' : 'dark',
     });
 
     container.appendChild(script);
     sentimentContainerRef.current.appendChild(container);
-  }, [showSidePanel, marketMode.symbol]);
+  }, [showSidePanel, marketMode.symbol, theme]);
 
   // Current session info (gated on marketMode.source)
   const sessionInfo = useMemo(() => getCurrentGoldSession(new Date(), marketMode.source), [marketMode.source]);
@@ -244,9 +245,11 @@ export function GoldChart() {
     return determineFallbackState(scriptLoaded, scriptError, timerExpired);
   }, [chartMode, scriptLoaded, scriptError, timerExpired]);
 
-  // 5. Initialize TradingView Widget with active marketMode.symbol
+  // 5. Initialize TradingView Widget with active marketMode.symbol & Theme
   useEffect(() => {
     if (isFallbackActive || !scriptLoaded || !tvContainerRef.current) return;
+
+    const isLight = theme === 'light';
 
     try {
       if (window.TradingView && window.TradingView.widget) {
@@ -256,27 +259,31 @@ export function GoldChart() {
           symbol: marketMode.symbol,
           interval: timeframe,
           timezone: 'Etc/UTC',
-          theme: 'dark',
+          theme: isLight ? 'light' : 'dark',
           style: '1',
           locale: 'en',
-          toolbar_bg: '#0A0C0E',
+          toolbar_bg: isLight ? '#FFFFFF' : '#080A0D',
           enable_publishing: false,
           allow_symbol_change: true,
           save_image: true,
           container_id: tvContainerRef.current.id,
           hide_side_toolbar: false,
-          details: true,
+          details: false,
           hotlist: false,
           calendar: false,
           studies: ['ROC@tv-basicstudies', 'StochasticRSI@tv-basicstudies', 'MASimple@tv-basicstudies'],
-          overrides: {
-            'mainSeriesProperties.styleColors.candleStyle.upColor': '#3FA88C',
-            'mainSeriesProperties.styleColors.candleStyle.downColor': '#E46868',
-            'mainSeriesProperties.styleColors.candleStyle.wickUpColor': '#3FA88C',
-            'mainSeriesProperties.styleColors.candleStyle.wickDownColor': '#E46868',
-            'paneProperties.background': '#0A0C0E',
-            'paneProperties.vertGridProperties.color': '#1B1F23',
-            'paneProperties.horzGridProperties.color': '#1B1F23',
+          overrides: isLight ? {
+            'paneProperties.background': '#FFFFFF',
+            'paneProperties.vertGridProperties.color': '#E2E8F0',
+            'paneProperties.horzGridProperties.color': '#E2E8F0',
+          } : {
+            'mainSeriesProperties.styleColors.candleStyle.upColor': '#34D399',
+            'mainSeriesProperties.styleColors.candleStyle.downColor': '#FB7185',
+            'mainSeriesProperties.styleColors.candleStyle.wickUpColor': '#34D399',
+            'mainSeriesProperties.styleColors.candleStyle.wickDownColor': '#FB7185',
+            'paneProperties.background': '#080A0D',
+            'paneProperties.vertGridProperties.color': 'rgba(255, 255, 255, 0.05)',
+            'paneProperties.horzGridProperties.color': 'rgba(255, 255, 255, 0.05)',
           },
         });
       }
@@ -284,7 +291,7 @@ export function GoldChart() {
       console.warn('TradingView widget initialization failed:', err);
       setScriptError(true);
     }
-  }, [scriptLoaded, isFallbackActive, timeframe, marketMode.symbol]);
+  }, [scriptLoaded, isFallbackActive, timeframe, marketMode.symbol, theme]);
 
   // 6. Calculate Pivot Points from active live price
   const pivots = useMemo(() => {
@@ -322,19 +329,21 @@ export function GoldChart() {
   return (
     <div className="flex flex-col gap-4 min-h-[calc(100vh-5rem)]">
       {/* Top Header / Symbol & Market Mode Toolbar */}
-      <div className={`flex flex-wrap items-center justify-between gap-3 p-3 sm:p-4 rounded-xl bg-[#1B1F23] border transition-colors ${
-        marketMode.source === 'okx-crypto' ? 'border-[#3FA88C]/40 shadow-lg shadow-[#3FA88C]/5' : 'border-[#262B30]'
-      }`}>
+      <div className="terminal-card p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 shadow-md">
         <div className="flex flex-wrap items-center gap-3 md:gap-4">
           {/* Market Mode Switcher UI */}
-          <div className="flex items-center p-1 rounded-lg bg-[#131619] border border-[#262B30] gap-1">
+          <div
+            className="flex items-center p-1 rounded-xl border gap-1 shadow-inner"
+            style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
+          >
             <button
               onClick={() => handleModeChange('oanda', 'OANDA:XAUUSD')}
-              className={`px-2.5 py-1.5 rounded-md text-xs font-bold font-display flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold font-display flex items-center gap-1.5 transition-all ${
                 marketMode.source === 'oanda'
-                  ? 'bg-[#2A2311] text-[#C9A227] border border-[#C9A227]/40 shadow'
-                  : 'text-[#8B8D91] hover:text-[#EDEAE3]'
+                  ? 'bg-gradient-to-b from-[#C9A227] to-[#B38E1B] text-[#080A0D] shadow-md font-bold'
+                  : 'hover:opacity-80'
               }`}
+              style={marketMode.source !== 'oanda' ? { color: 'var(--color-text-muted)' } : undefined}
             >
               <span>🏦 Spot Gold</span>
               <span className="text-[10px] opacity-75 font-mono-num">(23/5 Forex)</span>
@@ -342,15 +351,16 @@ export function GoldChart() {
 
             <button
               onClick={() => handleModeChange('okx-crypto', 'OKX:PAXGUSDT')}
-              className={`px-2.5 py-1.5 rounded-md text-xs font-bold font-display flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold font-display flex items-center gap-1.5 transition-all ${
                 marketMode.source === 'okx-crypto'
-                  ? 'bg-[#1F4A40] text-[#3FA88C] border border-[#3FA88C]/50 shadow'
-                  : 'text-[#8B8D91] hover:text-[#EDEAE3]'
+                  ? 'bg-emerald-500 text-white shadow-md font-bold'
+                  : 'hover:opacity-80'
               }`}
+              style={marketMode.source !== 'okx-crypto' ? { color: 'var(--color-text-muted)' } : undefined}
             >
-              <Zap size={13} className="text-[#3FA88C] animate-pulse" />
+              <Zap size={13} className="text-emerald-300 animate-pulse" />
               <span>24/7 Crypto Gold</span>
-              <span className="px-1 py-0.2 rounded text-[9px] font-mono-num bg-[#3FA88C]/20 text-[#3FA88C]">NONSTOP</span>
+              <span className="px-1 py-0.2 rounded text-[9px] font-mono-num bg-emerald-700/40 text-white">NONSTOP</span>
             </button>
           </div>
 
@@ -359,10 +369,15 @@ export function GoldChart() {
             <select
               value={marketMode.symbol}
               onChange={(e) => handleModeChange('okx-crypto', e.target.value)}
-              className="px-2.5 py-1.5 rounded-lg bg-[#131619] border border-[#3FA88C]/40 text-[#EDEAE3] text-xs font-mono-num font-semibold focus:outline-none focus:border-[#3FA88C]"
+              className="px-2.5 py-1.5 rounded-lg border text-xs font-mono-num font-semibold focus:outline-none"
+              style={{
+                background: 'var(--color-elevated)',
+                borderColor: 'var(--color-border-soft)',
+                color: 'var(--color-text-main)',
+              }}
             >
               {CRYPTO_GOLD_SYMBOLS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
+                <option key={opt.value} value={opt.value} className="text-slate-900 bg-white dark:text-white dark:bg-[#0C1015]">
                   {opt.label}
                 </option>
               ))}
@@ -370,13 +385,15 @@ export function GoldChart() {
           )}
 
           {/* Canonical Live Price Badge */}
-          <div className="flex items-baseline gap-2 border-l border-[#262B30] pl-3 md:pl-4">
-            <span className="text-xl sm:text-2xl font-bold font-mono-num text-[#EDEAE3]">
+          <div className="flex items-baseline gap-2 border-l pl-3 md:pl-4" style={{ borderColor: 'var(--color-border-soft)' }}>
+            <span className="text-xl sm:text-2xl font-bold font-mono-num" style={{ color: 'var(--color-text-main)' }}>
               {priceState.price ? `$${priceState.price.toFixed(2)}` : '—'}
             </span>
             <span
-              className={`text-xs font-mono-num font-semibold flex items-center gap-0.5 px-2 py-0.5 rounded ${
-                isPositive ? 'text-[#3FA88C] bg-[#1F4A40]/40' : 'text-[#E46868] bg-[#4A1E1E]/40'
+              className={`text-xs font-mono-num font-semibold flex items-center gap-0.5 px-2 py-0.5 rounded-md border shadow-sm ${
+                isPositive
+                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-[#34D399]'
+                  : 'bg-rose-500/15 border-rose-500/30 text-rose-600 dark:text-[#FB7185]'
               }`}
             >
               {isPositive ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
@@ -386,15 +403,15 @@ export function GoldChart() {
           </div>
 
           {/* Bid / Ask / Spread */}
-          <div className="hidden lg:flex items-center gap-3 text-xs font-mono-num text-[#5A5D61] border-l border-[#262B30] pl-4">
+          <div className="hidden lg:flex items-center gap-3 text-xs font-mono-num border-l pl-4" style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-dim)' }}>
             {priceState.bid && priceState.ask ? (
               <>
-                <span>Bid: <strong className="text-[#EDEAE3]">{priceState.bid.toFixed(2)}</strong></span>
-                <span>Ask: <strong className="text-[#EDEAE3]">{priceState.ask.toFixed(2)}</strong></span>
-                <span>Spread: <strong className="text-[#C9A227]">{priceState.spread.toFixed(2)}</strong></span>
+                <span>Bid: <strong style={{ color: 'var(--color-text-main)' }}>{priceState.bid.toFixed(2)}</strong></span>
+                <span>Ask: <strong style={{ color: 'var(--color-text-main)' }}>{priceState.ask.toFixed(2)}</strong></span>
+                <span>Spread: <strong className="text-amber-600 dark:text-[#E5B83B] font-bold">{priceState.spread.toFixed(2)}</strong></span>
               </>
             ) : (
-              <span>Spread: <strong className="text-[#C9A227]">0.30</strong></span>
+              <span>Spread: <strong className="text-amber-600 dark:text-[#E5B83B] font-bold">0.30</strong></span>
             )}
           </div>
         </div>
@@ -402,8 +419,11 @@ export function GoldChart() {
         {/* Toolbar Controls */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Session Status Pill */}
-          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#131619] border border-[#262B30] text-xs font-mono-num text-[#EDEAE3]">
-            <Globe size={13} className={marketMode.source === 'okx-crypto' ? 'text-[#3FA88C]' : 'text-[#C9A227]'} />
+          <div
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-mono-num"
+            style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)', color: 'var(--color-text-main)' }}
+          >
+            <Globe size={13} className={marketMode.source === 'okx-crypto' ? 'text-emerald-500' : 'text-amber-500'} />
             <span className="font-semibold" style={{ color: sessionInfo.color }}>
               {sessionInfo.name}
             </span>
@@ -414,9 +434,14 @@ export function GoldChart() {
             onClick={() => setChartMode((prev) => (prev === 'tradingview' ? 'native' : 'tradingview'))}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border ${
               chartMode === 'tradingview' && !isFallbackActive
-                ? 'bg-[#131619] border-[#262B30] text-[#EDEAE3] hover:bg-[#262B30]'
-                : 'bg-[#2A2311] border-[#C9A227]/50 text-[#C9A227]'
+                ? 'border-transparent shadow-sm'
+                : 'bg-amber-500/10 border-amber-500/40 text-amber-600 dark:text-[#E5B83B]'
             }`}
+            style={
+              chartMode === 'tradingview' && !isFallbackActive
+                ? { background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)', color: 'var(--color-text-main)' }
+                : undefined
+            }
             title="Switch Chart Engine"
           >
             <BarChart2 size={14} />
@@ -428,7 +453,7 @@ export function GoldChart() {
           {/* Action: Add Trade Button */}
           <button
             onClick={() => setActivePage('add')}
-            className="px-3 py-1.5 rounded-lg bg-[#C9A227] text-[#0A0C0E] font-bold text-xs flex items-center gap-1.5 hover:bg-[#E4C468] transition-colors shadow-md shadow-[#C9A227]/20"
+            className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#C9A227] via-[#E4C468] to-[#C9A227] hover:brightness-110 text-[#080A0D] font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-[#C9A227]/25 active:scale-95 transition-all"
           >
             <Plus size={14} />
             <span>New Trade</span>
@@ -437,11 +462,12 @@ export function GoldChart() {
           {/* Toggle Side Panel Button */}
           <button
             onClick={() => setShowSidePanel((prev) => !prev)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border ${
-              showSidePanel
-                ? 'bg-[#131619] border-[#262B30] text-[#8B8D91] hover:text-[#EDEAE3]'
-                : 'bg-[#2A2311] border-[#C9A227]/50 text-[#C9A227]'
-            }`}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border shadow-sm"
+            style={{
+              background: 'var(--color-elevated)',
+              borderColor: 'var(--color-border-soft)',
+              color: 'var(--color-text-main)',
+            }}
             title={showSidePanel ? 'Hide Side Panel' : 'Show Side Panel'}
           >
             {showSidePanel ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
@@ -451,7 +477,12 @@ export function GoldChart() {
           {/* Fullscreen Button */}
           <button
             onClick={toggleFullscreen}
-            className="p-2 rounded-lg bg-[#131619] border border-[#262B30] text-[#8B8D91] hover:text-[#EDEAE3] transition-colors"
+            className="p-2 rounded-lg border transition-colors shadow-sm"
+            style={{
+              background: 'var(--color-elevated)',
+              borderColor: 'var(--color-border-soft)',
+              color: 'var(--color-text-muted)',
+            }}
             title="Toggle Fullscreen"
           >
             {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
@@ -461,7 +492,7 @@ export function GoldChart() {
 
       {/* Persistent Disclaimer Banner for Mode B */}
       {marketMode.source === 'okx-crypto' && (
-        <div className="px-4 py-2 rounded-lg bg-[#1F4A40]/20 border border-[#3FA88C]/30 flex items-center justify-between text-xs font-mono-num text-[#3FA88C]">
+        <div className="px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs font-mono-num text-emerald-700 dark:text-[#3FA88C]">
           <div className="flex items-center gap-2">
             <Info size={14} className="shrink-0" />
             <span>
@@ -478,7 +509,7 @@ export function GoldChart() {
           ref={chartWrapperRef}
           className={`${
             showSidePanel ? 'lg:col-span-3' : 'lg:col-span-4'
-          } flex flex-col bg-[#1B1F23] border border-[#262B30] rounded-xl overflow-hidden min-h-[520px] relative shadow-xl transition-all duration-300`}
+          } flex flex-col terminal-card overflow-hidden min-h-[560px] relative shadow-xl transition-all duration-300`}
         >
           {/* Ad-blocker / Script Fallback Banner */}
           {isFallbackActive && chartMode === 'tradingview' && (
@@ -563,45 +594,53 @@ export function GoldChart() {
         {/* Side Panel (TradingView Technical Overview & Trade Levels) */}
         <div className={showSidePanel ? 'flex flex-col gap-4 animate-fade-in' : 'hidden'}>
           {/* TradingView Technical Analysis Widget Embed */}
-          <div className="p-4 rounded-xl bg-[#1B1F23] border border-[#262B30] flex flex-col gap-3">
-            <div className="flex items-center justify-between border-b border-[#262B30] pb-2.5">
+          <div className="terminal-card p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: 'var(--color-border-soft)' }}>
               <div className="flex items-center gap-2">
-                <Layers size={16} className="text-[#C9A227]" />
-                <h3 className="text-xs font-bold font-display uppercase tracking-wider text-[#EDEAE3]">
+                <Layers size={16} className="text-amber-500 dark:text-[#E5B83B]" />
+                <h3 className="text-xs font-bold font-display uppercase tracking-wider" style={{ color: 'var(--color-text-main)' }}>
                   Technical Sentiment
                 </h3>
               </div>
-              <span className="text-[10px] font-mono-num text-[#8B8D91]">{marketMode.symbol}</span>
+              <span className="text-[10px] font-mono-num" style={{ color: 'var(--color-text-muted)' }}>{marketMode.symbol}</span>
             </div>
 
             <div
               ref={sentimentContainerRef}
-              className="w-full min-h-[220px] rounded-lg bg-[#131619] border border-[#262B30] overflow-hidden relative"
+              className="w-full min-h-[220px] rounded-xl border overflow-hidden relative"
+              style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
             />
           </div>
 
           {/* Daily Support & Resistance Pivot Points */}
-          <div className="p-4 rounded-xl bg-[#1B1F23] border border-[#262B30] flex flex-col gap-3">
-            <div className="flex items-center justify-between border-b border-[#262B30] pb-2.5">
+          <div className="terminal-card p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: 'var(--color-border-soft)' }}>
               <div className="flex items-center gap-2">
-                <BarChart2 size={16} className="text-[#3FA88C]" />
-                <h3 className="text-xs font-bold font-display uppercase tracking-wider text-[#EDEAE3]">
+                <BarChart2 size={16} className="text-emerald-500 dark:text-[#34D399]" />
+                <h3 className="text-xs font-bold font-display uppercase tracking-wider" style={{ color: 'var(--color-text-main)' }}>
                   Daily Pivot Points
                 </h3>
               </div>
-              <div className="flex items-center gap-1 bg-[#131619] p-0.5 rounded border border-[#262B30]">
+              <div
+                className="flex items-center gap-1 p-0.5 rounded-lg border"
+                style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
+              >
                 <button
                   onClick={() => setPivotType('classic')}
-                  className={`px-2 py-0.5 rounded text-[10px] font-mono-num font-semibold ${
-                    pivotType === 'classic' ? 'bg-[#2A2311] text-[#C9A227]' : 'text-[#8B8D91]'
+                  className={`px-2 py-0.5 rounded text-[10px] font-mono-num font-semibold transition-all ${
+                    pivotType === 'classic'
+                      ? 'bg-amber-500/20 text-amber-600 dark:text-[#E5B83B] font-bold'
+                      : 'text-slate-500 dark:text-[#94A3B8]'
                   }`}
                 >
                   Classic
                 </button>
                 <button
                   onClick={() => setPivotType('fibonacci')}
-                  className={`px-2 py-0.5 rounded text-[10px] font-mono-num font-semibold ${
-                    pivotType === 'fibonacci' ? 'bg-[#2A2311] text-[#C9A227]' : 'text-[#8B8D91]'
+                  className={`px-2 py-0.5 rounded text-[10px] font-mono-num font-semibold transition-all ${
+                    pivotType === 'fibonacci'
+                      ? 'bg-amber-500/20 text-amber-600 dark:text-[#E5B83B] font-bold'
+                      : 'text-slate-500 dark:text-[#94A3B8]'
                   }`}
                 >
                   Fib
@@ -610,23 +649,23 @@ export function GoldChart() {
             </div>
 
             <div className="space-y-1.5 font-mono-num text-xs">
-              <div className="flex justify-between items-center px-2 py-1 rounded bg-[#2A1E1E]/50 text-[#E46868]">
+              <div className="flex justify-between items-center px-2 py-1 rounded bg-rose-500/10 text-rose-600 dark:text-[#FB7185]">
                 <span>Resistance 2 (R2)</span>
                 <strong>${pivots.r2}</strong>
               </div>
-              <div className="flex justify-between items-center px-2 py-1 rounded bg-[#2A1E1E]/30 text-[#E46868]">
+              <div className="flex justify-between items-center px-2 py-1 rounded bg-rose-500/10 text-rose-600 dark:text-[#FB7185]">
                 <span>Resistance 1 (R1)</span>
                 <strong>${pivots.r1}</strong>
               </div>
-              <div className="flex justify-between items-center px-2 py-1.5 rounded bg-[#2A2311] text-[#C9A227] border border-[#C9A227]/30 font-bold">
+              <div className="flex justify-between items-center px-2 py-1.5 rounded bg-amber-500/15 text-amber-700 dark:text-[#E5B83B] border border-amber-500/30 font-bold">
                 <span>Pivot Point (P)</span>
                 <strong>${pivots.p}</strong>
               </div>
-              <div className="flex justify-between items-center px-2 py-1 rounded bg-[#1F4A40]/30 text-[#3FA88C]">
+              <div className="flex justify-between items-center px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-[#34D399]">
                 <span>Support 1 (S1)</span>
                 <strong>${pivots.s1}</strong>
               </div>
-              <div className="flex justify-between items-center px-2 py-1 rounded bg-[#1F4A40]/50 text-[#3FA88C]">
+              <div className="flex justify-between items-center px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-[#34D399]">
                 <span>Support 2 (S2)</span>
                 <strong>${pivots.s2}</strong>
               </div>
@@ -634,26 +673,32 @@ export function GoldChart() {
           </div>
 
           {/* Active Journaled Gold Trades (RLS Compliant) */}
-          <div className="p-4 rounded-xl bg-[#1B1F23] border border-[#262B30] flex flex-col gap-3 flex-1">
-            <div className="flex items-center justify-between border-b border-[#262B30] pb-2.5">
+          <div className="terminal-card p-4 flex flex-col gap-3 flex-1">
+            <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: 'var(--color-border-soft)' }}>
               <div className="flex items-center gap-2">
-                <Shield size={16} className="text-[#3FA88C]" />
-                <h3 className="text-xs font-bold font-display uppercase tracking-wider text-[#EDEAE3]">
+                <Shield size={16} className="text-emerald-500 dark:text-[#34D399]" />
+                <h3 className="text-xs font-bold font-display uppercase tracking-wider" style={{ color: 'var(--color-text-main)' }}>
                   Journaled XAU Trades
                 </h3>
               </div>
-              <span className="text-[10px] font-mono-num bg-[#131619] px-2 py-0.5 rounded text-[#8B8D91]">
+              <span
+                className="text-[10px] font-mono-num px-2 py-0.5 rounded border"
+                style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
+              >
                 {xauTrades.length}
               </span>
             </div>
 
             {xauTrades.length === 0 ? (
-              <div className="p-4 rounded-lg bg-[#131619] border border-[#262B30] text-center text-xs text-[#8B8D91] space-y-2">
-                <Sparkles size={20} className="mx-auto text-[#5A5D61]" />
+              <div
+                className="p-4 rounded-xl border text-center text-xs space-y-2"
+                style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
+              >
+                <Sparkles size={20} className="mx-auto" style={{ color: 'var(--color-text-dim)' }} />
                 <p>No active Gold (XAU/USD) trades logged yet.</p>
                 <button
                   onClick={() => setActivePage('add')}
-                  className="text-[#C9A227] hover:underline font-semibold"
+                  className="text-amber-600 dark:text-[#C9A227] hover:underline font-semibold"
                 >
                   + Log a new XAU trade
                 </button>
@@ -666,19 +711,20 @@ export function GoldChart() {
                     <div
                       key={trade.id || idx}
                       onClick={() => setSelectedTrade(trade)}
-                      className="p-2.5 rounded-lg bg-[#131619] hover:bg-[#262B30]/60 border border-[#262B30] cursor-pointer transition-all flex items-center justify-between text-xs font-mono-num group"
+                      className="p-2.5 rounded-lg border cursor-pointer transition-all flex items-center justify-between text-xs font-mono-num group hover:opacity-80"
+                      style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
                     >
                       <div className="flex items-center gap-2">
                         <span
                           className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                            isLong ? 'bg-[#1F4A40] text-[#3FA88C]' : 'bg-[#4A1E1E] text-[#E46868]'
+                            isLong ? 'bg-emerald-500/15 text-emerald-700 dark:bg-[#1F4A40] dark:text-[#3FA88C]' : 'bg-rose-500/15 text-rose-700 dark:bg-[#4A1E1E] dark:text-[#E46868]'
                           }`}
                         >
                           {isLong ? 'LONG' : 'SHORT'}
                         </span>
                         <div>
-                          <div className="text-[#EDEAE3] font-semibold">@ ${trade.entryPrice || trade.entry || '—'}</div>
-                          <div className="text-[10px] text-[#8B8D91]">{trade.lotSize || trade.lots || '0.1'} lots</div>
+                          <div className="font-semibold" style={{ color: 'var(--color-text-main)' }}>@ ${trade.entryPrice || trade.entry || '—'}</div>
+                          <div className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{trade.lotSize || trade.lots || '0.1'} lots</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-1">

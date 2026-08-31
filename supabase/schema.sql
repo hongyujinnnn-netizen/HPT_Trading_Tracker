@@ -14,6 +14,7 @@ drop view if exists public.view_dashboard_stats cascade;
 
 drop table if exists public.trade_mistakes cascade;
 drop table if exists public.trade_screenshots cascade;
+drop table if exists public.target_plans cascade;
 drop table if exists public.pending_orders cascade;
 drop table if exists public.trades cascade;
 drop table if exists public.trading_accounts cascade;
@@ -290,6 +291,39 @@ create table public.csv_imports (
   created_at      timestamptz not null default now()
 );
 
+-- ---------------------------------------------------------------------
+-- 10.5. target_plans (Account Growth & Risk Planning)
+-- ---------------------------------------------------------------------
+create table public.target_plans (
+  id                  uuid primary key default gen_random_uuid(),
+  user_id             uuid not null references auth.users(id) on delete cascade,
+  account_id          uuid references public.trading_accounts(id) on delete set null,
+  name                text not null default 'Account Growth Plan ($50 ➔ $100)',
+  starting_balance    numeric(14,2) not null default 50.00 check (starting_balance > 0),
+  target_balance      numeric(14,2) not null default 100.00 check (target_balance > starting_balance),
+  risk_per_trade_pct  numeric(5,2)  not null default 2.00 check (risk_per_trade_pct > 0 and risk_per_trade_pct <= 100),
+  target_rr           numeric(5,2)  not null default 2.00 check (target_rr >= 1.0),
+  max_daily_loss_pct  numeric(5,2)  not null default 4.00 check (max_daily_loss_pct > 0 and max_daily_loss_pct <= 100),
+  drawdown_floor      numeric(14,2) not null default 40.00,
+  max_open_trades     integer not null default 1 check (max_open_trades >= 1),
+  milestone_stages    integer not null default 4 check (milestone_stages >= 2 and milestone_stages <= 10),
+  rules               jsonb not null default '[
+    {"id": "rule_risk", "text": "Never exceed the planned risk % on any single trade", "enabled": true},
+    {"id": "rule_daily_stop", "text": "Stop trading immediately if daily loss limit is hit", "enabled": true},
+    {"id": "rule_rr", "text": "Take setups with at least 1:2 Risk-to-Reward ratio", "enabled": true},
+    {"id": "rule_no_revenge", "text": "Do not increase lot size or revenge trade after a loss", "enabled": true},
+    {"id": "rule_one_pos", "text": "Maintain max 1 open position at a time on micro accounts", "enabled": true}
+  ]'::jsonb,
+  status              text not null default 'active' check (status in ('active', 'achieved', 'breached', 'paused')),
+  is_active           boolean not null default true,
+  created_at          timestamptz not null default now(),
+  updated_at          timestamptz not null default now()
+);
+
+create index idx_target_plans_user_id on public.target_plans(user_id);
+create index idx_target_plans_account_id on public.target_plans(account_id);
+create index idx_target_plans_status on public.target_plans(status);
+
 -- =====================================================================
 -- 11. Triggers
 -- =====================================================================
@@ -451,6 +485,33 @@ begin
   values (new.id, 'Primary Exness MT5', 'Exness', 'live', 10000.00, '1:500', '#C9A227', true)
   on conflict do nothing;
 
+  -- 4. Create Default Micro Account Doubler Plan ($50 -> $100)
+  insert into public.target_plans (
+    user_id,
+    name,
+    starting_balance,
+    target_balance,
+    risk_per_trade_pct,
+    target_rr,
+    max_daily_loss_pct,
+    drawdown_floor,
+    max_open_trades,
+    milestone_stages,
+    status
+  ) values (
+    new.id,
+    'Micro Account Doubler ($50 ➔ $100)',
+    50.00,
+    100.00,
+    2.00,
+    2.00,
+    4.00,
+    40.00,
+    1,
+    4,
+    'active'
+  ) on conflict do nothing;
+
   return new;
 end;
 $$ language plpgsql;
@@ -468,6 +529,7 @@ alter table public.trading_accounts  enable row level security;
 alter table public.strategies        enable row level security;
 alter table public.trades            enable row level security;
 alter table public.pending_orders    enable row level security;
+alter table public.target_plans      enable row level security;
 alter table public.trade_screenshots enable row level security;
 alter table public.trade_mistakes    enable row level security;
 alter table public.csv_imports       enable row level security;
@@ -482,6 +544,7 @@ create policy "own trading_accounts" on public.trading_accounts for all using (a
 create policy "own strategies" on public.strategies for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own trades" on public.trades for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own pending_orders" on public.pending_orders for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own target_plans" on public.target_plans for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own imports" on public.csv_imports for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "own screenshots" on public.trade_screenshots for all using (

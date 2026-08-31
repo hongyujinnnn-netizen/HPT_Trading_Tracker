@@ -331,5 +331,69 @@ export const tradeRepository = {
       }
     }
     return await tradeStore.bulkImportTrades(tradesToImport, balanceOps, accountId);
+  },
+
+  // ── Target Plans Repository Delegation ────────────────────────────
+  async getTargetPlans() {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const cloudPlans = await supabaseStore.getTargetPlans(session.user.id);
+        if (cloudPlans && cloudPlans.length > 0) {
+          return cloudPlans;
+        }
+
+        // Auto-migrate local plans into Supabase if cloud has no plans yet
+        const localPlans = await tradeStore.getPlans();
+        if (localPlans && localPlans.length > 0) {
+          const seeded = [];
+          for (const lp of localPlans) {
+            const added = await supabaseStore.addTargetPlan(lp, session.user.id);
+            if (added) seeded.push(added);
+          }
+          if (seeded.length > 0) return seeded;
+        }
+      }
+    }
+    return await tradeStore.getPlans();
+  },
+
+  async addTargetPlan(planData) {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const added = await supabaseStore.addTargetPlan(planData, session.user.id);
+        if (added) {
+          // Also keep local store in sync
+          await tradeStore.addPlan(added);
+          return added;
+        }
+      }
+    }
+    return await tradeStore.addPlan(planData);
+  },
+
+  async updateTargetPlan(id, updates) {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const updated = await supabaseStore.updateTargetPlan(id, updates);
+        if (updated) {
+          await tradeStore.updatePlan(id, updates);
+          return updated;
+        }
+      }
+    }
+    return await tradeStore.updatePlan(id, updates);
+  },
+
+  async deleteTargetPlan(id) {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await supabaseStore.deleteTargetPlan(id);
+      }
+    }
+    return await tradeStore.deletePlan(id);
   }
 };

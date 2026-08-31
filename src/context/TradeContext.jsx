@@ -268,9 +268,9 @@ export function TradeProvider({ children }) {
       setUnmigratedTrades([]);
     }
 
-    // Load Target Plans
+    // Load Target Plans (from Supabase if authenticated, else local fallback)
     try {
-      const loadedPlans = await tradeStore.getPlans();
+      const loadedPlans = await tradeRepository.getTargetPlans();
       setTargetPlans(loadedPlans || []);
       const savedPlanId = tradeStore.getActivePlanId();
       if (savedPlanId && loadedPlans && loadedPlans.some((p) => p.id === savedPlanId)) {
@@ -829,7 +829,7 @@ export function TradeProvider({ children }) {
 
   // Target Plan CRUD operations
   const createPlan = useCallback(async (planData) => {
-    const newPlan = await tradeStore.addPlan(planData);
+    const newPlan = await tradeRepository.addTargetPlan(planData);
     setTargetPlans((prev) => [newPlan, ...prev.filter((p) => p.id !== newPlan.id)]);
     setActivePlanIdState(newPlan.id);
     tradeStore.setActivePlanId(newPlan.id);
@@ -838,7 +838,7 @@ export function TradeProvider({ children }) {
   }, [addToast]);
 
   const updatePlan = useCallback(async (id, updates) => {
-    const updated = await tradeStore.updatePlan(id, updates);
+    const updated = await tradeRepository.updateTargetPlan(id, updates);
     if (updated) {
       setTargetPlans((prev) => prev.map((p) => (p.id === id ? updated : p)));
       addToast('success', `Updated target plan "${updated.name}"`, 'Plan Updated');
@@ -847,7 +847,7 @@ export function TradeProvider({ children }) {
   }, [addToast]);
 
   const deletePlan = useCallback(async (id) => {
-    const remaining = await tradeStore.deletePlan(id);
+    const remaining = await tradeRepository.deleteTargetPlan(id);
     setTargetPlans(remaining);
     if (activePlanId === id) {
       const nextId = remaining[0]?.id || null;

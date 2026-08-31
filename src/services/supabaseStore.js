@@ -723,5 +723,172 @@ export const supabaseStore = {
       console.error('Failed to fetch historical candles:', e);
       return [];
     }
+  },
+
+  // ── Target Plans Database Operations ─────────────────────────────
+  async getTargetPlans(userId) {
+    if (!supabase || !userId) return [];
+    try {
+      const { data, error } = await supabase
+        .from('target_plans')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Supabase getTargetPlans error:', error);
+        return [];
+      }
+
+      return (data || []).map((row) => ({
+        id: row.id,
+        name: row.name,
+        accountId: row.account_id || 'all',
+        startingBalance: parseFloat(row.starting_balance) || 50,
+        targetBalance: parseFloat(row.target_balance) || 100,
+        riskPerTradePct: parseFloat(row.risk_per_trade_pct) || 2.0,
+        targetRR: parseFloat(row.target_rr) || 2.0,
+        maxDailyLossPct: parseFloat(row.max_daily_loss_pct) || 4.0,
+        drawdownFloor: parseFloat(row.drawdown_floor) || 40,
+        maxOpenTrades: parseInt(row.max_open_trades, 10) || 1,
+        milestoneStages: parseInt(row.milestone_stages, 10) || 4,
+        rules: Array.isArray(row.rules) ? row.rules : [],
+        status: row.status || 'active',
+        isActive: Boolean(row.is_active),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
+    } catch (e) {
+      console.error('Failed to fetch target plans from Supabase:', e);
+      return [];
+    }
+  },
+
+  async addTargetPlan(planData, userId) {
+    if (!supabase || !userId) return null;
+    try {
+      const row = {
+        user_id: userId,
+        account_id: planData.accountId && planData.accountId !== 'all' ? planData.accountId : null,
+        name: planData.name || 'Account Growth Plan ($50 ➔ $100)',
+        starting_balance: parseFloat(planData.startingBalance) || 50,
+        target_balance: parseFloat(planData.targetBalance) || 100,
+        risk_per_trade_pct: parseFloat(planData.riskPerTradePct) || 2.0,
+        target_rr: parseFloat(planData.targetRR) || 2.0,
+        max_daily_loss_pct: parseFloat(planData.maxDailyLossPct) || 4.0,
+        drawdown_floor: parseFloat(planData.drawdownFloor) || 40,
+        max_open_trades: parseInt(planData.maxOpenTrades, 10) || 1,
+        milestone_stages: parseInt(planData.milestoneStages, 10) || 4,
+        rules: planData.rules || [],
+        status: planData.status || 'active',
+        is_active: planData.isActive !== false,
+      };
+
+      const { data, error } = await supabase
+        .from('target_plans')
+        .insert([row])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase addTargetPlan error:', error);
+        return null;
+      }
+
+      return {
+        id: data.id,
+        name: data.name,
+        accountId: data.account_id || 'all',
+        startingBalance: parseFloat(data.starting_balance) || 50,
+        targetBalance: parseFloat(data.target_balance) || 100,
+        riskPerTradePct: parseFloat(data.risk_per_trade_pct) || 2.0,
+        targetRR: parseFloat(data.target_rr) || 2.0,
+        maxDailyLossPct: parseFloat(data.max_daily_loss_pct) || 4.0,
+        drawdownFloor: parseFloat(data.drawdown_floor) || 40,
+        maxOpenTrades: parseInt(data.max_open_trades, 10) || 1,
+        milestoneStages: parseInt(data.milestone_stages, 10) || 4,
+        rules: Array.isArray(data.rules) ? data.rules : [],
+        status: data.status || 'active',
+        isActive: Boolean(data.is_active),
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+    } catch (e) {
+      console.error('Failed to add target plan to Supabase:', e);
+      return null;
+    }
+  },
+
+  async updateTargetPlan(id, updates) {
+    if (!supabase || !id) return null;
+    try {
+      const row = {};
+      if (updates.name !== undefined) row.name = updates.name;
+      if (updates.accountId !== undefined) row.account_id = updates.accountId !== 'all' ? updates.accountId : null;
+      if (updates.startingBalance !== undefined) row.starting_balance = parseFloat(updates.startingBalance);
+      if (updates.targetBalance !== undefined) row.target_balance = parseFloat(updates.targetBalance);
+      if (updates.riskPerTradePct !== undefined) row.risk_per_trade_pct = parseFloat(updates.riskPerTradePct);
+      if (updates.targetRR !== undefined) row.target_rr = parseFloat(updates.targetRR);
+      if (updates.maxDailyLossPct !== undefined) row.max_daily_loss_pct = parseFloat(updates.maxDailyLossPct);
+      if (updates.drawdownFloor !== undefined) row.drawdown_floor = parseFloat(updates.drawdownFloor);
+      if (updates.maxOpenTrades !== undefined) row.max_open_trades = parseInt(updates.maxOpenTrades, 10);
+      if (updates.milestoneStages !== undefined) row.milestone_stages = parseInt(updates.milestoneStages, 10);
+      if (updates.rules !== undefined) row.rules = updates.rules;
+      if (updates.status !== undefined) row.status = updates.status;
+      if (updates.isActive !== undefined) row.is_active = updates.isActive;
+      row.updated_at = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from('target_plans')
+        .update(row)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase updateTargetPlan error:', error);
+        return null;
+      }
+
+      return {
+        id: data.id,
+        name: data.name,
+        accountId: data.account_id || 'all',
+        startingBalance: parseFloat(data.starting_balance) || 50,
+        targetBalance: parseFloat(data.target_balance) || 100,
+        riskPerTradePct: parseFloat(data.risk_per_trade_pct) || 2.0,
+        targetRR: parseFloat(data.target_rr) || 2.0,
+        maxDailyLossPct: parseFloat(data.max_daily_loss_pct) || 4.0,
+        drawdownFloor: parseFloat(data.drawdown_floor) || 40,
+        maxOpenTrades: parseInt(data.max_open_trades, 10) || 1,
+        milestoneStages: parseInt(data.milestone_stages, 10) || 4,
+        rules: Array.isArray(data.rules) ? data.rules : [],
+        status: data.status || 'active',
+        isActive: Boolean(data.is_active),
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+    } catch (e) {
+      console.error('Failed to update target plan in Supabase:', e);
+      return null;
+    }
+  },
+
+  async deleteTargetPlan(id) {
+    if (!supabase || !id) return false;
+    try {
+      const { error } = await supabase
+        .from('target_plans')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Supabase deleteTargetPlan error:', error);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error('Failed to delete target plan from Supabase:', e);
+      return false;
+    }
   }
 };

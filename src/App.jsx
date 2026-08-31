@@ -21,6 +21,7 @@ import {
   Menu,
   CandlestickChart,
   Target,
+  User,
 } from 'lucide-react';
 import { TradeProvider, useTrade } from './context/TradeContext';
 import { TickerBar } from './components/TickerBar';
@@ -46,6 +47,7 @@ const MarketNews = lazy(() => import('./pages/MarketNews').then((m) => ({ defaul
 const MistakeCenter = lazy(() => import('./pages/MistakeCenter').then((m) => ({ default: m.MistakeCenter })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const PendingOrders = lazy(() => import('./pages/PendingOrders').then((m) => ({ default: m.PendingOrders })));
+const Profile = lazy(() => import('./pages/Profile').then((m) => ({ default: m.Profile })));
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -157,6 +159,7 @@ function AppContent() {
       case 'targetplan': return <TargetPlan />;
       case 'news': return <MarketNews />;
       case 'mistakes': return <MistakeCenter />;
+      case 'profile': return <Profile />;
       case 'settings': return <Settings />;
       default: return <Dashboard />;
     }

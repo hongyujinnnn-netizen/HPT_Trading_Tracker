@@ -205,14 +205,21 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountMan
         {/* Trading Sub-Account Selector */}
         <AccountSelector onOpenManager={onOpenAccountManager} />
 
-        {/* User Session / Cloud Status Badge */}
+        {/* User Session / Cloud Status Badge — click to open Profile */}
         {userSession ? (
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono-num font-semibold bg-[#1F4A40]/40 text-[#3FA88C] border border-[#265C50]">
-              <Cloud size={13} />
+            <button
+              onClick={() => setActivePage('profile')}
+              title="View Profile"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono-num font-semibold bg-[#1F4A40]/40 text-[#3FA88C] border border-[#265C50] hover:bg-[#1F4A40]/70 hover:border-[#3FA88C]/60 transition-all"
+            >
+              {/* Avatar circle with initial */}
+              <span className="w-5 h-5 rounded-full bg-[#3FA88C] text-[#0A0C0E] text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+                {userSession.user.email?.charAt(0).toUpperCase()}
+              </span>
               <span className="hidden sm:inline truncate max-w-[140px]">{userSession.user.email}</span>
-              <span className="sm:hidden">Synced</span>
-            </div>
+              <span className="sm:hidden">Profile</span>
+            </button>
 
             <button
               onClick={signOut}
@@ -223,9 +230,13 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountMan
             </button>
           </div>
         ) : isDemoMode ? (
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono-num font-semibold bg-[#2A2311] text-[#C9A227] border border-[#C9A227]/40">
+          <button
+            onClick={() => setActivePage('profile')}
+            title="View Profile"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono-num font-semibold bg-[#2A2311] text-[#C9A227] border border-[#C9A227]/40 hover:bg-[#3A2F11] transition-all"
+          >
             <Sparkles size={13} /> Demo Mode
-          </span>
+          </button>
         ) : null}
 
         {/* Notifications & Alerts Bell */}

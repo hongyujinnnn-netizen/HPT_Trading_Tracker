@@ -1,5 +1,79 @@
 import { supabase } from './supabaseClient';
 import { createTrade } from '../types/tradeSchema';
+import { getActiveSessionName } from '../utils/sessionDetector';
+
+const SESSION_NAME_TO_ID = {
+  'asian': 1,
+  'asia': 1,
+  'sydney': 1,
+  'london': 2,
+  'europe': 2,
+  'european': 2,
+  'new york': 3,
+  'ny': 3,
+  'london close': 4,
+  'london / ny overlap': 3,
+};
+
+const SESSION_ID_TO_NAME = {
+  1: 'Asian',
+  2: 'London',
+  3: 'New York',
+  4: 'London Close',
+};
+
+function mapSessionNameToId(sessionName) {
+  if (!sessionName) return null;
+  const clean = String(sessionName).toLowerCase().replace(/\s*session\s*$/i, '').trim();
+  return SESSION_NAME_TO_ID[clean] || null;
+}
+
+function mapSessionIdToName(sessionId) {
+  return SESSION_ID_TO_NAME[sessionId] || 'London';
+}
+
+function mapMarketConditionToDb(condition) {
+  if (!condition) return 'trending';
+  const c = condition.toLowerCase().trim();
+  if (c.includes('range')) return 'ranging';
+  if (c.includes('high') || c.includes('volatil')) return 'volatile';
+  if (c.includes('low') || c.includes('quiet')) return 'quiet';
+  if (c.includes('news')) return 'news_driven';
+  return 'trending';
+}
+
+function mapDbToMarketCondition(dbVal) {
+  if (!dbVal) return 'Trending';
+  const val = dbVal.toLowerCase();
+  if (val === 'ranging') return 'Ranging';
+  if (val === 'volatile') return 'High Volatility';
+  if (val === 'quiet') return 'Low Volatility';
+  if (val === 'news_driven') return 'High Volatility';
+  return 'Trending';
+}
+
+function mapEmotionToDb(emotion) {
+  if (!emotion) return 'planned';
+  const e = emotion.toLowerCase().replace(/\s+/g, '_');
+  const valid = ['planned', 'emotional', 'revenge_trade', 'late_entry', 'overtrading', 'fomo', 'disciplined'];
+  if (valid.includes(e)) return e;
+  if (e.includes('fomo')) return 'fomo';
+  if (e.includes('revenge')) return 'revenge_trade';
+  if (e.includes('late')) return 'late_entry';
+  if (e.includes('overtrade') || e.includes('overleveraged') || e.includes('greedy')) return 'overtrading';
+  if (e.includes('hesitant') || e.includes('impulsive') || e.includes('overconfident') || e.includes('emotional')) return 'emotional';
+  if (e.includes('disciplined')) return 'disciplined';
+  return 'planned';
+}
+
+function mapDbToEmotion(dbVal) {
+  if (!dbVal) return 'Planned';
+  const val = dbVal.toLowerCase().replace(/_/g, ' ');
+  return val.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// In-memory cache for strategy UUIDs per user
+const strategyCache = new Map();
 
 /**
  * Maps database row to canonical Trade object
@@ -13,6 +87,16 @@ function mapRowToTrade(row) {
     ? row.trade_screenshots[0].storage_path
     : null;
 
+  // Resolve strategy name: from strategies(name) join, or direct column, or default 'Breakout'
+  const strategyName = row.strategies?.name || row.strategy || 'Breakout';
+
+  // Resolve session name: from sessions(name) join, or session_id lookup, or entry_time auto-detect, or direct column, or default 'London'
+  const sessionName = row.sessions?.name
+    || (row.session_id ? mapSessionIdToName(row.session_id) : null)
+    || (row.entry_time ? getActiveSessionName(new Date(row.entry_time)) : null)
+    || row.session
+    || 'London';
+
   return createTrade({
     id: row.id,
     timestamp: row.entry_time,
@@ -25,10 +109,10 @@ function mapRowToTrade(row) {
     lotSize: parseFloat(row.lot_size) || 0.1,
     pnl: parseFloat(row.pnl) || 0,
     rr: parseFloat(row.rr_ratio) || 0,
-    strategy: row.strategies?.name || 'Breakout',
-    session: row.sessions?.name || 'London',
-    marketCondition: row.market_condition ? row.market_condition.replace('_', ' ') : 'Trending',
-    emotion: row.emotion ? row.emotion.replace('_', ' ') : 'Planned',
+    strategy: strategyName,
+    session: sessionName,
+    marketCondition: mapDbToMarketCondition(row.market_condition),
+    emotion: mapDbToEmotion(row.emotion),
     mistakes: mistakesList,
     notes: row.notes || row.reason_for_entry || '',
     imageId: screenshotPath,
@@ -36,6 +120,7 @@ function mapRowToTrade(row) {
     accountId: row.account_id || null,
   });
 }
+
 
 export const supabaseStore = {
   /**
@@ -118,12 +203,104 @@ export const supabaseStore = {
   },
 
   /**
+   * Resolve session name to session_id (1: Asian, 2: London, 3: New York, 4: London Close)
+   */
+  async getSessionId(sessionName) {
+    if (!sessionName) return null;
+    const staticId = mapSessionNameToId(sessionName);
+    if (staticId) return staticId;
+
+    if (supabase) {
+      try {
+        const clean = String(sessionName).replace(/\s*session\s*$/i, '').trim();
+        const { data } = await supabase
+          .from('sessions')
+          .select('id, name')
+          .ilike('name', `%${clean}%`)
+          .limit(1);
+        if (data && data.length > 0) {
+          return data[0].id;
+        }
+      } catch (e) {
+        console.warn('Failed to lookup session ID:', e);
+      }
+    }
+    return null;
+  },
+
+  /**
+   * Resolve or insert a strategy name for this user in public.strategies
+   */
+  async getOrCreateStrategyId(userId, strategyName) {
+    if (!supabase || !userId || !strategyName) return null;
+    const trimmed = String(strategyName).trim();
+    if (!trimmed) return null;
+
+    const cacheKey = `${userId}:${trimmed.toLowerCase()}`;
+    if (strategyCache.has(cacheKey)) {
+      return strategyCache.get(cacheKey);
+    }
+
+    try {
+      // 1. Try to find existing strategy for this user
+      const { data: existing } = await supabase
+        .from('strategies')
+        .select('id, name')
+        .eq('user_id', userId)
+        .ilike('name', trimmed)
+        .maybeSingle();
+
+      if (existing?.id) {
+        strategyCache.set(cacheKey, existing.id);
+        return existing.id;
+      }
+
+      // 2. Insert new strategy if not found
+      const { data: inserted, error: insertErr } = await supabase
+        .from('strategies')
+        .insert([{
+          user_id: userId,
+          name: trimmed,
+          color_hex: '#C9A227',
+          is_active: true,
+        }])
+        .select('id')
+        .maybeSingle();
+
+      if (inserted?.id) {
+        strategyCache.set(cacheKey, inserted.id);
+        return inserted.id;
+      }
+
+      // Concurrency retry if insert failed due to unique constraint
+      if (insertErr) {
+        const { data: retry } = await supabase
+          .from('strategies')
+          .select('id')
+          .eq('user_id', userId)
+          .ilike('name', trimmed)
+          .maybeSingle();
+        if (retry?.id) {
+          strategyCache.set(cacheKey, retry.id);
+          return retry.id;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to resolve strategy ID:', e);
+    }
+    return null;
+  },
+
+  /**
    * Save a new trade to Supabase DB
    */
   async addTrade(tradeData, userId) {
     if (!supabase || !userId) return null;
 
     try {
+      const strategyId = await this.getOrCreateStrategyId(userId, tradeData.strategy || 'Breakout');
+      const sessionId = await this.getSessionId(tradeData.session || 'London');
+
       const dbRow = {
         user_id: userId,
         symbol: 'XAUUSD',
@@ -136,10 +313,15 @@ export const supabaseStore = {
         take_profit: parseFloat(tradeData.takeProfit) || null,
         entry_time: tradeData.timestamp || new Date().toISOString(),
         exit_time: tradeData.timestamp || new Date().toISOString(),
-        emotion: (tradeData.emotion || 'planned').toLowerCase().replace(/\s+/g, '_'),
+        strategy_id: strategyId || null,
+        session_id: sessionId || null,
+        market_condition: mapMarketConditionToDb(tradeData.marketCondition),
+        emotion: mapEmotionToDb(tradeData.emotion),
         reason_for_entry: tradeData.notes || '',
         notes: tradeData.notes || '',
         account_id: tradeData.accountId || null,
+        pnl: typeof tradeData.pnl === 'number' ? tradeData.pnl : (parseFloat(tradeData.pnl) || 0),
+        rr_ratio: typeof tradeData.rr === 'number' ? tradeData.rr : (parseFloat(tradeData.rr) || null),
       };
 
       const { data, error } = await supabase
@@ -159,7 +341,14 @@ export const supabaseStore = {
         return null;
       }
 
-      return mapRowToTrade(data);
+      const mapped = mapRowToTrade(data);
+      if (tradeData.strategy && (!mapped.strategy || mapped.strategy === 'Breakout')) {
+        mapped.strategy = tradeData.strategy;
+      }
+      if (tradeData.session && (!mapped.session || mapped.session === 'London')) {
+        mapped.session = tradeData.session;
+      }
+      return mapped;
     } catch (e) {
       console.error('Failed to add trade to Supabase:', e);
       return null;
@@ -272,28 +461,40 @@ export const supabaseStore = {
         )
       );
 
-      const rowsToInsert = localTrades
-        .filter((t) => {
-          const entryTime = t.timestamp || new Date().toISOString();
-          const key = `${entryTime}_${parseFloat(t.entryPrice) || 0}_${parseFloat(t.lotSize) || 0.1}`;
-          return !existingKeys.has(key);
+      const filteredTrades = localTrades.filter((t) => {
+        const entryTime = t.timestamp || new Date().toISOString();
+        const key = `${entryTime}_${parseFloat(t.entryPrice) || 0}_${parseFloat(t.lotSize) || 0.1}`;
+        return !existingKeys.has(key);
+      });
+
+      const rowsToInsert = await Promise.all(
+        filteredTrades.map(async (t) => {
+          const strategyId = await this.getOrCreateStrategyId(userId, t.strategy || 'Breakout');
+          const sessionId = await this.getSessionId(t.session || 'London');
+          return {
+            user_id: userId,
+            symbol: 'XAUUSD',
+            side: (t.side || 'Buy').toLowerCase(),
+            status: 'closed',
+            entry_price: parseFloat(t.entryPrice) || 0,
+            exit_price: parseFloat(t.exitPrice) || 0,
+            lot_size: parseFloat(t.lotSize) || 0.1,
+            stop_loss: parseFloat(t.stopLoss) || null,
+            take_profit: parseFloat(t.takeProfit) || null,
+            entry_time: t.timestamp || new Date().toISOString(),
+            exit_time: t.timestamp || new Date().toISOString(),
+            strategy_id: strategyId || null,
+            session_id: sessionId || null,
+            market_condition: mapMarketConditionToDb(t.marketCondition),
+            emotion: mapEmotionToDb(t.emotion),
+            reason_for_entry: t.notes || '',
+            notes: t.notes || '',
+            account_id: t.accountId || null,
+            pnl: typeof t.pnl === 'number' ? t.pnl : (parseFloat(t.pnl) || 0),
+            rr_ratio: typeof t.rr === 'number' ? t.rr : (parseFloat(t.rr) || null),
+          };
         })
-        .map((t) => ({
-          user_id: userId,
-          symbol: 'XAUUSD',
-          side: (t.side || 'Buy').toLowerCase(),
-          status: 'closed',
-          entry_price: parseFloat(t.entryPrice) || 0,
-          exit_price: parseFloat(t.exitPrice) || 0,
-          lot_size: parseFloat(t.lotSize) || 0.1,
-          stop_loss: parseFloat(t.stopLoss) || null,
-          take_profit: parseFloat(t.takeProfit) || null,
-          entry_time: t.timestamp || new Date().toISOString(),
-          exit_time: t.timestamp || new Date().toISOString(),
-          emotion: (t.emotion || 'planned').toLowerCase().replace(/\s+/g, '_'),
-          reason_for_entry: t.notes || '',
-          notes: t.notes || '',
-        }));
+      );
 
       if (rowsToInsert.length === 0) {
         // Nothing new to insert
@@ -638,24 +839,35 @@ export const supabaseStore = {
   async bulkImportTrades(tradesToImport = [], balanceOps = [], accountId = '', userId = '') {
     if (!supabase || !userId) return [];
     try {
-      const rows = tradesToImport.map((t) => ({
-        user_id: userId,
-        account_id: accountId || null,
-        symbol: t.symbol || 'XAUUSD',
-        side: (t.side || 'Buy').toLowerCase(),
-        status: 'closed',
-        entry_price: t.entryPrice,
-        exit_price: t.exitPrice,
-        lot_size: t.lotSize,
-        stop_loss: t.stopLoss || null,
-        take_profit: t.takeProfit || null,
-        entry_time: t.timestamp || new Date().toISOString(),
-        exit_time: t.timestamp || new Date().toISOString(),
-        emotion: 'planned',
-        notes: t.notes || 'Imported from MT5',
-        broker_position_id: t.brokerPositionId || null,
-        broker_ticket_id: t.brokerTicketId || null,
-      }));
+      const rows = await Promise.all(
+        tradesToImport.map(async (t) => {
+          const strategyId = await this.getOrCreateStrategyId(userId, t.strategy || 'Breakout');
+          const sessionId = await this.getSessionId(t.session || 'London');
+          return {
+            user_id: userId,
+            account_id: accountId || null,
+            symbol: t.symbol || 'XAUUSD',
+            side: (t.side || 'Buy').toLowerCase(),
+            status: 'closed',
+            entry_price: parseFloat(t.entryPrice) || 0,
+            exit_price: parseFloat(t.exitPrice) || 0,
+            lot_size: parseFloat(t.lotSize) || 0.1,
+            stop_loss: parseFloat(t.stopLoss) || null,
+            take_profit: parseFloat(t.takeProfit) || null,
+            entry_time: t.timestamp || new Date().toISOString(),
+            exit_time: t.timestamp || new Date().toISOString(),
+            strategy_id: strategyId || null,
+            session_id: sessionId || null,
+            market_condition: mapMarketConditionToDb(t.marketCondition),
+            emotion: mapEmotionToDb(t.emotion),
+            notes: t.notes || 'Imported from MT5',
+            broker_position_id: t.brokerPositionId || null,
+            broker_ticket_id: t.brokerTicketId || null,
+            pnl: typeof t.pnl === 'number' ? t.pnl : (parseFloat(t.pnl) || 0),
+            rr_ratio: typeof t.rr === 'number' ? t.rr : (parseFloat(t.rr) || null),
+          };
+        })
+      );
 
       if (rows.length > 0) {
         const { error } = await supabase

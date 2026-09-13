@@ -27,6 +27,26 @@ export const DEFAULT_SETTINGS = {
   theme: 'dark-gold',
 };
 
+function safeSetItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (e) {
+    console.warn(`[tradeStore] Failed to write to localStorage for key "${key}":`, e);
+    return false;
+  }
+}
+
+function safeRemoveItem(key) {
+  try {
+    localStorage.removeItem(key);
+    return true;
+  } catch (e) {
+    console.warn(`[tradeStore] Failed to remove localStorage key "${key}":`, e);
+    return false;
+  }
+}
+
 export const tradeStore = {
   /**
    * Fetch all trading sub-accounts
@@ -50,7 +70,7 @@ export const tradeStore = {
     const account = createTradingAccount(accountData);
     const existing = await this.getAccounts();
     const updated = [...existing, account];
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updated));
+    safeSetItem(ACCOUNTS_KEY, JSON.stringify(updated));
     return account;
   },
 
@@ -64,7 +84,7 @@ export const tradeStore = {
 
     const updated = createTradingAccount({ ...existing[index], ...updates, id });
     existing[index] = updated;
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(existing));
+    safeSetItem(ACCOUNTS_KEY, JSON.stringify(existing));
     return updated;
   },
 
@@ -87,9 +107,9 @@ export const tradeStore = {
    */
   setActiveAccountId(id) {
     if (id) {
-      localStorage.setItem(ACTIVE_ACCOUNT_KEY, id);
+      safeSetItem(ACTIVE_ACCOUNT_KEY, id);
     } else {
-      localStorage.removeItem(ACTIVE_ACCOUNT_KEY);
+      safeRemoveItem(ACTIVE_ACCOUNT_KEY);
     }
   },
 
@@ -104,7 +124,7 @@ export const tradeStore = {
    * Mark database as initialized
    */
   setInitialized() {
-    localStorage.setItem(INIT_KEY, 'true');
+    safeSetItem(INIT_KEY, 'true');
   },
 
   /**
@@ -132,7 +152,7 @@ export const tradeStore = {
     const trade = createTrade(tradeData);
     const existing = await this.getAllTrades();
     const updated = [trade, ...existing];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    safeSetItem(STORAGE_KEY, JSON.stringify(updated));
     this.setInitialized();
     return trade;
   },
@@ -150,7 +170,7 @@ export const tradeStore = {
 
     const updatedTrade = createTrade({ ...existing[index], ...updates, id });
     existing[index] = updatedTrade;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+    safeSetItem(STORAGE_KEY, JSON.stringify(existing));
     return updatedTrade;
   },
 
@@ -162,7 +182,7 @@ export const tradeStore = {
   async deleteTrade(id) {
     const existing = await this.getAllTrades();
     const filtered = existing.filter((t) => t.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    safeSetItem(STORAGE_KEY, JSON.stringify(filtered));
     this.setInitialized();
     return true;
   },
@@ -176,7 +196,7 @@ export const tradeStore = {
     const normalized = batch.map(createTrade);
     const existing = await this.getAllTrades();
     const merged = [...normalized, ...existing];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    safeSetItem(STORAGE_KEY, JSON.stringify(merged));
     this.setInitialized();
     return merged;
   },
@@ -193,7 +213,7 @@ export const tradeStore = {
     const uniqueNew = normalized.filter((t) => !t.brokerPositionId || !existingPositionIds.has(String(t.brokerPositionId)));
 
     const merged = [...uniqueNew, ...existing];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    safeSetItem(STORAGE_KEY, JSON.stringify(merged));
     this.setInitialized();
 
     // Apply balance operations to target sub-account
@@ -216,8 +236,8 @@ export const tradeStore = {
    * Clear all trades
    */
   async clearAll() {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(INIT_KEY);
+    safeRemoveItem(STORAGE_KEY);
+    safeRemoveItem(INIT_KEY);
     return [];
   },
 
@@ -239,7 +259,7 @@ export const tradeStore = {
   saveSettings(settings) {
     const current = this.getSettings();
     const updated = { ...current, ...settings };
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+    safeSetItem(SETTINGS_KEY, JSON.stringify(updated));
     return updated;
   },
 
@@ -255,7 +275,7 @@ export const tradeStore = {
           ...PLAN_PRESETS[0],
           id: 'plan_default_micro_50_100',
         });
-        localStorage.setItem(PLANS_KEY, JSON.stringify([defaultPlan]));
+        safeSetItem(PLANS_KEY, JSON.stringify([defaultPlan]));
         return [defaultPlan];
       }
       const parsed = JSON.parse(raw);
@@ -271,7 +291,7 @@ export const tradeStore = {
    */
   async savePlans(plans) {
     const normalized = plans.map(createTargetPlan);
-    localStorage.setItem(PLANS_KEY, JSON.stringify(normalized));
+    safeSetItem(PLANS_KEY, JSON.stringify(normalized));
     return normalized;
   },
 
@@ -322,9 +342,9 @@ export const tradeStore = {
    */
   setActivePlanId(id) {
     if (id) {
-      localStorage.setItem(ACTIVE_PLAN_KEY, id);
+      safeSetItem(ACTIVE_PLAN_KEY, id);
     } else {
-      localStorage.removeItem(ACTIVE_PLAN_KEY);
+      safeRemoveItem(ACTIVE_PLAN_KEY);
     }
   }
 };

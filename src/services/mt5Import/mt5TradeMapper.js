@@ -5,6 +5,7 @@
  */
 
 import { createTrade } from '../../types/tradeSchema';
+import { getActiveSessionName } from '../../utils/sessionDetector';
 
 /**
  * Normalizes broker symbol names to canonical XAUUSD instrument.
@@ -63,7 +64,7 @@ export function mapPositionToTrade(positionTrade, account = {}) {
     pnl: parseFloat(netPnl.toFixed(2)),
     rr: 0, // Will be computed or updated
     strategy: 'Breakout',
-    session: 'London',
+    session: getActiveSessionName(new Date(timestamp)),
     marketCondition: 'Trending',
     emotion: 'Planned',
     notes: positionTrade.partialCloseCount

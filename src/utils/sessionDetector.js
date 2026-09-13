@@ -50,3 +50,20 @@ export function getCurrentGoldSession(date = new Date(), marketSource = 'oanda')
   // Sydney / Asian Open: 21:00 to 24:00 UTC
   return { name: 'Sydney / Asian Open', color: '#7E99A3', status: 'active', timeLeft: formatTimeLeft(24) };
 }
+
+/**
+ * Returns canonical session name ('Asian' | 'London' | 'New York' | 'London Close')
+ * based on UTC time of day.
+ * @param {Date} [date]
+ * @returns {'Asian'|'London'|'New York'|'London Close'}
+ */
+export function getActiveSessionName(date = new Date()) {
+  const d = date instanceof Date && !isNaN(date.getTime()) ? date : new Date();
+  const hours = d.getUTCHours();
+  if (hours >= 0 && hours < 8) return 'Asian';
+  if (hours >= 8 && hours < 16) return 'London';
+  if (hours >= 16 && hours < 17) return 'London Close';
+  if (hours >= 17 && hours < 21) return 'New York';
+  return 'Asian';
+}
+

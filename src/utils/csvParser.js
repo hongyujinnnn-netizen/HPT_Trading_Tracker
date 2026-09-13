@@ -8,6 +8,10 @@
  * Time, Position, Symbol, Type, Volume, Price, S / L, T / P, Time, Price, Commission, Swap, Profit
  */
 
+import { createTrade } from '../types/tradeSchema';
+import { calculateRR } from './calculations';
+import { getActiveSessionName } from './sessionDetector';
+
 /**
  * Helper to prevent CSV Formula Injection (=, +, -, @, tab, CR)
  */
@@ -145,7 +149,7 @@ export function parseCSV(csvText) {
         pnl,
         rr,
         strategy: (rowObj['strategy'] || 'Breakout').replace(/[<>"']/g, ''),
-        session: (rowObj['session'] || 'London').replace(/[<>"']/g, ''),
+        session: (rowObj['session'] || getActiveSessionName(new Date(timestamp))).replace(/[<>"']/g, ''),
         marketCondition: (rowObj['marketcondition'] || 'Trending').replace(/[<>"']/g, ''),
         emotion: (rowObj['emotion'] || 'Planned').replace(/[<>"']/g, ''),
         notes: (rowObj['notes'] || rowObj['reason'] || '').replace(/[<>"']/g, ''),

@@ -3,6 +3,18 @@ import { PlusCircle, Upload, AlertTriangle, ShieldCheck, Calculator, Sparkles, X
 import { useTrade } from '../context/TradeContext';
 import { calculatePnL, calculateRR, calculateLotSize } from '../utils/calculations';
 import { detectMistakes } from '../utils/mistakeDetector';
+import { getActiveSessionName } from '../utils/sessionDetector';
+
+const STANDARD_STRATEGIES = [
+  'Breakout',
+  'Pullback',
+  'London Breakout',
+  'News Fade',
+  'Order Block / ICT',
+  'FVG Liquidity Sweep',
+  'Trend Following',
+  'Range Scalp',
+];
 
 export function AddTrade() {
   const {
@@ -19,6 +31,8 @@ export function AddTrade() {
   } = useTrade();
 
   const visibleAccounts = tradingAccounts.filter((a) => !a.isArchived);
+
+  const initialIsCustom = tradeDraft?.strategy && !STANDARD_STRATEGIES.includes(tradeDraft.strategy);
 
   // Form State initialized with draft or live gold price
   const [selectedAccountId, setSelectedAccountId] = useState(
@@ -38,10 +52,14 @@ export function AddTrade() {
     tradeDraft?.takeProfit || (liveGoldPrice ? (liveGoldPrice + (side === 'Buy' ? 20 : -20)).toFixed(2) : '2720.00')
   );
   const [lotSize, setLotSize] = useState(tradeDraft?.lotSize || '0.50');
-  const [strategy, setStrategy] = useState(tradeDraft?.strategy || 'Breakout');
-  const [isCustomStrategy, setIsCustomStrategy] = useState(false);
-  const [customStrategy, setCustomStrategy] = useState('');
-  const [session, setSession] = useState('London');
+  const [strategy, setStrategy] = useState(
+    tradeDraft?.strategy && STANDARD_STRATEGIES.includes(tradeDraft.strategy)
+      ? tradeDraft.strategy
+      : 'Breakout'
+  );
+  const [isCustomStrategy, setIsCustomStrategy] = useState(!!initialIsCustom);
+  const [customStrategy, setCustomStrategy] = useState(initialIsCustom ? tradeDraft.strategy : '');
+  const [session, setSession] = useState(tradeDraft?.session || getActiveSessionName());
   const [marketCondition, setMarketCondition] = useState('Trending');
   const [emotion, setEmotion] = useState('Planned');
   const [notes, setNotes] = useState('');
@@ -73,7 +91,17 @@ export function AddTrade() {
       if (tradeDraft.stopLoss) setStopLoss(tradeDraft.stopLoss);
       if (tradeDraft.takeProfit) setTakeProfit(tradeDraft.takeProfit);
       if (tradeDraft.lotSize) setLotSize(tradeDraft.lotSize);
-      if (tradeDraft.strategy) setStrategy(tradeDraft.strategy);
+      if (tradeDraft.strategy) {
+        if (STANDARD_STRATEGIES.includes(tradeDraft.strategy)) {
+          setStrategy(tradeDraft.strategy);
+          setIsCustomStrategy(false);
+          setCustomStrategy('');
+        } else {
+          setIsCustomStrategy(true);
+          setCustomStrategy(tradeDraft.strategy);
+        }
+      }
+      if (tradeDraft.session) setSession(tradeDraft.session);
       if (tradeDraft.accountId) setSelectedAccountId(tradeDraft.accountId);
       setTradeDraft(null);
     }
@@ -167,6 +195,19 @@ export function AddTrade() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError(null);
+
+    if (!entry || entry <= 0) {
+      setFormError('Please enter a valid Entry Price for XAU/USD (e.g. 2650.50).');
+      return;
+    }
+    if (!lots || lots <= 0) {
+      setFormError('Please enter a valid Lot Size (minimum 0.01).');
+      return;
+    }
+    if (sl < 0 || tp < 0 || exit < 0) {
+      setFormError('Price fields cannot be negative.');
+      return;
+    }
 
     const finalStrategy = isCustomStrategy && customStrategy.trim() ? customStrategy.trim() : strategy;
 

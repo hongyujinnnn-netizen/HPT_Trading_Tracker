@@ -39,7 +39,7 @@ export function calculateRR(side, entryPrice, stopLoss, takeProfit) {
 
   const rewardDist = side === 'Buy' ? takeProfit - entryPrice : entryPrice - takeProfit;
   const rr = rewardDist / riskDist;
-  return Math.round(rr * 100) / 100;
+  return isNaN(rr) || !isFinite(rr) ? 0 : Math.round(rr * 100) / 100;
 }
 
 /**
@@ -129,7 +129,7 @@ export function calculatePerformanceStats(trades = [], initialBalance = 10000) {
       peakEquity = currentEquity;
     } else {
       const ddDollar = peakEquity - currentEquity;
-      const ddPct = (ddDollar / peakEquity) * 100;
+      const ddPct = peakEquity > 0 ? (ddDollar / peakEquity) * 100 : 0;
       if (ddDollar > maxDrawdownDollar) maxDrawdownDollar = ddDollar;
       if (ddPct > maxDrawdownPct) maxDrawdownPct = ddPct;
     }

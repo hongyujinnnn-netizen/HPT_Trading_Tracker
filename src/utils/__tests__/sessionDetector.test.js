@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getCurrentGoldSession } from '../sessionDetector';
+import { getCurrentGoldSession, getActiveSessionName } from '../sessionDetector';
 
 describe('Gold Session Detector', () => {
   it('detects Asian Session during 04:00 UTC on Wednesday', () => {
@@ -24,4 +24,27 @@ describe('Gold Session Detector', () => {
     expect(session.name).toBe('Weekend Closed');
     expect(session.status).toBe('closed');
   });
+
+  describe('getActiveSessionName', () => {
+    it('returns Asian during 04:00 UTC', () => {
+      expect(getActiveSessionName(new Date('2026-08-05T04:00:00Z'))).toBe('Asian');
+    });
+
+    it('returns London during 10:00 UTC', () => {
+      expect(getActiveSessionName(new Date('2026-08-05T10:00:00Z'))).toBe('London');
+    });
+
+    it('returns London Close during 16:30 UTC', () => {
+      expect(getActiveSessionName(new Date('2026-08-05T16:30:00Z'))).toBe('London Close');
+    });
+
+    it('returns New York during 18:00 UTC', () => {
+      expect(getActiveSessionName(new Date('2026-08-05T18:00:00Z'))).toBe('New York');
+    });
+
+    it('returns Asian during 22:00 UTC', () => {
+      expect(getActiveSessionName(new Date('2026-08-05T22:00:00Z'))).toBe('Asian');
+    });
+  });
 });
+

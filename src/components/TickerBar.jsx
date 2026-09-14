@@ -140,12 +140,12 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountMan
         borderColor: 'var(--color-border-soft)',
       }}
     >
-      <div className="flex items-center gap-3 md:gap-5">
+      <div className="flex items-center gap-2 sm:gap-3 md:gap-5 min-w-0">
         {/* Mobile Menu Toggle Button */}
         {onToggleMobileMenu && (
           <button
             onClick={onToggleMobileMenu}
-            className="md:hidden p-1.5 rounded-lg border text-[#D97706] dark:text-[#E5B83B] transition-colors focus:outline-none"
+            className="md:hidden p-1.5 rounded-lg border text-[#D97706] dark:text-[#E5B83B] transition-colors focus:outline-none shrink-0"
             style={{
               backgroundColor: 'var(--color-elevated)',
               borderColor: 'var(--color-border-soft)',
@@ -158,10 +158,10 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountMan
         <button
           onClick={() => setActivePage && setActivePage('chart')}
           title="Open TradingView Gold Chart (XAU/USD)"
-          className="flex items-center gap-2.5 p-1 -m-1 rounded-lg hover:bg-white/[0.04] transition-colors group cursor-pointer text-left"
+          className="flex items-center gap-2 sm:gap-2.5 p-1 -m-1 rounded-lg hover:bg-white/[0.04] transition-colors group cursor-pointer text-left shrink-0"
         >
           {/* Connection dot indicator with radiating pulse */}
-          <div className="relative flex items-center justify-center">
+          <div className="relative flex items-center justify-center shrink-0">
             <span className={`w-2 h-2 rounded-full transition-colors duration-300 ${
               connectionState === ConnectionState.LIVE ? 'bg-[#34D399]' :
               connectionState === ConnectionState.CONNECTING || connectionState === ConnectionState.RECONNECTING ? 'bg-[#E5B83B]' :
@@ -173,7 +173,7 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountMan
             )}
           </div>
           <span
-            className="text-sm font-bold font-mono-num group-hover:text-amber-500 transition-colors"
+            className="text-xs sm:text-sm font-bold font-mono-num group-hover:text-amber-500 transition-colors"
             style={{ color: 'var(--color-text-main)' }}
           >
             XAU/USD
@@ -181,7 +181,7 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountMan
 
           {/* Price with flash animation */}
           <span
-            className={`text-sm font-semibold font-mono-num rounded px-1.5 -mx-1 transition-colors duration-300 ${
+            className={`text-xs sm:text-sm font-semibold font-mono-num rounded px-1 -mx-0.5 sm:px-1.5 sm:-mx-1 transition-colors duration-300 ${
               flashClass === 'flash-green'
                 ? 'bg-emerald-500/20 text-emerald-500 dark:text-emerald-400 font-bold'
                 : flashClass === 'flash-red'
@@ -195,7 +195,7 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountMan
 
           {/* Daily change badge */}
           <span
-            className={`text-xs font-mono-num font-semibold flex items-center gap-0.5 px-2 py-0.5 rounded-md border shadow-sm transition-all ${
+            className={`text-[11px] sm:text-xs font-mono-num font-semibold flex items-center gap-0.5 px-1.5 sm:px-2 py-0.5 rounded-md border shadow-sm transition-all ${
               isPositive
                 ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-[#34D399]'
                 : 'bg-rose-500/15 border-rose-500/30 text-rose-600 dark:text-[#FB7185]'
@@ -241,64 +241,68 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountMan
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        {/* Trading Sub-Account Selector */}
-        <AccountSelector onOpenManager={onOpenAccountManager} />
+      <div className="flex items-center gap-2 md:gap-3 shrink-0">
+        {/* Desktop-only: Trading Sub-Account Selector */}
+        <div className="hidden md:block">
+          <AccountSelector onOpenManager={onOpenAccountManager} />
+        </div>
 
-        {/* User Session Profile — ONLY Logo/Avatar Icon */}
-        {userSession ? (
-          <div className="flex items-center gap-1.5">
+        {/* Desktop-only: User Session Profile & Sign Out */}
+        <div className="hidden md:flex items-center gap-1.5">
+          {userSession ? (
+            <>
+              <button
+                onClick={() => setActivePage('profile')}
+                title={`Profile (${userSession.user.email})`}
+                className="w-8 h-8 rounded-full flex items-center justify-center border transition-all hover:scale-105 active:scale-95 shadow-sm"
+                style={{
+                  background: 'var(--color-elevated)',
+                  borderColor: 'var(--color-border-soft)',
+                }}
+              >
+                <span className="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-400 text-white text-[11px] font-bold flex items-center justify-center shadow-inner">
+                  {userSession.user.email?.charAt(0).toUpperCase() || 'U'}
+                </span>
+              </button>
+
+              <button
+                onClick={signOut}
+                title="Sign Out"
+                className="p-1.5 rounded-lg border hover:text-rose-500 hover:border-rose-500/30 transition-colors"
+                style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
+              >
+                <LogOut size={14} />
+              </button>
+            </>
+          ) : isDemoMode ? (
             <button
               onClick={() => setActivePage('profile')}
-              title={`Profile (${userSession.user.email})`}
-              className="w-8 h-8 rounded-full flex items-center justify-center border transition-all hover:scale-105 active:scale-95 shadow-sm"
+              title="Demo Profile"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-amber-500 border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 transition-all shadow-sm"
+            >
+              <Sparkles size={14} />
+            </button>
+          ) : (
+            <button
+              onClick={() => setActivePage('profile')}
+              title="Profile"
+              className="w-8 h-8 rounded-full flex items-center justify-center border hover:opacity-80 transition-all shadow-sm"
               style={{
                 background: 'var(--color-elevated)',
                 borderColor: 'var(--color-border-soft)',
+                color: 'var(--color-text-main)',
               }}
             >
-              <span className="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-400 text-white text-[11px] font-bold flex items-center justify-center shadow-inner">
-                {userSession.user.email?.charAt(0).toUpperCase() || 'U'}
-              </span>
+              <User size={15} />
             </button>
+          )}
+        </div>
 
-            <button
-              onClick={signOut}
-              title="Sign Out"
-              className="p-1.5 rounded-lg border hover:text-rose-500 hover:border-rose-500/30 transition-colors"
-              style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
-            >
-              <LogOut size={14} />
-            </button>
-          </div>
-        ) : isDemoMode ? (
-          <button
-            onClick={() => setActivePage('profile')}
-            title="Demo Profile"
-            className="w-8 h-8 rounded-full flex items-center justify-center text-amber-500 border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 transition-all shadow-sm"
-          >
-            <Sparkles size={14} />
-          </button>
-        ) : (
-          <button
-            onClick={() => setActivePage('profile')}
-            title="Profile"
-            className="w-8 h-8 rounded-full flex items-center justify-center border hover:opacity-80 transition-all shadow-sm"
-            style={{
-              background: 'var(--color-elevated)',
-              borderColor: 'var(--color-border-soft)',
-              color: 'var(--color-text-main)',
-            }}
-          >
-            <User size={15} />
-          </button>
-        )}
-
-        {/* Dark / White Mode Toggle */}
+        {/* Desktop-only: Dark / White Mode Toggle */}
         <button
           onClick={handleToggleTheme}
           title={isDarkMode ? 'Switch to White Mode' : 'Switch to Dark Mode'}
-          className="w-8 h-8 rounded-xl border flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 shadow-sm"
+          className="hidden md:flex w-8 h-8 rounded-xl border items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 shadow-sm"
           style={{
             background: 'var(--color-elevated)',
             borderColor: 'var(--color-border-soft)',
@@ -313,7 +317,7 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountMan
           )}
         </button>
 
-        {/* Notifications & Alerts Bell with Anchored Dropdown Flyout */}
+        {/* Mobile & Desktop: Notifications & Alerts Bell */}
         {(() => {
           const unreadNotifCount = notifications.filter((n) => !n.isRead).length;
           const activeAlertCount = (priceAlerts || []).filter((a) => !a.isTriggered).length;

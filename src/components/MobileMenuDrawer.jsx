@@ -90,7 +90,7 @@ export function MobileMenuDrawer({
                 <span className="text-sm font-bold font-display tracking-tight bg-gradient-to-r from-slate-900 via-amber-800 to-amber-600 dark:from-[#EDEAE3] dark:via-[#F3D371] dark:to-[#C9A227] bg-clip-text text-transparent">
                   TradePulse
                 </span>
-                <span className="text-[9px] font-mono-num font-bold px-1.5 py-0.2 rounded-full bg-amber-500/10 text-amber-700 border border-amber-500/30 dark:bg-[#C9A227]/15 dark:text-[#E5B83B] dark:border-[#C9A227]/30 tracking-wider">
+                <span className="text-[9px] font-mono-num font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 border border-amber-500/30 dark:bg-[#C9A227]/15 dark:text-[#E5B83B] dark:border-[#C9A227]/30 tracking-wider">
                   GOLD
                 </span>
               </div>
@@ -368,7 +368,7 @@ export function MobileMenuDrawer({
                         <div className="min-w-0">
                           <div className="font-medium truncate">{acc.name}</div>
                           <div className="text-[9px] font-mono-num opacity-70">
-                            ${acc.initialBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            ${(Number(acc.initialBalance) || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                           </div>
                         </div>
                       </div>

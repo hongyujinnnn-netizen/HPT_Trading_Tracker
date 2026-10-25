@@ -1,29 +1,24 @@
 /**
  * Centralized Gold Price Service (Singleton)
  *
- * Architecture: Leader–Follower with Supabase Realtime Broadcast
+ * Architecture: per-client REST polling of keyless public price APIs.
  *
- * Problem: Finnhub free tier allows only 1 WebSocket connection per API key.
- *          If multiple users open the app, only 1 can connect.
+ * SECURITY NOTE (2026-10-25):
+ *   The previous design shipped the Finnhub API key to the browser (VITE_* vars
+ *   are bundled into public JS) and relayed ticks between users over an open
+ *   Supabase Realtime Broadcast channel. Any holder of the public anon key could
+ *   broadcast spoofed prices to every user, triggering pending orders and price
+ *   alerts. Both mechanisms were removed. Each client now fetches prices itself
+ *   from trusted HTTPS sources, so no client can influence another client's feed.
  *
- * Solution: ONE user (the "leader") connects to Finnhub and broadcasts ticks
- *           to ALL other users via Supabase Realtime Broadcast channel.
- *           If the leader closes their browser, another user auto-promotes.
+ *   If tick-level streaming is needed again, run the Finnhub connection on a
+ *   server (Edge Function / worker) and publish via a PRIVATE Realtime channel
+ *   whose RLS only allows the server role to send.
  *
- * Flow:
- *   1. All clients join Supabase Broadcast channel "gold-price-live"
- *   2. Listen for leader heartbeats (sent every 3s by the current leader)
- *   3. If no heartbeat received within 6s → this client becomes the leader
- *   4. Leader connects to Finnhub WS and broadcasts every tick to channel
- *   5. Followers receive ticks from channel (zero Finnhub connections)
- *   6. If Supabase is not configured → direct Finnhub connection (single user)
- *
- * Fallback layers:
- *   - gold-api.com REST (2s polling when WS is down)
- *   - CoinGecko REST (last resort)
+ * Sources:
+ *   - gold-api.com REST (primary, polled every 2s while the tab is visible)
+ *   - CoinGecko PAX Gold REST (last resort)
  */
-
-import { supabase, isSupabaseConfigured } from './supabaseClient';
 
 // Connection states exposed to consumers
 const ConnectionState = {
@@ -34,6 +29,8 @@ const ConnectionState = {
   OFFLINE: 'offline',
 };
 
+const MAX_TICK_DEVIATION = 0.05; // reject ticks that jump > 5% from last price
+
 class GoldPriceService {
   constructor() {
     // Price state
@@ -42,24 +39,19 @@ class GoldPriceService {
     this._bid = null;
     this._ask = null;
     this._change24h = 0;
-    this._source = 'unknown'; // 'finnhub' | 'goldapi' | 'coingecko' | 'broadcast'
+    this._source = 'unknown'; // 'goldapi' | 'coingecko'
     this._lastUpdated = null;
-    this._tickCount = 0;
     this._ticksPerSecond = 0;
 
     // Connection state
     this._connectionState = ConnectionState.OFFLINE;
-    this._ws = null;
-    this._reconnectAttempts = 0;
-    this._reconnectTimer = null;
-    this._heartbeatTimer = null;
-    this._lastTickTime = 0;
-    this._wsConsecutiveFailures = 0;
+    this._consecutiveFailures = 0;
 
-    // Fallback polling
-    this._fallbackIntervalId = null;
-    this._fallbackPollMs = 2000;
-    this._wsRetryIntervalId = null;
+    // Polling
+    this._pollIntervalId = null;
+    this._pollMs = 2000;
+    this._hiddenPollMs = 30000; // slow down when tab hidden and no active orders
+    this._inFlight = false;
 
     // Tick rate measurement
     this._tickTimestamps = [];
@@ -70,21 +62,7 @@ class GoldPriceService {
     this._hasActiveOrders = false;
     this._isRunning = false;
 
-    // Finnhub config
-    this._finnhubKey = import.meta.env.VITE_FINNHUB_API_KEY || '';
-    this._finnhubSymbol = 'OANDA:XAU_USD';
-
-    // Opening price for daily change calculation
-    this._openPrice = null;
-
-    // ─── Leader–Follower state ──────────────────────────
-    this._clientId = `client_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    this._isLeader = false;
-    this._broadcastChannel = null;
-    this._lastLeaderHeartbeat = 0;       // timestamp of last heartbeat received
-    this._leaderCheckTimer = null;       // interval to check if leader is alive
-    this._leaderHeartbeatTimer = null;   // interval to send heartbeats (leader only)
-    this._promotionDelay = null;         // timeout before self-promoting to leader
+    this._onVisibilityChange = this._onVisibilityChange.bind(this);
   }
 
   // ─── Public API ───────────────────────────────────────
@@ -105,7 +83,7 @@ class GoldPriceService {
       hasActiveOrders: this._hasActiveOrders,
       connectionState: this._connectionState,
       ticksPerSecond: this._ticksPerSecond,
-      isLeader: this._isLeader,
+      isLeader: false, // kept for backwards compatibility with consumers
     };
   }
 
@@ -129,7 +107,9 @@ class GoldPriceService {
   }
 
   setHasActiveOrders(hasOrders) {
+    const changed = this._hasActiveOrders !== hasOrders;
     this._hasActiveOrders = hasOrders;
+    if (changed && this._isRunning) this._restartPolling();
   }
 
   // ─── Lifecycle ────────────────────────────────────────
@@ -137,494 +117,102 @@ class GoldPriceService {
   _start() {
     if (this._isRunning) return;
     this._isRunning = true;
-    this._reconnectAttempts = 0;
-    this._wsConsecutiveFailures = 0;
+    this._consecutiveFailures = 0;
+    this._setConnectionState(ConnectionState.CONNECTING);
 
-    // Start tick rate measurement
     this._tickRateIntervalId = setInterval(() => this._measureTickRate(), 1000);
-
-    const hasFinnhub = this._finnhubKey && this._finnhubKey !== 'your_finnhub_api_key_here';
-
-    // If Supabase is configured → use leader/follower broadcast pattern
-    if (isSupabaseConfigured && supabase && hasFinnhub) {
-      this._joinBroadcastChannel();
-    } else if (hasFinnhub) {
-      // No Supabase → single user mode, connect directly
-      console.warn('[GoldPrice] Supabase not configured. Using direct Finnhub connection (single-user mode).');
-      this._promoteToLeader();
-    } else {
-      console.warn('[GoldPrice] No Finnhub API key. Using REST polling fallback.');
-      this._startFallbackPolling();
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this._onVisibilityChange);
     }
+
+    this._restartPolling();
   }
 
   _stop() {
     this._isRunning = false;
-    this._demoteFromLeader();
-    this._leaveBroadcastChannel();
-    this._stopFallbackPolling();
-    this._stopWsRetryInterval();
+    this._stopPolling();
 
     if (this._tickRateIntervalId) {
       clearInterval(this._tickRateIntervalId);
       this._tickRateIntervalId = null;
     }
-    if (this._leaderCheckTimer) {
-      clearInterval(this._leaderCheckTimer);
-      this._leaderCheckTimer = null;
-    }
-    if (this._promotionDelay) {
-      clearTimeout(this._promotionDelay);
-      this._promotionDelay = null;
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this._onVisibilityChange);
     }
 
     this._connectionState = ConnectionState.OFFLINE;
   }
 
-  // ─── Supabase Broadcast: Leader Election ──────────────
-
-  _joinBroadcastChannel() {
-    if (this._broadcastChannel) return;
-
-    this._setConnectionState(ConnectionState.CONNECTING);
-
-    this._broadcastChannel = supabase.channel('gold-price-live', {
-      config: { broadcast: { self: false } },
-    });
-
-    // Listen for price tick broadcasts from the leader
-    this._broadcastChannel.on('broadcast', { event: 'tick' }, (payload) => {
-      this._onBroadcastTick(payload.payload);
-    });
-
-    // Listen for leader heartbeats
-    this._broadcastChannel.on('broadcast', { event: 'heartbeat' }, (payload) => {
-      this._onLeaderHeartbeat(payload.payload);
-    });
-
-    this._broadcastChannel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.log(`[GoldPrice] Joined broadcast channel as ${this._clientId}`);
-
-        // Wait to see if a leader announces itself
-        // Use random jitter (2-5s) to prevent all clients promoting simultaneously
-        const jitter = 2000 + Math.random() * 3000;
-        this._lastLeaderHeartbeat = 0;
-
-        this._promotionDelay = setTimeout(() => {
-          if (this._lastLeaderHeartbeat === 0 && !this._isLeader) {
-            console.log('[GoldPrice] No leader detected. Promoting self to leader.');
-            this._promoteToLeader();
-          }
-        }, jitter);
-
-        // Continuously check if leader is alive (every 3s)
-        this._leaderCheckTimer = setInterval(() => {
-          if (!this._isLeader && this._lastLeaderHeartbeat > 0) {
-            const silenceMs = Date.now() - this._lastLeaderHeartbeat;
-            if (silenceMs > 6000) {
-              console.log(`[GoldPrice] Leader silent for ${(silenceMs / 1000).toFixed(0)}s. Promoting self.`);
-              this._lastLeaderHeartbeat = 0;
-              // Random jitter to avoid simultaneous promotion
-              const jitter = 500 + Math.random() * 2000;
-              setTimeout(() => {
-                if (!this._isLeader && this._isRunning) {
-                  this._promoteToLeader();
-                }
-              }, jitter);
-            }
-          }
-        }, 3000);
-      }
-    });
+  _onVisibilityChange() {
+    if (this._isRunning) this._restartPolling();
   }
 
-  _leaveBroadcastChannel() {
-    if (this._broadcastChannel) {
-      try {
-        supabase.removeChannel(this._broadcastChannel);
-      } catch (e) { /* ignore */ }
-      this._broadcastChannel = null;
-    }
+  // ─── Polling Layer ────────────────────────────────────
+
+  _currentPollMs() {
+    const hidden = typeof document !== 'undefined' && document.hidden;
+    // Keep fast polling while pending orders need monitoring, even in background
+    return hidden && !this._hasActiveOrders ? this._hiddenPollMs : this._pollMs;
   }
 
-  /** Called when we receive a heartbeat from the current leader */
-  _onLeaderHeartbeat(payload) {
-    if (!payload || payload.clientId === this._clientId) return;
-
-    this._lastLeaderHeartbeat = Date.now();
-
-    // If we were trying to promote, cancel it — a leader exists
-    if (this._promotionDelay) {
-      clearTimeout(this._promotionDelay);
-      this._promotionDelay = null;
-    }
-
-    // If we are also a leader (split brain), the older leader wins
-    if (this._isLeader && payload.promotedAt && payload.promotedAt < this._leaderPromotedAt) {
-      console.log('[GoldPrice] Older leader detected. Demoting self.');
-      this._demoteFromLeader();
-    }
-  }
-
-  /** Called when we receive a tick broadcast from the leader */
-  _onBroadcastTick(payload) {
-    if (!payload || typeof payload.price !== 'number') return;
-
-    this._lastLeaderHeartbeat = Date.now(); // tick also counts as heartbeat
-
-    const newPrice = payload.price;
-
-    // Bad tick filter
-    if (this._price !== null) {
-      const deviation = Math.abs(newPrice - this._price) / this._price;
-      if (deviation > 0.05) return;
-    }
-
-    if (this._openPrice === null) {
-      this._openPrice = newPrice;
-    }
-
-    this._previousPrice = this._price;
-    this._price = newPrice;
-    this._bid = payload.bid ?? this._bid;
-    this._ask = payload.ask ?? this._ask;
-    this._change24h = payload.change24h ?? this._change24h;
-    this._source = 'broadcast';
-    this._lastUpdated = payload.lastUpdated || new Date().toISOString();
-    this._lastTickTime = Date.now();
-
-    this._tickTimestamps.push(Date.now());
-    this._tickCount++;
-
-    if (this._connectionState !== ConnectionState.LIVE) {
-      this._setConnectionState(ConnectionState.LIVE);
-    }
-
-    this._notify();
-  }
-
-  // ─── Leader Role ──────────────────────────────────────
-
-  _promoteToLeader() {
-    if (this._isLeader) return;
-
-    this._isLeader = true;
-    this._leaderPromotedAt = Date.now();
-    console.log(`[GoldPrice] 🏆 Promoted to LEADER (${this._clientId})`);
-
-    // Start sending heartbeats so followers know we're alive
-    this._startLeaderHeartbeat();
-
-    // Connect to Finnhub
-    this._connectWebSocket();
-  }
-
-  _demoteFromLeader() {
-    if (!this._isLeader) return;
-
-    this._isLeader = false;
-    console.log(`[GoldPrice] Demoted from leader (${this._clientId})`);
-
-    // Disconnect from Finnhub
-    this._disconnectWebSocket();
-
-    // Stop sending heartbeats
-    this._stopLeaderHeartbeat();
-  }
-
-  _startLeaderHeartbeat() {
-    this._stopLeaderHeartbeat();
-
-    // Send heartbeat immediately, then every 3s
-    this._sendHeartbeat();
-    this._leaderHeartbeatTimer = setInterval(() => this._sendHeartbeat(), 3000);
-  }
-
-  _stopLeaderHeartbeat() {
-    if (this._leaderHeartbeatTimer) {
-      clearInterval(this._leaderHeartbeatTimer);
-      this._leaderHeartbeatTimer = null;
-    }
-  }
-
-  _sendHeartbeat() {
-    if (!this._broadcastChannel || !this._isLeader) return;
-    try {
-      this._broadcastChannel.send({
-        type: 'broadcast',
-        event: 'heartbeat',
-        payload: {
-          clientId: this._clientId,
-          promotedAt: this._leaderPromotedAt,
-          price: this._price,
-          ts: Date.now(),
-        },
-      });
-    } catch (e) { /* ignore */ }
-  }
-
-  /** Broadcast a price tick to all followers */
-  _broadcastTick() {
-    if (!this._broadcastChannel || !this._isLeader) return;
-    try {
-      this._broadcastChannel.send({
-        type: 'broadcast',
-        event: 'tick',
-        payload: {
-          price: this._price,
-          bid: this._bid,
-          ask: this._ask,
-          change24h: this._change24h,
-          lastUpdated: this._lastUpdated,
-          source: this._source,
-          ts: Date.now(),
-        },
-      });
-    } catch (e) { /* ignore */ }
-  }
-
-  // ─── WebSocket Layer (Leader Only) ────────────────────
-
-  _connectWebSocket() {
-    this._disconnectWebSocket();
-    this._setConnectionState(ConnectionState.CONNECTING);
-
-    try {
-      const url = `wss://ws.finnhub.io?token=${this._finnhubKey}`;
-      this._ws = new WebSocket(url);
-
-      this._ws.onopen = () => {
-        console.log('[GoldPrice] WebSocket connected to Finnhub (leader mode)');
-        this._reconnectAttempts = 0;
-        this._wsConsecutiveFailures = 0;
-
-        this._ws.send(JSON.stringify({
-          type: 'subscribe',
-          symbol: this._finnhubSymbol,
-        }));
-
-        this._stopFallbackPolling();
-        this._stopWsRetryInterval();
-        this._startHeartbeat();
-        this._setConnectionState(ConnectionState.LIVE);
-      };
-
-      this._ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          if (msg.type === 'trade' && Array.isArray(msg.data)) {
-            this._processWsTicks(msg.data);
-          } else if (msg.type === 'ping') {
-            this._resetHeartbeat();
-          }
-        } catch (err) {
-          console.warn('[GoldPrice] WS message parse error:', err);
-        }
-      };
-
-      this._ws.onerror = (err) => {
-        console.warn('[GoldPrice] WebSocket error:', err);
-      };
-
-      this._ws.onclose = (event) => {
-        console.log(`[GoldPrice] WebSocket closed: code=${event.code} reason=${event.reason}`);
-        this._stopHeartbeat();
-
-        if (this._isRunning && this._isLeader) {
-          this._wsConsecutiveFailures++;
-          this._scheduleReconnect();
-        }
-      };
-    } catch (err) {
-      console.error('[GoldPrice] WebSocket creation failed:', err);
-      this._wsConsecutiveFailures++;
-      this._scheduleReconnect();
-    }
-  }
-
-  _disconnectWebSocket() {
-    this._stopHeartbeat();
-
-    if (this._ws) {
-      try {
-        if (this._ws.readyState === WebSocket.OPEN) {
-          this._ws.send(JSON.stringify({
-            type: 'unsubscribe',
-            symbol: this._finnhubSymbol,
-          }));
-        }
-        this._ws.onopen = null;
-        this._ws.onmessage = null;
-        this._ws.onerror = null;
-        this._ws.onclose = null;
-        this._ws.close();
-      } catch (e) { /* ignore */ }
-      this._ws = null;
-    }
-
-    if (this._reconnectTimer) {
-      clearTimeout(this._reconnectTimer);
-      this._reconnectTimer = null;
-    }
-  }
-
-  /**
-   * Process tick data from Finnhub WebSocket.
-   * Only the leader runs this. After processing, broadcast to followers.
-   */
-  _processWsTicks(ticks) {
-    const latest = ticks[ticks.length - 1];
-    if (!latest || typeof latest.p !== 'number') return;
-
-    const newPrice = parseFloat(latest.p.toFixed(2));
-
-    // Bad tick filter
-    if (this._price !== null) {
-      const deviation = Math.abs(newPrice - this._price) / this._price;
-      if (deviation > 0.05) {
-        console.warn(`[GoldPrice] Rejected bad tick: $${newPrice} (${(deviation * 100).toFixed(1)}% deviation)`);
-        return;
-      }
-    }
-
-    if (this._openPrice === null) {
-      this._openPrice = newPrice;
-    }
-
-    // Bid/ask from tick data
-    if (ticks.length >= 2) {
-      const prices = ticks.map(t => t.p).sort((a, b) => a - b);
-      this._bid = parseFloat(prices[0].toFixed(2));
-      this._ask = parseFloat(prices[prices.length - 1].toFixed(2));
-    } else {
-      this._bid = parseFloat((newPrice - 0.15).toFixed(2));
-      this._ask = parseFloat((newPrice + 0.15).toFixed(2));
-    }
-
-    this._previousPrice = this._price;
-    this._price = newPrice;
-    this._source = 'finnhub';
-    this._lastUpdated = new Date(latest.t || Date.now()).toISOString();
-    this._lastTickTime = Date.now();
-
-    if (this._openPrice) {
-      this._change24h = parseFloat((((newPrice - this._openPrice) / this._openPrice) * 100).toFixed(2));
-    }
-
-    this._tickTimestamps.push(Date.now());
-    this._tickCount++;
-
-    this._resetHeartbeat();
-    this._notify();
-
-    // 📡 Broadcast to all followers via Supabase
-    this._broadcastTick();
-  }
-
-  // ─── Heartbeat Monitor (Finnhub WS liveness) ─────────
-
-  _startHeartbeat() {
-    this._stopHeartbeat();
-    this._lastTickTime = Date.now();
-
-    this._heartbeatTimer = setInterval(() => {
-      const silenceMs = Date.now() - this._lastTickTime;
-      if (silenceMs > 10000) {
-        console.warn(`[GoldPrice] No ticks for ${(silenceMs / 1000).toFixed(0)}s — forcing reconnect`);
-        this._disconnectWebSocket();
-        this._wsConsecutiveFailures++;
-        this._scheduleReconnect();
-      }
-    }, 5000);
-  }
-
-  _stopHeartbeat() {
-    if (this._heartbeatTimer) {
-      clearInterval(this._heartbeatTimer);
-      this._heartbeatTimer = null;
-    }
-  }
-
-  _resetHeartbeat() {
-    this._lastTickTime = Date.now();
-  }
-
-  // ─── Reconnection Logic ───────────────────────────────
-
-  _scheduleReconnect() {
-    if (!this._isRunning) return;
-
-    if (this._wsConsecutiveFailures >= 3) {
-      console.log('[GoldPrice] WebSocket failed 3+ times. Switching to REST fallback.');
-      this._setConnectionState(ConnectionState.FALLBACK);
-      this._startFallbackPolling();
-      this._startWsRetryInterval();
-      return;
-    }
-
-    this._setConnectionState(ConnectionState.RECONNECTING);
-    this._reconnectAttempts++;
-
-    const baseDelay = 1000;
-    const delay = Math.min(baseDelay * Math.pow(2, this._reconnectAttempts - 1), 30000);
-
-    console.log(`[GoldPrice] Reconnecting in ${(delay / 1000).toFixed(1)}s (attempt ${this._reconnectAttempts})`);
-
-    this._reconnectTimer = setTimeout(() => {
-      if (this._isRunning && this._isLeader) {
-        this._connectWebSocket();
-      }
-    }, delay);
-  }
-
-  // ─── REST Fallback Layer ──────────────────────────────
-
-  _startFallbackPolling() {
-    if (this._fallbackIntervalId) return;
-
+  _restartPolling() {
+    this._stopPolling();
     this._fetchRestPrice();
-
-    this._fallbackIntervalId = setInterval(() => {
-      this._fetchRestPrice();
-    }, this._fallbackPollMs);
+    this._pollIntervalId = setInterval(() => this._fetchRestPrice(), this._currentPollMs());
   }
 
-  _stopFallbackPolling() {
-    if (this._fallbackIntervalId) {
-      clearInterval(this._fallbackIntervalId);
-      this._fallbackIntervalId = null;
-    }
-  }
-
-  _startWsRetryInterval() {
-    this._stopWsRetryInterval();
-    this._wsRetryIntervalId = setInterval(() => {
-      if (this._isRunning && this._isLeader && this._connectionState === ConnectionState.FALLBACK) {
-        console.log('[GoldPrice] Retrying WebSocket from fallback...');
-        this._wsConsecutiveFailures = 0;
-        this._reconnectAttempts = 0;
-        this._connectWebSocket();
-      }
-    }, 60000);
-  }
-
-  _stopWsRetryInterval() {
-    if (this._wsRetryIntervalId) {
-      clearInterval(this._wsRetryIntervalId);
-      this._wsRetryIntervalId = null;
+  _stopPolling() {
+    if (this._pollIntervalId) {
+      clearInterval(this._pollIntervalId);
+      this._pollIntervalId = null;
     }
   }
 
   async _fetchRestPrice() {
-    const fetched = await this._tryGoldApi();
-    if (!fetched) {
-      await this._tryCoinGecko();
+    if (this._inFlight) return; // avoid overlapping requests on slow networks
+    this._inFlight = true;
+    try {
+      const ok = (await this._tryGoldApi()) || (await this._tryCoinGecko());
+      if (ok) {
+        this._consecutiveFailures = 0;
+      } else {
+        this._consecutiveFailures++;
+        this._setConnectionState(
+          this._consecutiveFailures >= 3 ? ConnectionState.OFFLINE : ConnectionState.RECONNECTING
+        );
+      }
+    } finally {
+      this._inFlight = false;
     }
-    // If leader and fetched from REST, broadcast to followers too
-    if (this._isLeader && this._price !== null) {
-      this._broadcastTick();
+  }
+
+  /** Apply a validated price update. Returns false if the tick was rejected. */
+  _applyPrice(newPrice, { source, spreadHalf, change, updatedAt }) {
+    if (!Number.isFinite(newPrice) || newPrice <= 0) return false;
+
+    if (this._price !== null) {
+      const deviation = Math.abs(newPrice - this._price) / this._price;
+      if (deviation > MAX_TICK_DEVIATION) {
+        console.warn(`[GoldPrice] Rejected bad tick from ${source}: $${newPrice}`);
+        return false;
+      }
     }
+
+    if (newPrice !== this._price) this._tickTimestamps.push(Date.now());
+
+    this._previousPrice = this._price;
+    this._price = newPrice;
+    this._source = source;
+    this._lastUpdated = updatedAt || new Date().toISOString();
+    if (typeof change === 'number' && Number.isFinite(change)) {
+      this._change24h = parseFloat(change.toFixed(2));
+    }
+    this._bid = parseFloat((newPrice - spreadHalf).toFixed(2));
+    this._ask = parseFloat((newPrice + spreadHalf).toFixed(2));
+
+    this._setConnectionState(source === 'goldapi' ? ConnectionState.LIVE : ConnectionState.FALLBACK);
+    this._notify();
+    return true;
   }
 
   async _tryGoldApi() {
@@ -633,26 +221,12 @@ class GoldPriceService {
       if (!res.ok) return false;
       const data = await res.json();
       if (data && typeof data.price === 'number') {
-        const newPrice = parseFloat(data.price.toFixed(2));
-
-        if (this._price !== null) {
-          const deviation = Math.abs(newPrice - this._price) / this._price;
-          if (deviation > 0.05) return false;
-        }
-
-        this._previousPrice = this._price;
-        this._price = newPrice;
-        this._source = 'goldapi';
-        this._lastUpdated = data.updatedAt || new Date().toISOString();
-        if (typeof data.change_percent === 'number') {
-          this._change24h = parseFloat(data.change_percent.toFixed(2));
-        }
-
-        this._bid = parseFloat((newPrice - 0.20).toFixed(2));
-        this._ask = parseFloat((newPrice + 0.20).toFixed(2));
-
-        this._notify();
-        return true;
+        return this._applyPrice(parseFloat(data.price.toFixed(2)), {
+          source: 'goldapi',
+          spreadHalf: 0.20,
+          change: data.change_percent,
+          updatedAt: data.updatedAt,
+        });
       }
     } catch (err) {
       console.warn('[GoldPrice] gold-api warning:', err);
@@ -667,26 +241,13 @@ class GoldPriceService {
       );
       if (!res.ok) return false;
       const data = await res.json();
-      if (data && data['pax-gold'] && typeof data['pax-gold'].usd === 'number') {
-        const newPrice = parseFloat(data['pax-gold'].usd.toFixed(2));
-
-        this._previousPrice = this._price;
-        this._price = newPrice;
-        this._source = 'coingecko';
-        this._lastUpdated = new Date().toISOString();
-        if (typeof data['pax-gold'].usd_24h_change === 'number') {
-          this._change24h = parseFloat(data['pax-gold'].usd_24h_change.toFixed(2));
-        }
-
-        this._bid = parseFloat((newPrice - 0.30).toFixed(2));
-        this._ask = parseFloat((newPrice + 0.30).toFixed(2));
-
-        if (this._connectionState !== ConnectionState.FALLBACK) {
-          this._setConnectionState(ConnectionState.FALLBACK);
-        }
-
-        this._notify();
-        return true;
+      const paxg = data && data['pax-gold'];
+      if (paxg && typeof paxg.usd === 'number') {
+        return this._applyPrice(parseFloat(paxg.usd.toFixed(2)), {
+          source: 'coingecko',
+          spreadHalf: 0.30,
+          change: paxg.usd_24h_change,
+        });
       }
     } catch (err) {
       console.warn('[GoldPrice] coingecko warning:', err);

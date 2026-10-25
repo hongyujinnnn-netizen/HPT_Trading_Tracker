@@ -75,6 +75,7 @@ const NAV_SECTIONS = [
     items: [
       { key: 'news', label: 'Market News', icon: Newspaper },
       { key: 'mistakes', label: 'Mistake Center', icon: ShieldAlert },
+      { key: 'profile', label: 'Trader Profile', icon: User },
       { key: 'settings', label: 'Settings', icon: SettingsIcon },
     ],
   },
@@ -265,7 +266,7 @@ function AppContent() {
                   <span className="text-sm font-bold font-display tracking-tight bg-gradient-to-r from-slate-900 via-amber-800 to-amber-600 dark:from-[#EDEAE3] dark:via-[#F3D371] dark:to-[#C9A227] bg-clip-text text-transparent">
                     TradePulse
                   </span>
-                  <span className="text-[9px] font-mono-num font-bold px-1.5 py-0.2 rounded-full bg-amber-500/10 text-amber-700 border border-amber-500/30 dark:bg-[#C9A227]/15 dark:text-[#E5B83B] dark:border-[#C9A227]/30 tracking-wider">
+                  <span className="text-[9px] font-mono-num font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 border border-amber-500/30 dark:bg-[#C9A227]/15 dark:text-[#E5B83B] dark:border-[#C9A227]/30 tracking-wider">
                     GOLD
                   </span>
                 </div>
@@ -307,7 +308,7 @@ function AppContent() {
                       />
                       <span className="flex-1 text-left truncate">{item.label}</span>
                       {item.badge && (
-                        <span className="text-[9px] font-mono-num font-bold px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-700 border border-amber-500/30 dark:bg-[#C9A227]/15 dark:text-[#E5B83B] dark:border-[#C9A227]/30">
+                        <span className="text-[9px] font-mono-num font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-700 border border-amber-500/30 dark:bg-[#C9A227]/15 dark:text-[#E5B83B] dark:border-[#C9A227]/30">
                           {item.badge}
                         </span>
                       )}
@@ -350,7 +351,19 @@ function AppContent() {
                     borderColor: 'var(--color-border-soft)',
                   }}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setActivePage('profile')}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setActivePage('profile');
+                      }
+                    }}
+                    title="Open Trader Profile"
+                    className="flex items-center gap-2 min-w-0 cursor-pointer hover:opacity-85 transition-opacity"
+                  >
                     <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-800 border border-amber-500/30 dark:bg-gradient-to-br dark:from-[#C9A227]/30 dark:to-[#C9A227]/10 dark:text-[#F3D371] dark:border-[#C9A227]/40 flex items-center justify-center font-bold text-xs shrink-0">
                       {userSession.user.email?.[0]?.toUpperCase() || 'U'}
                     </div>

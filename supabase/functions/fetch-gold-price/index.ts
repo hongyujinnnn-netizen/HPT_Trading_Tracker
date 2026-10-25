@@ -1,14 +1,16 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+import { isAuthorizedCaller, unauthorizedResponse, methodNotAllowedResponse } from '../_shared/auth.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Server-to-server only (pg_cron). No CORS headers: browsers must not call this.
+const jsonHeaders = { 'Content-Type': 'application/json' };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  if (req.method !== 'POST') {
+    return methodNotAllowedResponse();
+  }
+  if (!isAuthorizedCaller(req)) {
+    return unauthorizedResponse();
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -20,7 +22,7 @@ serve(async (req) => {
   let price = 4043.70;
   let spread = 0.25;
   let volatility = 'Elevated';
-  let source: 'goldapi' | 'simulated' = 'goldapi';
+  let source: 'goldapi' | 'gold-api' | 'coingecko' | 'simulated' = 'goldapi';
   let isFallback = false;
   let errorDetail: string | null = null;
 
@@ -34,7 +36,7 @@ serve(async (req) => {
             price: parseFloat(data.price.toFixed(2)),
             spread: parseFloat((data.price * 0.0001).toFixed(2)),
             volatility: 'Elevated',
-            source: 'goldapi' as const,
+            source: 'gold-api' as const,
           };
         }
       }
@@ -51,7 +53,7 @@ serve(async (req) => {
             price: parseFloat(data['pax-gold'].usd.toFixed(2)),
             spread: 0.25,
             volatility: Math.abs(data['pax-gold'].usd_24h_change || 0) > 1.0 ? 'High' : 'Elevated',
-            source: 'goldapi' as const,
+            source: 'coingecko' as const,
           };
         }
       }
@@ -119,7 +121,7 @@ serve(async (req) => {
       price = openData.price;
       spread = openData.spread;
       volatility = openData.volatility;
-      source = 'goldapi';
+      source = openData.source;
     } else {
       source = 'simulated';
       isFallback = true;
@@ -163,7 +165,7 @@ serve(async (req) => {
   };
 
   return new Response(JSON.stringify(responsePayload), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: jsonHeaders,
     status: 200,
   });
 });

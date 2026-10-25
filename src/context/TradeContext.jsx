@@ -82,6 +82,8 @@ export function TradeProvider({ children }) {
     }
   });
 
+  const isInitialThemeMount = useRef(true);
+
   const applyTheme = useCallback((resolvedTheme) => {
     const updateClasses = () => {
       if (resolvedTheme === 'light') {
@@ -93,11 +95,23 @@ export function TradeProvider({ children }) {
       }
     };
 
-    if (typeof document !== 'undefined' && document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      document.startViewTransition(updateClasses);
+    if (
+      !isInitialThemeMount.current &&
+      typeof document !== 'undefined' &&
+      document.startViewTransition &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      try {
+        const transition = document.startViewTransition(updateClasses);
+        transition?.ready?.catch(() => {});
+        transition?.finished?.catch(() => {});
+      } catch {
+        updateClasses();
+      }
     } else {
       updateClasses();
     }
+    isInitialThemeMount.current = false;
   }, []);
 
   useEffect(() => {
@@ -390,7 +404,7 @@ export function TradeProvider({ children }) {
   useEffect(() => {
     const unsubPrice = goldPriceService.subscribe((state) => {
       if (state.price !== null) {
-        setLiveGoldPrice(state.price);
+        setLiveGoldPrice((prev) => (prev === state.price ? prev : state.price));
 
         // Check active price alerts against current tick
         setPriceAlerts((prevAlerts) => {
@@ -418,7 +432,7 @@ export function TradeProvider({ children }) {
         });
       }
       if (state.connectionState) {
-        setGoldConnectionState(state.connectionState);
+        setGoldConnectionState((prev) => (prev === state.connectionState ? prev : state.connectionState));
       }
     });
 
@@ -829,11 +843,13 @@ export function TradeProvider({ children }) {
   const activeAccount = tradingAccounts.find((a) => a.id === activeAccountId) || null;
 
   // Filter trades and pending orders by active sub-account
-  const filteredTrades = activeAccountId === 'all'
+  const filteredTrades = useMemo(() => (activeAccountId === 'all' ? trades : trades.filter((t) => !t.accountId || t.accountId === activeAccountId)), [trades, activeAccountId]);
+  const _unusedFilteredTrades = activeAccountId === 'all'
     ? trades
     : trades.filter((t) => !t.accountId || t.accountId === activeAccountId);
 
-  const filteredPendingOrders = activeAccountId === 'all'
+  const filteredPendingOrders = useMemo(() => (activeAccountId === 'all' ? pendingOrders : pendingOrders.filter((o) => !o.accountId || o.accountId === activeAccountId)), [pendingOrders, activeAccountId]);
+  const _unusedPendingOrders = activeAccountId === 'all'
     ? pendingOrders
     : pendingOrders.filter((o) => !o.accountId || o.accountId === activeAccountId);
 
@@ -844,7 +860,10 @@ export function TradeProvider({ children }) {
     : activeAccount ? (parseFloat(activeAccount.initialBalance) || 10000) : settings.accountBalance;
 
   // Merge client-side calculations over filtered trades with accurate base balance
-  const calculatedStats = calculatePerformanceStats(filteredTrades, accountBaseBalance);
+  const calculatedStats = useMemo(
+    () => calculatePerformanceStats(filteredTrades, accountBaseBalance),
+    [filteredTrades, accountBaseBalance]
+  );
 
   const stats = (activeAccountId === 'all' && dbViews && dbViews.stats) ? {
     ...calculatedStats,

@@ -22,10 +22,17 @@
   --color-border-shine:     rgba(255, 255, 255, 0.09);
   --color-text-main:        #FFFFFF;
   --color-text-muted:       #94A3B8;
-  --color-text-dim:         #64748B;
+  --color-text-dim:         #7C8FA6;
   --color-scrolltrack:      #080A0D;
   --color-scrollthumb:      #1C2530;
   --color-accent:           #E5B83B;
+  --color-gold:             #C9A227;
+  --color-gold-bright:      #E4C468;
+  --color-gold-dim:         #8A7332;
+  --color-profit:           #3FA88C;
+  --color-profit-dim:       #1F4A40;
+  --color-loss:             #C1502E;
+  --color-loss-dim:         #4A2A1E;
   --card-shadow:            0 4px 24px -2px rgba(0, 0, 0, 0.65), 0 1px 2px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
   --card-shadow-hover:      0 12px 36px -4px rgba(0, 0, 0, 0.8), 0 0 24px rgba(201, 162, 39, 0.12), inset 0 1px 0 0 rgba(255, 255, 255, 0.14);
 }
@@ -45,10 +52,17 @@
   --color-border-shine:     rgba(0, 0, 0, 0.04);
   --color-text-main:        #0F172A;
   --color-text-muted:       #64748B;
-  --color-text-dim:         #94A3B8;
+  --color-text-dim:         #64748B;
   --color-scrolltrack:      #F8FAFC;
   --color-scrollthumb:      #CBD5E1;
   --color-accent:           #D97706;
+  --color-gold:             #B45309;
+  --color-gold-bright:      #D97706;
+  --color-gold-dim:         #FEF3C7;
+  --color-profit:           #059669;
+  --color-profit-dim:       #D1FAE5;
+  --color-loss:             #E11D48;
+  --color-loss-dim:         #FFE4E6;
   --card-shadow:            0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
   --card-shadow-hover:      0 8px 24px -3px rgba(0, 0, 0, 0.08), 0 0 16px rgba(217, 119, 6, 0.08);
 }
@@ -94,6 +108,20 @@
 
 .font-mono-num {
   font-family: 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollthumb) var(--color-scrolltrack);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ─── Custom Scrollbars ──────────────────────────────────────────────────────── */

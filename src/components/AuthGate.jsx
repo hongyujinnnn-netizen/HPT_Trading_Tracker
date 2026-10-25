@@ -49,6 +49,9 @@ export function AuthGate() {
 
     try {
       if (mode === 'signup') {
+        if (password.length < 8) {
+          throw new Error('Password must be at least 8 characters long.');
+        }
         const { data, error } = await supabase.auth.signUp({
           email,
           password,

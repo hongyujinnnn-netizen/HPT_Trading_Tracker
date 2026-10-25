@@ -19,7 +19,7 @@ alter table public.price_snapshots
   drop constraint if exists chk_price_source;
 
 alter table public.price_snapshots
-  add constraint chk_price_source check (source in ('goldapi', 'simulated', 'unknown'));
+  add constraint chk_price_source check (source in ('goldapi', 'gold-api', 'coingecko', 'simulated', 'unknown'));
 
 
 -- ---------------------------------------------------------------------

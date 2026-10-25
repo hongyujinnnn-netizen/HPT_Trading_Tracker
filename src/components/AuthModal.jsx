@@ -41,6 +41,9 @@ export function AuthModal({ isOpen, onClose }) {
 
     try {
       if (isSignUp) {
+        if (password.length < 8) {
+          throw new Error('Password must be at least 8 characters long.');
+        }
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         setSuccessMsg('Account created! Please check your inbox to confirm your email.');

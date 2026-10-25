@@ -65,6 +65,7 @@ export function AddTrade() {
   const [notes, setNotes] = useState('');
   const [screenshot, setScreenshot] = useState(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -210,6 +211,8 @@ export function AddTrade() {
     }
 
     const finalStrategy = isCustomStrategy && customStrategy.trim() ? customStrategy.trim() : strategy;
+    setIsSaving(true);
+    try {
 
     await addTrade(
       {
@@ -237,6 +240,11 @@ export function AddTrade() {
     setTimeout(() => {
       setActivePage('history');
     }, 1200);
+    } catch (err) {
+      setFormError(err?.message || 'Failed to save trade. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -281,7 +289,7 @@ export function AddTrade() {
             >
               {visibleAccounts.map((acc) => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.name} ({acc.broker} • {acc.leverage} • ${acc.initialBalance.toLocaleString()} {acc.currency})
+                  {acc.name} ({acc.broker} • {acc.leverage} • ${(Number(acc.initialBalance) || 0).toLocaleString()} {acc.currency})
                 </option>
               ))}
             </select>
@@ -545,9 +553,10 @@ export function AddTrade() {
 
           <button
             type="submit"
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-[#C9A227] via-[#D4AF37] to-[#C9A227] hover:brightness-105 text-[#080A0D] font-bold text-sm font-display tracking-wide shadow-lg shadow-[#C9A227]/25 transition-all active:scale-[0.99]"
+            disabled={isSaving || savedSuccess}
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-[#C9A227] via-[#D4AF37] to-[#C9A227] hover:brightness-105 text-[#080A0D] font-bold text-sm font-display tracking-wide shadow-lg shadow-[#C9A227]/25 transition-all active:scale-[0.99] disabled:opacity-60"
           >
-            Save Trade to Journal
+            {isSaving ? 'Saving Trade...' : savedSuccess ? 'Trade Logged!' : 'Save Trade to Journal'}
           </button>
         </div>
 

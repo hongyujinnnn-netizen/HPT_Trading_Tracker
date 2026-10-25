@@ -4,17 +4,10 @@ import {
   AlertTriangle,
   ChevronRight,
   Activity,
-  TrendingUp,
-  Percent,
-  Target,
-  Clock,
   CandlestickChart,
   LayoutDashboard,
   Coffee,
-  Sliders,
-  Zap,
-  TrendingDown,
-  Layers,
+  Upload,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -42,7 +35,8 @@ import { EdgeAlertBanner } from '../components/EdgeAlertBanner';
 import { PlanTargetWidget } from '../components/PlanTargetWidget';
 import { INITIAL_EQUITY_CURVE } from '../utils/mockData';
 import { getCurrentGoldSession } from '../utils/sessionDetector';
-import { calculateExpectancy, calculateSharpeRatio, calculateUnderwaterDrawdown } from '../utils/edgeAnalytics';
+import { calculateExpectancy } from '../utils/edgeAnalytics';
+import { STANDARD_STRATEGIES, TRADING_SESSIONS } from '../utils/tradingConstants';
 
 export function Dashboard() {
   const {
@@ -51,6 +45,7 @@ export function Dashboard() {
     stats,
     setActivePage,
     setSelectedTrade,
+    setIsImportModalOpen,
     userSession,
     dbViews,
     settings,
@@ -83,11 +78,6 @@ export function Dashboard() {
     return calculateExpectancy(displayTrades);
   }, [displayTrades]);
 
-  // Sharpe Ratio calculation
-  const sharpeData = useMemo(() => {
-    return calculateSharpeRatio(displayTrades, 0.02, 30);
-  }, [displayTrades]);
-
   // Current session slot key for blocked-slot alert check
   const currentSlotKey = useMemo(() => {
     const now = new Date();
@@ -106,14 +96,20 @@ export function Dashboard() {
         : activeAccount ? (parseFloat(activeAccount.initialBalance) || 10000) : (settings?.accountBalance || 10000);
 
     if (activeAccountId === 'all' && dbViews?.equityCurve && dbViews.equityCurve.length > 0) {
+      let peak = startBalance;
       rawPoints = dbViews.equityCurve.map((item) => {
         const dateObj = new Date(item.exit_time || item.timestamp);
         const formattedDate = isNaN(dateObj.getTime())
           ? (item.exit_time || '')
           : dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const val = Math.round(parseFloat(item.running_balance) || 0);
+        if (val > peak) peak = val;
+        const ddPct = peak > 0 ? ((peak - val) / peak) * 100 : 0;
         return {
           d: formattedDate,
-          v: Math.round(parseFloat(item.running_balance) || 0),
+          v: val,
+          peak,
+          drawdownPct: -Math.round(ddPct * 10) / 10,
           timestamp: dateObj.getTime() || 0,
         };
       });
@@ -174,6 +170,54 @@ export function Dashboard() {
     return { equityCurveData: filtered, underwaterCurveData: filtered };
   }, [dbViews, displayTrades, settings, isDemoMode, userSession, timeRange, activeAccountId, activeAccount, tradingAccounts]);
 
+  // Real KPI sparklines derived from the user's actual trade history (not hardcoded)
+  const kpiSparklines = useMemo(() => {
+    const sorted = [...displayTrades]
+      .filter((t) => t.pnl !== undefined && t.pnl !== null)
+      .sort((a, b) => new Date(a.exitTime || a.timestamp || a.date) - new Date(b.exitTime || b.timestamp || b.date));
+
+    if (sorted.length < 2) {
+      return { pnl: null, winRate: null, expectancy: null, rr: null, drawdown: null };
+    }
+
+    const tail = sorted.slice(-12);
+    let cumPnl = 0;
+    let wins = 0;
+    const pnlSeries = [];
+    const wrSeries = [];
+    const expSeries = [];
+    const rrSeries = [];
+
+    tail.forEach((t, idx) => {
+      const p = Number(t.pnl) || 0;
+      cumPnl += p;
+      if (p > 0) wins++;
+      const count = idx + 1;
+      pnlSeries.push(Math.round(cumPnl));
+      wrSeries.push(Math.round((wins / count) * 1000) / 10);
+      expSeries.push(Math.round((cumPnl / count) * 10) / 10);
+      if (t.rr != null && Number.isFinite(Number(t.rr))) {
+        rrSeries.push(Number(t.rr));
+      }
+    });
+
+    const ddSeries = underwaterCurveData.slice(-12).map((p) => p.drawdownPct ?? 0);
+
+    return {
+      pnl: pnlSeries,
+      winRate: wrSeries,
+      expectancy: expSeries,
+      rr: rrSeries.length >= 2 ? rrSeries : null,
+      drawdown: ddSeries.length >= 2 ? ddSeries : null,
+    };
+  }, [displayTrades, underwaterCurveData]);
+
+  // Dynamic underwater Y-axis floor so deep drawdowns (> 15%) are never clipped
+  const underwaterMinY = useMemo(() => {
+    const minVal = underwaterCurveData.reduce((min, p) => Math.min(min, p.drawdownPct || 0), 0);
+    return Math.min(-15, Math.floor(minVal - 2));
+  }, [underwaterCurveData]);
+
   // Greeting
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -186,7 +230,7 @@ export function Dashboard() {
     if (userSession?.user?.email) {
       return userSession.user.email.split('@')[0];
     }
-    return 'Bun';
+    return 'Trader';
   }, [userSession]);
 
   useEffect(() => {
@@ -199,35 +243,120 @@ export function Dashboard() {
 
   // Session breakdown
   const sessionStats = useMemo(() => {
-    const sessions = [
-      { name: 'Asian', hours: '00:00–08:00 GMT' },
-      { name: 'London', hours: '08:00–16:00 GMT' },
-      { name: 'New York', hours: '13:00–21:00 GMT' },
-      { name: 'London Close', hours: '16:00–17:00 GMT' },
-    ];
-
-    return sessions.map((s) => {
+    return TRADING_SESSIONS.map((s) => {
       const sessionTrades = displayTrades.filter((t) => t.session === s.name);
       const wins = sessionTrades.filter((t) => t.pnl > 0).length;
-      const pnl = sessionTrades.reduce((acc, t) => acc + (t.pnl || 0), 0);
+      const pnl = Math.round(sessionTrades.reduce((acc, t) => acc + (Number(t.pnl) || 0), 0) * 100) / 100;
       const winRate = sessionTrades.length > 0 ? Math.round((wins / sessionTrades.length) * 100) : 0;
       return { ...s, tradesCount: sessionTrades.length, winRate, pnl };
     });
   }, [displayTrades]);
 
-  // Strategy stats
+  // Dynamic session insight generated from actual sessionStats
+  const sessionInsightText = useMemo(() => {
+    const active = sessionStats.filter((s) => s.tradesCount > 0);
+    if (active.length === 0) {
+      return 'Log trades across Asian, London, and New York sessions to unlock your personal session win-rate insight.';
+    }
+    const best = [...active].sort((a, b) => b.winRate - a.winRate || b.pnl - a.pnl)[0];
+    const worst = [...active].sort((a, b) => a.pnl - b.pnl)[0];
+    if (worst && worst.name !== best.name && worst.pnl < 0) {
+      return `${best.name} session yields your highest win rate (${best.winRate}% over ${best.tradesCount} trades). Tighten risk during ${worst.name} ($${worst.pnl}).`;
+    }
+    return `${best.name} session leads with a ${best.winRate}% win rate (${best.pnl >= 0 ? '+' : ''}$${best.pnl} across ${best.tradesCount} trades).`;
+  }, [sessionStats]);
+
+  // Strategy stats (includes custom strategies logged by the user)
   const strategyStats = useMemo(() => {
-    const strategies = ['Breakout', 'Pullback', 'News Trading', 'Order Block / ICT'];
-    return strategies.map((name) => {
+    const custom = displayTrades.map((t) => t.strategy).filter(Boolean);
+    const allNames = Array.from(new Set([...STANDARD_STRATEGIES.slice(0, 4), ...custom]));
+    return allNames.map((name) => {
       const stratTrades = displayTrades.filter((t) => t.strategy === name);
       const wins = stratTrades.filter((t) => t.pnl > 0).length;
-      const pnl = stratTrades.reduce((acc, t) => acc + (t.pnl || 0), 0);
+      const pnl = Math.round(stratTrades.reduce((acc, t) => acc + (Number(t.pnl) || 0), 0) * 100) / 100;
       const winRate = stratTrades.length > 0 ? Math.round((wins / stratTrades.length) * 100) : 0;
       return { name, pnl, winRate, count: stratTrades.length, fill: pnl >= 0 ? '#3FA88C' : '#C1502E' };
     });
   }, [displayTrades]);
 
   const maxSessionAbs = Math.max(...sessionStats.map((s) => Math.abs(s.pnl)), 1);
+
+  const renderRecentTradeRow = (t) => {
+    const pnlNum = Number(t.pnl) || 0;
+    const rrNum = t.rr != null && Number.isFinite(Number(t.rr)) ? Number(t.rr) : null;
+    return (
+      <div
+        key={t.id}
+        role="button"
+        tabIndex={0}
+        onClick={() => setSelectedTrade(t)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setSelectedTrade(t);
+          }
+        }}
+        className="flex items-center justify-between gap-2 p-3 rounded-xl border cursor-pointer transition-all hover:opacity-90 focus:outline-none focus:ring-1 focus:ring-[#C9A227] shadow-sm"
+        style={{
+          background: 'var(--color-elevated)',
+          borderColor: 'var(--color-border-soft)',
+        }}
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="text-xs font-mono-num w-20 shrink-0" style={{ color: 'var(--color-text-muted)' }}>{t.date}</span>
+          <Pill tone={t.side === 'Buy' ? 'profit' : 'loss'} className="shrink-0">{t.side}</Pill>
+          <span className="text-xs font-semibold truncate" style={{ color: 'var(--color-text-main)' }}>{t.strategy}</span>
+          {t.mistakes && t.mistakes.length > 0 && (
+            <span className="text-[11px] hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md border font-medium bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 truncate max-w-[180px]">
+              <AlertTriangle size={11} className="shrink-0" />
+              <span className="truncate">{t.mistakes[0]}</span>
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 font-mono-num text-xs shrink-0">
+          <span className="hidden sm:inline" style={{ color: 'var(--color-text-dim)' }}>
+            {rrNum !== null ? `1:${rrNum.toFixed(1)} RR` : '—'}
+          </span>
+          <span
+            className="font-bold"
+            style={{ color: pnlNum >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
+          >
+            {pnlNum >= 0 ? '+' : ''}${pnlNum.toLocaleString()}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  const renderEmptyRecentTrades = () => (
+    <div
+      className="p-6 rounded-xl border border-dashed text-center space-y-2.5"
+      style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
+    >
+      <p className="text-xs font-semibold" style={{ color: 'var(--color-text-main)' }}>
+        No trades logged yet
+      </p>
+      <p className="text-xs max-w-sm mx-auto" style={{ color: 'var(--color-text-muted)' }}>
+        Add your first XAU/USD trade or import an MT5 statement to populate your equity curve and mistake detector.
+      </p>
+      <div className="flex items-center justify-center gap-2 pt-1">
+        <button
+          onClick={() => setActivePage('add')}
+          className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#C9A227] to-[#D4AF37] text-[#080A0D] text-xs font-bold inline-flex items-center gap-1.5"
+        >
+          <Plus size={13} /> Log First Trade
+        </button>
+        <button
+          onClick={() => setIsImportModalOpen(true)}
+          className="px-3 py-1.5 rounded-lg border text-xs font-semibold inline-flex items-center gap-1.5"
+          style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-main)' }}
+        >
+          <Upload size={13} /> Import MT5
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
@@ -244,14 +373,13 @@ export function Dashboard() {
             <span className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-400 dark:from-[#EDEAE3] dark:via-[#F3D371] dark:to-[#C9A227] bg-clip-text text-transparent">
               {userName}
             </span>
-            <span className="inline-block animate-bounce">👋</span>
           </h1>
           <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
             Institutional edge analytics, discipline metrics, and real-time execution tracking.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Saved Layout Mode Selector */}
           <div
             className="flex items-center p-1 rounded-xl border text-xs shadow-inner"
@@ -271,6 +399,7 @@ export function Dashboard() {
                 <button
                   key={layout.id}
                   onClick={() => handleLayoutChange(layout.id)}
+                  aria-label={`Switch to ${layout.label} layout`}
                   className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all duration-200 ${
                     isSelected
                       ? 'bg-gradient-to-b from-[#C9A227] to-[#B38E1B] text-[#080A0D] font-bold shadow-md shadow-[#C9A227]/25'
@@ -293,7 +422,7 @@ export function Dashboard() {
               borderColor: 'var(--color-border-soft)',
             }}
           >
-            <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-[#3FA88C] animate-pulse" />
             <span style={{ color: 'var(--color-text-muted)' }}>
               <strong style={{ color: 'var(--color-text-main)' }}>{sessionInfo.name}</strong> · {sessionInfo.timeLeft}
             </span>
@@ -313,7 +442,7 @@ export function Dashboard() {
           {/* + New Trade Button */}
           <button
             onClick={() => setActivePage('add')}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg bg-gradient-to-r from-[#C9A227] via-[#E4C468] to-[#C9A227] hover:brightness-110 text-[#080A0D] font-extrabold text-xs shadow-lg shadow-[#C9A227]/30 active:scale-95 transition-all"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg bg-gradient-to-r from-[#C9A227] to-[#D4AF37] hover:brightness-110 text-[#080A0D] font-bold text-xs shadow-lg shadow-[#C9A227]/25 active:scale-95 transition-all"
           >
             <Plus size={15} /> New Trade
           </button>
@@ -329,16 +458,16 @@ export function Dashboard() {
       />
 
       {/* 5 Primary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3.5">
         <StatCard
           label="Net P&L"
           value={`${stats.totalPnl >= 0 ? '+' : ''}$${stats.totalPnl.toLocaleString()}`}
-          valueColor={stats.totalPnl >= 0 ? '#34D399' : '#FB7185'}
+          valueColor={stats.totalPnl >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'}
           delta="Realized balance return"
           deltaType={stats.totalPnl >= 0 ? 'up' : 'down'}
           tone={stats.totalPnl >= 0 ? 'profit' : 'loss'}
-          sparklineData={[3200, 3500, 3300, 3900, 4200, 4100, 4500, 4812]}
-          sparklineColor={stats.totalPnl >= 0 ? '#34D399' : '#FB7185'}
+          sparklineData={kpiSparklines.pnl}
+          sparklineColor={stats.totalPnl >= 0 ? '#3FA88C' : '#C1502E'}
         />
 
         <StatCard
@@ -348,19 +477,19 @@ export function Dashboard() {
           delta="Cumulative win rate"
           deltaType="up"
           tone="gold"
-          sparklineData={[58, 60, 59, 62, 61, 63, 64.3]}
+          sparklineData={kpiSparklines.winRate}
           sparklineColor="#E5B83B"
         />
 
         <StatCard
           label="Dollar Expectancy"
           value={`${expectancyData.expectancy >= 0 ? '+' : ''}$${expectancyData.expectancy}`}
-          valueColor={expectancyData.expectancy >= 0 ? '#34D399' : '#FB7185'}
+          valueColor={expectancyData.expectancy >= 0 ? 'var(--color-profit)' : 'var(--color-loss)'}
           delta={expectancyData.sizingAdvice}
           deltaType={expectancyData.expectancy >= 0 ? 'up' : 'down'}
           tone={expectancyData.expectancy >= 0 ? 'profit' : 'loss'}
-          sparklineData={[50, 60, 40, 80, 75, 90]}
-          sparklineColor={expectancyData.expectancy >= 0 ? '#34D399' : '#FB7185'}
+          sparklineData={kpiSparklines.expectancy}
+          sparklineColor={expectancyData.expectancy >= 0 ? '#3FA88C' : '#C1502E'}
         />
 
         <StatCard
@@ -369,19 +498,19 @@ export function Dashboard() {
           delta="Risk:Reward Ratio"
           deltaType="up"
           tone="profit"
-          sparklineData={[1.9, 2.0, 2.1, 2.0, 2.2, 2.3]}
-          sparklineColor="#34D399"
+          sparklineData={kpiSparklines.rr}
+          sparklineColor="#3FA88C"
         />
 
         <StatCard
           label="Max Drawdown"
           value={`-${stats.maxDrawdownPct}%`}
-          valueColor={stats.maxDrawdownPct > 10 ? '#FB7185' : undefined}
+          valueColor={stats.maxDrawdownPct > 10 ? 'var(--color-loss)' : undefined}
           delta={stats.maxDrawdownPct > 10 ? 'Circuit Breaker Hit' : 'within 10% limit'}
           deltaType={stats.maxDrawdownPct > 10 ? 'down' : 'neutral'}
           tone={stats.maxDrawdownPct > 10 ? 'loss' : 'neutral'}
-          sparklineData={[-2, -4, -3, -5, -8, -6.8]}
-          sparklineColor="#FB7185"
+          sparklineData={kpiSparklines.drawdown}
+          sparklineColor="#C1502E"
         />
       </div>
 
@@ -409,12 +538,12 @@ export function Dashboard() {
         <div className="space-y-6 animate-fade-in">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
-              <DailyPnLCalendar trades={trades} />
+              <DailyPnLCalendar trades={displayTrades} />
             </div>
             {/* Session Timeline */}
             <div className="terminal-card p-5 flex flex-col justify-between">
               <div>
-                <SectionLabel right={<span className="text-[10px] font-mono-num text-[#5A5D61]">24H CYCLE</span>}>
+                <SectionLabel right={<span className="text-[11px] font-mono-num" style={{ color: 'var(--color-text-dim)' }}>24H CYCLE</span>}>
                   Session Performance
                 </SectionLabel>
 
@@ -427,11 +556,11 @@ export function Dashboard() {
                         <div className="flex items-center justify-between text-xs mb-1">
                           <div className="flex items-center gap-1.5">
                             <span className="font-semibold font-display" style={{ color: 'var(--color-text-main)' }}>{s.name}</span>
-                            <span className="text-[10px] font-mono-num" style={{ color: 'var(--color-text-dim)' }}>{s.hours}</span>
+                            <span className="text-[11px] font-mono-num" style={{ color: 'var(--color-text-dim)' }}>{s.hours}</span>
                           </div>
                           <div className="flex items-center gap-2 font-mono-num">
                             <span style={{ color: 'var(--color-text-muted)' }}>{s.winRate}% win</span>
-                            <span style={{ color: isProf ? '#10B981' : '#EF4444' }} className="font-bold min-w-16 text-right">
+                            <span style={{ color: isProf ? 'var(--color-profit)' : 'var(--color-loss)' }} className="font-bold min-w-16 text-right">
                               {s.pnl >= 0 ? '+' : ''}${s.pnl}
                             </span>
                           </div>
@@ -439,7 +568,7 @@ export function Dashboard() {
                         <div className="h-1.5 rounded overflow-hidden" style={{ background: 'var(--color-elevated)' }}>
                           <div
                             className="h-full rounded transition-all duration-500"
-                            style={{ width: `${widthPct}%`, background: isProf ? '#10B981' : '#EF4444' }}
+                            style={{ width: `${widthPct}%`, background: isProf ? 'var(--color-profit)' : 'var(--color-loss)' }}
                           />
                         </div>
                       </div>
@@ -448,7 +577,7 @@ export function Dashboard() {
                 </div>
               </div>
 
-              <p className="text-[11px] pt-3 mt-4 border-t leading-relaxed" style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}>
+              <p className="text-xs pt-3 mt-4 border-t leading-relaxed" style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}>
                 <strong className="text-amber-600 dark:text-[#C9A227]">Preparation Rule:</strong> Verify upcoming high-impact economic news 15 minutes prior to session opens.
               </p>
             </div>
@@ -465,32 +594,9 @@ export function Dashboard() {
             </SectionLabel>
 
             <div className="space-y-2.5 mt-3">
-              {displayTrades.slice(0, 6).map((t) => (
-                <div
-                  key={t.id}
-                  onClick={() => setSelectedTrade(t)}
-                  className="flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors hover:opacity-85"
-                  style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono-num w-16" style={{ color: 'var(--color-text-dim)' }}>{t.date}</span>
-                    <Pill tone={t.side === 'Buy' ? 'profit' : 'loss'}>{t.side}</Pill>
-                    <span className="text-xs font-medium" style={{ color: 'var(--color-text-main)' }}>{t.strategy}</span>
-                    {t.mistakes && t.mistakes.length > 0 && (
-                      <span className="text-[11px] text-rose-600 dark:text-rose-400 flex items-center gap-1 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/30">
-                        <AlertTriangle size={11} /> {t.mistakes[0]}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-3 font-mono-num text-xs">
-                    <span className="text-[#8B8D91] hidden sm:inline">1:{t.rr ? Number(t.rr).toFixed(1) : '1.0'} RR</span>
-                    <span className={`font-bold ${t.pnl >= 0 ? 'text-[#3FA88C]' : 'text-[#C1502E]'}`}>
-                      {t.pnl >= 0 ? '+' : ''}${t.pnl}
-                    </span>
-                  </div>
-                </div>
-              ))}
+              {displayTrades.length === 0
+                ? renderEmptyRecentTrades()
+                : displayTrades.slice(0, 6).map(renderRecentTradeRow)}
             </div>
           </div>
         </div>
@@ -518,7 +624,7 @@ export function Dashboard() {
                     >
                       <button
                         onClick={() => setChartMode('equity')}
-                        className={`text-[10px] px-2.5 py-1 rounded-md font-mono-num font-semibold transition-all ${
+                        className={`text-[11px] px-2.5 py-1 rounded-md font-mono-num font-semibold transition-all ${
                           chartMode === 'equity'
                             ? 'bg-gradient-to-b from-[#C9A227] to-[#B38E1B] text-[#080A0D] shadow-sm font-bold'
                             : 'hover:opacity-80'
@@ -529,9 +635,9 @@ export function Dashboard() {
                       </button>
                       <button
                         onClick={() => setChartMode('underwater')}
-                        className={`text-[10px] px-2.5 py-1 rounded-md font-mono-num font-semibold transition-all ${
+                        className={`text-[11px] px-2.5 py-1 rounded-md font-mono-num font-semibold transition-all ${
                           chartMode === 'underwater'
-                            ? 'bg-[#F43F5E] text-white shadow-sm font-bold'
+                            ? 'bg-[#C1502E] text-white shadow-sm font-bold'
                             : 'hover:opacity-80'
                         }`}
                         style={chartMode !== 'underwater' ? { color: 'var(--color-text-muted)' } : undefined}
@@ -552,7 +658,7 @@ export function Dashboard() {
                         <button
                           key={r}
                           onClick={() => setTimeRange(r)}
-                          className={`text-[10px] px-2.5 py-1 rounded-md font-mono-num font-semibold transition-all ${
+                          className={`text-[11px] px-2.5 py-1 rounded-md font-mono-num font-semibold transition-all ${
                             timeRange === r
                               ? 'bg-gradient-to-b from-[#C9A227] to-[#B38E1B] text-[#080A0D] shadow-sm font-bold'
                               : 'hover:opacity-80'
@@ -601,27 +707,27 @@ export function Dashboard() {
                   <AreaChart data={underwaterCurveData} margin={{ left: -15, right: 10 }}>
                     <defs>
                       <linearGradient id="underwaterGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#F43F5E" stopOpacity={0.05} />
-                        <stop offset="100%" stopColor="#F43F5E" stopOpacity={0.4} />
+                        <stop offset="0%" stopColor="#C1502E" stopOpacity={0.05} />
+                        <stop offset="100%" stopColor="#C1502E" stopOpacity={0.4} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid stroke="var(--color-border-soft)" vertical={false} />
                     <XAxis dataKey="d" tick={{ fill: 'var(--color-text-dim)', fontSize: 11 }} axisLine={{ stroke: 'var(--color-border-soft)' }} tickLine={false} />
-                    <YAxis domain={[-15, 0]} tick={{ fill: 'var(--color-text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} unit="%" />
+                    <YAxis domain={[underwaterMinY, 0]} tick={{ fill: 'var(--color-text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} unit="%" />
                     <Tooltip
                       contentStyle={{
                         background: 'var(--color-surface)',
-                        border: '1px solid rgba(244, 63, 94, 0.4)',
+                        border: '1px solid rgba(193, 80, 46, 0.4)',
                         borderRadius: 8,
                         fontSize: 12,
                         color: 'var(--color-text-main)',
                         boxShadow: 'var(--card-shadow)',
                       }}
-                      itemStyle={{ color: '#FB7185' }}
+                      itemStyle={{ color: '#C1502E' }}
                     />
-                    <ReferenceLine y={0} stroke="#34D399" />
-                    <ReferenceLine y={-10} stroke="#F43F5E" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Circuit Breaker -10%', fill: '#FB7185', fontSize: 10 }} />
-                    <Area type="monotone" dataKey="drawdownPct" stroke="#F43F5E" strokeWidth={2} fill="url(#underwaterGradient)" />
+                    <ReferenceLine y={0} stroke="#3FA88C" />
+                    <ReferenceLine y={-10} stroke="#C1502E" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'Circuit Breaker -10%', fill: '#C1502E', fontSize: 10 }} />
+                    <Area type="monotone" dataKey="drawdownPct" stroke="#C1502E" strokeWidth={2} fill="url(#underwaterGradient)" />
                   </AreaChart>
                 </ResponsiveContainer>
               )}
@@ -630,7 +736,7 @@ export function Dashboard() {
             {/* Session Timeline */}
             <div className="terminal-card p-5 flex flex-col justify-between">
               <div>
-                <SectionLabel right={<span className="text-[10px] font-mono-num text-slate-400 dark:text-[#5A5D61]">24H CYCLE</span>}>
+                <SectionLabel right={<span className="text-[11px] font-mono-num" style={{ color: 'var(--color-text-dim)' }}>24H CYCLE</span>}>
                   Session Performance
                 </SectionLabel>
 
@@ -643,11 +749,11 @@ export function Dashboard() {
                         <div className="flex items-center justify-between text-xs mb-1">
                           <div className="flex items-center gap-1.5">
                             <span className="font-semibold font-display" style={{ color: 'var(--color-text-main)' }}>{s.name}</span>
-                            <span className="text-[10px] font-mono-num" style={{ color: 'var(--color-text-dim)' }}>{s.hours}</span>
+                            <span className="text-[11px] font-mono-num" style={{ color: 'var(--color-text-dim)' }}>{s.hours}</span>
                           </div>
                           <div className="flex items-center gap-2 font-mono-num">
                             <span style={{ color: 'var(--color-text-muted)' }}>{s.winRate}% win</span>
-                            <span style={{ color: isProf ? '#3FA88C' : '#C1502E' }} className="font-bold min-w-16 text-right">
+                            <span style={{ color: isProf ? 'var(--color-profit)' : 'var(--color-loss)' }} className="font-bold min-w-16 text-right">
                               {s.pnl >= 0 ? '+' : ''}${s.pnl}
                             </span>
                           </div>
@@ -655,7 +761,7 @@ export function Dashboard() {
                         <div className="h-1.5 rounded overflow-hidden" style={{ background: 'var(--color-elevated)' }}>
                           <div
                             className="h-full rounded transition-all duration-500"
-                            style={{ width: `${widthPct}%`, background: isProf ? '#3FA88C' : '#C1502E' }}
+                            style={{ width: `${widthPct}%`, background: isProf ? 'var(--color-profit)' : 'var(--color-loss)' }}
                           />
                         </div>
                       </div>
@@ -665,24 +771,24 @@ export function Dashboard() {
               </div>
 
               <p
-                className="text-[11px] pt-3 mt-4 border-t leading-relaxed"
+                className="text-xs pt-3 mt-4 border-t leading-relaxed"
                 style={{
                   color: 'var(--color-text-muted)',
                   borderColor: 'var(--color-border-soft)',
                 }}
               >
-                <strong className="text-amber-500 dark:text-[#C9A227]">Insight:</strong> London session yields your highest win rate (64%). Avoid trading late in London Close.
+                <strong className="text-amber-500 dark:text-[#C9A227]">Insight:</strong> {sessionInsightText}
               </p>
             </div>
           </div>
 
-          {/* Row 2: Daily P&L Calendar & Win/Loss Split */}
+          {/* Row 2: Daily P&L Calendar & Win/Loss Split (account-filtered) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
-              <DailyPnLCalendar trades={trades} />
+              <DailyPnLCalendar trades={displayTrades} />
             </div>
             <div>
-              <WinLossSplit trades={trades} stats={stats} />
+              <WinLossSplit trades={displayTrades} stats={stats} />
             </div>
           </div>
 
@@ -700,9 +806,9 @@ export function Dashboard() {
 
               <ResponsiveContainer width="100%" height={190}>
                 <BarChart data={strategyStats} layout="vertical" margin={{ left: -10 }}>
-                  <XAxis type="number" tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="name" tick={{ fill: 'var(--color-text-main)', fontSize: 11 }} axisLine={false} tickLine={false} width={95} />
-                  <Tooltip contentStyle={{ background: 'var(--color-surface-card)', border: '1px solid var(--color-border-soft)', borderRadius: 8, fontSize: 12, color: 'var(--color-text-main)' }} />
+                  <XAxis type="number" tick={{ fill: 'var(--color-text-dim)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" tick={{ fill: 'var(--color-text-main)', fontSize: 11 }} axisLine={false} tickLine={false} width={100} />
+                  <Tooltip contentStyle={{ background: 'var(--color-surface)', border: '1px solid var(--color-border-soft)', borderRadius: 8, fontSize: 12, color: 'var(--color-text-main)' }} />
                   <Bar dataKey="pnl" radius={[0, 4, 4, 0]}>
                     {strategyStats.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -723,37 +829,9 @@ export function Dashboard() {
               </SectionLabel>
 
               <div className="space-y-2 mt-2">
-                {displayTrades.slice(0, 5).map((t) => (
-                  <div
-                    key={t.id}
-                    onClick={() => setSelectedTrade(t)}
-                    className="flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all hover:scale-[1.005] shadow-sm"
-                    style={{
-                      background: 'var(--color-elevated)',
-                      borderColor: 'var(--color-border-soft)',
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-mono-num w-16" style={{ color: 'var(--color-text-muted)' }}>{t.date}</span>
-                      <Pill tone={t.side === 'Buy' ? 'profit' : 'loss'}>{t.side}</Pill>
-                      <span className="text-xs font-semibold" style={{ color: 'var(--color-text-main)' }}>{t.strategy}</span>
-                      {t.mistakes && t.mistakes.length > 0 && (
-                        <span className="text-[11px] flex items-center gap-1 px-2 py-0.5 rounded-md border font-medium bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30">
-                          <AlertTriangle size={11} /> {t.mistakes[0]}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-3 font-mono-num text-xs">
-                      <span className="hidden sm:inline" style={{ color: 'var(--color-text-dim)' }}>
-                        1:{t.rr ? Number(t.rr).toFixed(1) : '1.0'} RR
-                      </span>
-                      <span className={`font-bold ${t.pnl >= 0 ? 'text-emerald-600 dark:text-[#34D399]' : 'text-rose-600 dark:text-[#FB7185]'}`}>
-                        {t.pnl >= 0 ? '+' : ''}${t.pnl}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                {displayTrades.length === 0
+                  ? renderEmptyRecentTrades()
+                  : displayTrades.slice(0, 5).map(renderRecentTradeRow)}
               </div>
             </div>
           </div>

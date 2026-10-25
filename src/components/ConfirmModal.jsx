@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AlertTriangle, Trash2, X } from 'lucide-react';
 
 export function ConfirmModal({
@@ -11,6 +11,15 @@ export function ConfirmModal({
   confirmTone = 'danger',
   icon: Icon = Trash2,
 }) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const toneStyles = {
@@ -27,12 +36,22 @@ export function ConfirmModal({
   const style = toneStyles[confirmTone] || toneStyles.danger;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+    >
       {/* Modal Container */}
-      <div className="terminal-card rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 relative">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="terminal-card rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 relative"
+      >
         {/* Close Button */}
         <button
           onClick={onClose}
+          aria-label="Close confirmation dialog"
           className="absolute top-4 right-4 p-1.5 rounded-lg border hover:opacity-80 transition-colors"
           style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
         >

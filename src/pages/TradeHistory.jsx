@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Download, Upload, AlertTriangle, Filter, Trash2, Eye, Plus } from 'lucide-react';
+import { Search, Download, Upload, AlertTriangle, Filter, Trash2, Eye, Plus, RotateCcw } from 'lucide-react';
 import { useTrade } from '../context/TradeContext';
 import { Pill } from '../components/Pill';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { exportToCSV } from '../utils/csvParser';
+import { STANDARD_STRATEGIES, TRADING_SESSIONS } from '../utils/tradingConstants';
 
 export function TradeHistory() {
   const { trades, filteredTrades: contextFilteredTrades, setSelectedTrade, setIsImportModalOpen, deleteTrade, setActivePage } = useTrade();
@@ -13,8 +15,25 @@ export function TradeHistory() {
   const [filterTab, setFilterTab] = useState('All'); // 'All' | 'Wins' | 'Losses' | 'Flagged'
   const [selectedStrategy, setSelectedStrategy] = useState('All');
   const [selectedSession, setSelectedSession] = useState('All');
+  const [tradePendingDelete, setTradePendingDelete] = useState(null);
 
-  // Filter Logic
+  // Merge standard strategies with any custom strategies logged in the user's trades
+  const strategyOptions = useMemo(() => {
+    const custom = activeTrades.map((t) => t.strategy).filter(Boolean);
+    return Array.from(new Set([...STANDARD_STRATEGIES, ...custom]));
+  }, [activeTrades]);
+
+  const hasActiveFilters =
+    filterTab !== 'All' || selectedStrategy !== 'All' || selectedSession !== 'All' || Boolean(search.trim());
+
+  const clearFilters = () => {
+    setFilterTab('All');
+    setSelectedStrategy('All');
+    setSelectedSession('All');
+    setSearch('');
+  };
+
+  // Filter Logic (depends on activeTrades so account switching refreshes immediately)
   const filteredTrades = useMemo(() => {
     return activeTrades.filter((t) => {
       // Tab filter
@@ -40,9 +59,9 @@ export function TradeHistory() {
 
       return true;
     });
-  }, [trades, filterTab, selectedStrategy, selectedSession, search]);
+  }, [activeTrades, filterTab, selectedStrategy, selectedSession, search]);
 
-  // Export to CSV
+  // Export to CSV (revoke Object URL after download to avoid memory leak)
   const handleExportCSV = () => {
     const csvStr = exportToCSV(filteredTrades);
     const blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
@@ -53,6 +72,7 @@ export function TradeHistory() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   };
 
   return (
@@ -62,7 +82,7 @@ export function TradeHistory() {
         <div>
           <h1 className="text-xl font-bold font-display" style={{ color: 'var(--color-text-main)' }}>Trade Journal &amp; History</h1>
           <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-            Showing {filteredTrades.length} of {trades.length} logged XAU/USD trades
+            Showing {filteredTrades.length} of {activeTrades.length} logged XAU/USD trades
           </p>
         </div>
 
@@ -81,7 +101,8 @@ export function TradeHistory() {
 
           <button
             onClick={handleExportCSV}
-            className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-colors hover:opacity-80"
+            disabled={filteredTrades.length === 0}
+            className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-colors hover:opacity-80 disabled:opacity-50"
             style={{
               background: 'var(--color-elevated)',
               borderColor: 'var(--color-border-soft)',
@@ -135,6 +156,7 @@ export function TradeHistory() {
             <Search size={14} style={{ color: 'var(--color-text-dim)' }} />
             <input
               type="text"
+              aria-label="Search trades by strategy, notes, emotion, or side"
               placeholder="Search strategy, notes, emotion..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -151,119 +173,279 @@ export function TradeHistory() {
           </span>
 
           <select
+            aria-label="Filter by strategy"
             value={selectedStrategy}
             onChange={(e) => setSelectedStrategy(e.target.value)}
             className="rounded-lg px-2.5 py-1 text-xs terminal-select"
           >
             <option value="All">All Strategies</option>
-            <option value="Breakout">Breakout</option>
-            <option value="Pullback">Pullback</option>
-            <option value="News Trading">News Trading</option>
-            <option value="Order Block / ICT">Order Block / ICT</option>
+            {strategyOptions.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
           </select>
 
           <select
+            aria-label="Filter by session"
             value={selectedSession}
             onChange={(e) => setSelectedSession(e.target.value)}
             className="rounded-lg px-2.5 py-1 text-xs terminal-select"
           >
             <option value="All">All Sessions</option>
-            <option value="Asian">Asian</option>
-            <option value="London">London</option>
-            <option value="New York">New York</option>
-            <option value="London Close">London Close</option>
+            {TRADING_SESSIONS.map((s) => (
+              <option key={s.name} value={s.name}>{s.name}</option>
+            ))}
           </select>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="px-2.5 py-1 rounded-lg border text-xs font-semibold flex items-center gap-1 hover:opacity-80 transition-colors"
+              style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-accent)' }}
+            >
+              <RotateCcw size={12} /> Reset Filters
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Main Journal Data Table */}
-      <div className="terminal-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left">
-            <thead
-              className="border-b border-slate-200 dark:border-[#262B30] uppercase tracking-wider font-semibold text-[11px]"
-              style={{
-                background: 'var(--color-elevated)',
-                color: 'var(--color-text-dim)',
-              }}
-            >
-              <tr>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Side</th>
-                <th className="px-4 py-3">Entry</th>
-                <th className="px-4 py-3">Exit</th>
-                <th className="px-4 py-3">Lots</th>
-                <th className="px-4 py-3">R:R</th>
-                <th className="px-4 py-3">Strategy</th>
-                <th className="px-4 py-3">Session</th>
-                <th className="px-4 py-3">Discipline &amp; Emotion</th>
-                <th className="px-4 py-3 text-right">P&L ($)</th>
-                <th className="px-4 py-3 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-[#262B30] font-body">
-              {filteredTrades.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="px-4 py-8 text-center text-slate-400 dark:text-[#8B8D91]">
-                    No trades found matching active filters.
-                  </td>
-                </tr>
-              ) : (
-                filteredTrades.map((t) => (
-                  <tr
-                    key={t.id}
-                    className="hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors group cursor-pointer"
-                    onClick={() => setSelectedTrade(t)}
-                  >
-                    <td className="px-4 py-3 font-mono-num text-slate-500 dark:text-[#8B8D91]">{t.date}</td>
-                    <td className="px-4 py-3">
-                      <Pill tone={t.side === 'Buy' ? 'profit' : 'loss'}>{t.side}</Pill>
-                    </td>
-                    <td className="px-4 py-3 font-mono-num font-medium" style={{ color: 'var(--color-text-main)' }}>${t.entryPrice}</td>
-                    <td className="px-4 py-3 font-mono-num font-medium" style={{ color: 'var(--color-text-main)' }}>${t.exitPrice}</td>
-                    <td className="px-4 py-3 font-mono-num font-semibold text-amber-600 dark:text-[#C9A227]">{t.lotSize}</td>
-                    <td className="px-4 py-3 font-mono-num" style={{ color: t.rr >= 1.0 ? '#059669' : '#E11D48' }}>
-                      1 : {t.rr.toFixed(1)}
-                    </td>
-                    <td className="px-4 py-3 font-medium" style={{ color: 'var(--color-text-main)' }}>{t.strategy}</td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-[#8B8D91]">{t.session}</td>
-                    <td className="px-4 py-3">
-                      {t.mistakes && t.mistakes.length > 0 ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/30 text-rose-700 dark:text-rose-400">
-                          <AlertTriangle size={11} /> {t.mistakes[0]}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-400 dark:text-[#8B8D91]">{t.emotion}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 font-mono-num font-bold text-right text-sm" style={{ color: t.pnl >= 0 ? '#059669' : '#E11D48' }}>
-                      {t.pnl >= 0 ? '+' : ''}${t.pnl.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => setSelectedTrade(t)}
-                          className="p-1 rounded text-slate-400 dark:text-[#8B8D91] hover:text-amber-500 transition-colors"
-                          title="View Trade Details"
-                        >
-                          <Eye size={14} />
-                        </button>
-                        <button
-                          onClick={() => deleteTrade(t.id)}
-                          className="p-1 rounded text-rose-500/70 hover:text-rose-600 transition-colors"
-                          title="Delete Trade"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {/* Empty States */}
+      {filteredTrades.length === 0 ? (
+        <div className="terminal-card p-8 text-center space-y-3">
+          <p className="text-sm font-semibold" style={{ color: 'var(--color-text-main)' }}>
+            {activeTrades.length === 0
+              ? 'No trades logged in this account yet'
+              : 'No trades match your active filters'}
+          </p>
+          <p className="text-xs max-w-md mx-auto" style={{ color: 'var(--color-text-muted)' }}>
+            {activeTrades.length === 0
+              ? 'Log your first XAU/USD setup or import an MT5 trading statement to start tracking edge and discipline.'
+              : 'Try broadening your search query or resetting the strategy and session filters.'}
+          </p>
+          <div className="flex items-center justify-center gap-2 pt-1">
+            {activeTrades.length === 0 ? (
+              <>
+                <button
+                  onClick={() => setActivePage('add')}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#C9A227] to-[#D4AF37] text-[#080A0D] text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                >
+                  <Plus size={14} /> Log First Trade
+                </button>
+                <button
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="px-3.5 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5"
+                  style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)', color: 'var(--color-text-main)' }}
+                >
+                  <Upload size={14} /> Import MT5
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={clearFilters}
+                className="px-4 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5"
+                style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)', color: 'var(--color-text-main)' }}
+              >
+                <RotateCcw size={13} /> Clear All Filters
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Mobile Card List (below md) */}
+          <div className="md:hidden space-y-2.5">
+            {filteredTrades.map((t) => {
+              const rrNum = t.rr != null && Number.isFinite(Number(t.rr)) ? Number(t.rr) : null;
+              const pnlNum = Number(t.pnl) || 0;
+              return (
+                <div
+                  key={t.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedTrade(t)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedTrade(t);
+                    }
+                  }}
+                  className="terminal-card p-3.5 space-y-2.5 cursor-pointer"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Pill tone={t.side === 'Buy' ? 'profit' : 'loss'}>{t.side}</Pill>
+                      <span className="text-xs font-semibold truncate" style={{ color: 'var(--color-text-main)' }}>
+                        {t.strategy}
+                      </span>
+                      <span className="text-[11px] font-mono-num" style={{ color: 'var(--color-text-dim)' }}>
+                        {t.date}
+                      </span>
+                    </div>
+                    <span
+                      className="text-sm font-bold font-mono-num shrink-0"
+                      style={{ color: pnlNum >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
+                    >
+                      {pnlNum >= 0 ? '+' : ''}${pnlNum.toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs font-mono-num" style={{ color: 'var(--color-text-muted)' }}>
+                    <span>
+                      ${t.entryPrice} → ${t.exitPrice} · <strong className="text-amber-600 dark:text-[#C9A227]">{t.lotSize}L</strong>
+                    </span>
+                    <span>
+                      {t.session} · {rrNum !== null ? `1:${rrNum.toFixed(1)}` : '—'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor: 'var(--color-border-soft)' }}>
+                    {t.mistakes && t.mistakes.length > 0 ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/30 text-rose-700 dark:text-rose-400 truncate max-w-[75%]">
+                        <AlertTriangle size={11} className="shrink-0" />
+                        <span className="truncate">{t.mistakes[0]}</span>
+                      </span>
+                    ) : (
+                      <span className="text-[11px]" style={{ color: 'var(--color-text-dim)' }}>{t.emotion || 'Planned'}</span>
+                    )}
+
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => setSelectedTrade(t)}
+                        className="p-1.5 rounded text-slate-400 dark:text-[#8B8D91] hover:text-amber-500"
+                        aria-label={`View trade ${t.id} details`}
+                      >
+                        <Eye size={14} />
+                      </button>
+                      <button
+                        onClick={() => setTradePendingDelete(t)}
+                        className="p-1.5 rounded text-rose-500/70 hover:text-rose-600"
+                        aria-label={`Delete trade ${t.id}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Data Table (md and up) */}
+          <div className="hidden md:block terminal-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead
+                  className="border-b border-slate-200 dark:border-[#262B30] uppercase tracking-wider font-semibold text-[11px]"
+                  style={{
+                    background: 'var(--color-elevated)',
+                    color: 'var(--color-text-dim)',
+                  }}
+                >
+                  <tr>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Side</th>
+                    <th className="px-4 py-3">Entry</th>
+                    <th className="px-4 py-3">Exit</th>
+                    <th className="px-4 py-3">Lots</th>
+                    <th className="px-4 py-3">R:R</th>
+                    <th className="px-4 py-3">Strategy</th>
+                    <th className="px-4 py-3">Session</th>
+                    <th className="px-4 py-3">Discipline &amp; Emotion</th>
+                    <th className="px-4 py-3 text-right">P&amp;L ($)</th>
+                    <th className="px-4 py-3 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-[#262B30] font-body">
+                  {filteredTrades.map((t) => {
+                    const rrNum = t.rr != null && Number.isFinite(Number(t.rr)) ? Number(t.rr) : null;
+                    const pnlNum = Number(t.pnl) || 0;
+                    return (
+                      <tr
+                        key={t.id}
+                        tabIndex={0}
+                        onClick={() => setSelectedTrade(t)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedTrade(t);
+                          }
+                        }}
+                        className="hover:bg-slate-100/60 dark:hover:bg-white/[0.04] focus:bg-slate-100/60 dark:focus:bg-white/[0.04] focus:outline-none transition-colors group cursor-pointer"
+                      >
+                        <td className="px-4 py-3 font-mono-num" style={{ color: 'var(--color-text-muted)' }}>{t.date}</td>
+                        <td className="px-4 py-3">
+                          <Pill tone={t.side === 'Buy' ? 'profit' : 'loss'}>{t.side}</Pill>
+                        </td>
+                        <td className="px-4 py-3 font-mono-num font-medium" style={{ color: 'var(--color-text-main)' }}>${t.entryPrice}</td>
+                        <td className="px-4 py-3 font-mono-num font-medium" style={{ color: 'var(--color-text-main)' }}>${t.exitPrice}</td>
+                        <td className="px-4 py-3 font-mono-num font-semibold text-amber-600 dark:text-[#C9A227]">{t.lotSize}</td>
+                        <td
+                          className="px-4 py-3 font-mono-num"
+                          style={{ color: rrNum === null ? 'var(--color-text-dim)' : rrNum >= 1.0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
+                        >
+                          {rrNum !== null ? `1 : ${rrNum.toFixed(1)}` : '—'}
+                        </td>
+                        <td className="px-4 py-3 font-medium" style={{ color: 'var(--color-text-main)' }}>{t.strategy}</td>
+                        <td className="px-4 py-3" style={{ color: 'var(--color-text-muted)' }}>{t.session}</td>
+                        <td className="px-4 py-3">
+                          {t.mistakes && t.mistakes.length > 0 ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/30 text-rose-700 dark:text-rose-400">
+                              <AlertTriangle size={11} /> {t.mistakes[0]}
+                            </span>
+                          ) : (
+                            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t.emotion}</span>
+                          )}
+                        </td>
+                        <td
+                          className="px-4 py-3 font-mono-num font-bold text-right text-sm"
+                          style={{ color: pnlNum >= 0 ? 'var(--color-profit)' : 'var(--color-loss)' }}
+                        >
+                          {pnlNum >= 0 ? '+' : ''}${pnlNum.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => setSelectedTrade(t)}
+                              className="p-1 rounded text-slate-400 dark:text-[#8B8D91] hover:text-amber-500 transition-colors"
+                              title="View Trade Details"
+                              aria-label={`View trade ${t.id} details`}
+                            >
+                              <Eye size={14} />
+                            </button>
+                            <button
+                              onClick={() => setTradePendingDelete(t)}
+                              className="p-1 rounded text-rose-500/70 hover:text-rose-600 transition-colors"
+                              title="Delete Trade"
+                              aria-label={`Delete trade ${t.id}`}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      <ConfirmModal
+        isOpen={Boolean(tradePendingDelete)}
+        onClose={() => setTradePendingDelete(null)}
+        onConfirm={() => {
+          if (tradePendingDelete) deleteTrade(tradePendingDelete.id);
+        }}
+        title={tradePendingDelete ? `Delete Trade #${tradePendingDelete.id}?` : 'Delete Trade?'}
+        description={
+          tradePendingDelete
+            ? `This will permanently remove your ${tradePendingDelete.side} ${tradePendingDelete.strategy} trade from ${tradePendingDelete.date} (${(tradePendingDelete.pnl ?? 0) >= 0 ? '+' : ''}$${(tradePendingDelete.pnl ?? 0).toLocaleString()}).`
+            : 'This action cannot be undone.'
+        }
+        confirmText="Delete Trade"
+      />
     </div>
   );
 }

@@ -4,6 +4,9 @@
  * Fetches real-time USD economic calendar releases from FairEconomy (Forex Factory)
  * and upserts them into the `public.economic_events` table.
  *
+ * Server-to-server only: requires `x-cron-secret` (CRON_SECRET) or the
+ * service_role bearer token. See ../_shared/auth.ts.
+ *
  * Live DB schema (verified 2026-08-01):
  *   id          uuid          (auto — gen_random_uuid())
  *   event_time  timestamptz   (required)
@@ -16,12 +19,10 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+import { isAuthorizedCaller, unauthorizedResponse, methodNotAllowedResponse } from '../_shared/auth.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type',
-};
+// No CORS headers: browsers must not call this function.
+const jsonHeaders = { 'Content-Type': 'application/json' };
 
 interface FairEconomyEvent {
   title: string;
@@ -47,8 +48,11 @@ function buildNote(ev: FairEconomyEvent): string | null {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  if (req.method !== 'POST') {
+    return methodNotAllowedResponse();
+  }
+  if (!isAuthorizedCaller(req)) {
+    return unauthorizedResponse();
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -85,7 +89,7 @@ serve(async (req) => {
   if (fetchError) {
     console.error(`[fetch-economic-events] ${fetchError}`);
     return new Response(JSON.stringify({ ok: false, error: fetchError }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: jsonHeaders,
       status: 502,
     });
   }
@@ -144,7 +148,7 @@ serve(async (req) => {
     };
 
     return new Response(JSON.stringify(responsePayload), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: jsonHeaders,
       status: 200,
     });
   }
@@ -152,7 +156,7 @@ serve(async (req) => {
   return new Response(
     JSON.stringify({ ok: true, message: 'No USD events found in feed.' }),
     {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: jsonHeaders,
       status: 200,
     },
   );

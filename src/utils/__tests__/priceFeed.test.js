@@ -15,11 +15,13 @@ describe('Price Feed Staleness & Source Tagging', () => {
   });
 
   it('validates allowed source values against constraint', () => {
-    const validSources = ['goldapi', 'simulated', 'unknown'];
-    
+    const validSources = ['goldapi', 'gold-api', 'coingecko', 'simulated', 'unknown'];
+
     const isValidSource = (src) => validSources.includes(src);
 
     expect(isValidSource('goldapi')).toBe(true);
+    expect(isValidSource('gold-api')).toBe(true);
+    expect(isValidSource('coingecko')).toBe(true);
     expect(isValidSource('simulated')).toBe(true);
     expect(isValidSource('unknown')).toBe(true);
     expect(isValidSource('invalid_fake_source')).toBe(false);

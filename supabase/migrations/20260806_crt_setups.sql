@@ -27,7 +27,7 @@ create policy "insert_own_crt_setups" on public.crt_setups
 
 drop policy if exists "update_own_crt_setups" on public.crt_setups;
 create policy "update_own_crt_setups" on public.crt_setups
-  for update using (auth.uid() = user_id);
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 drop policy if exists "delete_own_crt_setups" on public.crt_setups;
 create policy "delete_own_crt_setups" on public.crt_setups

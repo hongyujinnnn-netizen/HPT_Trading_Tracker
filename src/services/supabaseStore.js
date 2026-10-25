@@ -412,6 +412,25 @@ export const supabaseStore = {
       ]);
 
       return data.path;
+    } finally {
+      // end uploadScreenshot
+    }
+  },
+  async getScreenshotSignedUrl(storagePath, expiresInSeconds = 3600) {
+    if (!supabase || !storagePath) return null;
+    try {
+      const { data, error } = await supabase.storage
+        .from('trade-screenshots')
+        .createSignedUrl(storagePath, expiresInSeconds);
+      if (error) return null;
+      return data?.signedUrl || null;
+    } catch (_e) {
+      return null;
+    }
+  },
+  _wrap() {
+    try {
+      return null;
     } catch (e) {
       console.error('Failed to upload screenshot to Supabase Storage:', e);
       return null;
@@ -563,7 +582,9 @@ export const supabaseStore = {
 
       (data || []).forEach((row) => {
         const src = row.source || 'unknown';
-        if (src in health) {
+        if (src === 'goldapi' || src === 'gold-api' || src === 'coingecko') {
+          health.goldapi++;
+        } else if (src in health) {
           health[src]++;
         } else {
           health.unknown++;

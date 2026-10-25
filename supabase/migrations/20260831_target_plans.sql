@@ -48,7 +48,7 @@ create policy "insert_own_target_plans" on public.target_plans
 
 drop policy if exists "update_own_target_plans" on public.target_plans;
 create policy "update_own_target_plans" on public.target_plans
-  for update using (auth.uid() = user_id);
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 drop policy if exists "delete_own_target_plans" on public.target_plans;
 create policy "delete_own_target_plans" on public.target_plans

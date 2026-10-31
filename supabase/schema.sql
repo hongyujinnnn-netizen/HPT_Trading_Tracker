@@ -329,6 +329,7 @@ create index idx_target_plans_status on public.target_plans(status);
 -- =====================================================================
 
 -- Auto-calculate PnL and Risk Amount on trade insert/update
+-- Preserves explicit net PnL (e.g., MT5 imports with commission, swap, and cent-scaling)
 create or replace function public.trg_calculate_trade_metrics()
 returns trigger
 security definer
@@ -343,26 +344,32 @@ begin
 
   v_contract_size := coalesce(v_contract_size, 100);
 
-  if new.stop_loss is not null then
+  if new.stop_loss is not null and new.stop_loss > 0 then
     new.risk_amount := abs(new.entry_price - new.stop_loss) * new.lot_size * v_contract_size;
   else
     new.risk_amount := null;
   end if;
 
   if new.status = 'closed' and new.exit_price is not null then
-    if new.side = 'buy' then
-      new.pnl := (new.exit_price - new.entry_price) * new.lot_size * v_contract_size;
-    else
-      new.pnl := (new.entry_price - new.exit_price) * new.lot_size * v_contract_size;
+    if new.pnl is null then
+      if new.side = 'buy' then
+        new.pnl := (new.exit_price - new.entry_price) * new.lot_size * v_contract_size;
+      else
+        new.pnl := (new.entry_price - new.exit_price) * new.lot_size * v_contract_size;
+      end if;
     end if;
-  else
+  elsif new.status = 'open' then
     new.pnl := null;
   end if;
 
-  if new.pnl is not null and new.risk_amount is not null and new.risk_amount > 0 then
-    new.rr_ratio := round(new.pnl / new.risk_amount, 2);
-  else
-    new.rr_ratio := null;
+  if new.rr_ratio is null or new.rr_ratio = 0 then
+    if new.take_profit is not null and new.take_profit > 0 and new.stop_loss is not null and new.stop_loss > 0 and abs(new.entry_price - new.stop_loss) > 0 then
+      new.rr_ratio := round(abs(new.take_profit - new.entry_price) / abs(new.entry_price - new.stop_loss), 2);
+    elsif new.pnl is not null and new.risk_amount is not null and new.risk_amount > 0 then
+      new.rr_ratio := round(abs(new.pnl) / new.risk_amount, 2);
+    else
+      new.rr_ratio := null;
+    end if;
   end if;
 
   new.updated_at := now();

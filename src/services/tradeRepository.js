@@ -135,6 +135,33 @@ export const tradeRepository = {
   },
 
   /**
+   * Update an existing trade
+   */
+  async updateTrade(id, updates) {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const updated = await supabaseStore.updateTrade(id, updates, session.user.id);
+        if (updated) return updated;
+      }
+    }
+    return await tradeStore.updateTrade(id, updates);
+  },
+
+  /**
+   * Upload trade screenshot to cloud storage if authenticated
+   */
+  async uploadScreenshot(tradeId, fileOrBlob) {
+    if (isSupabaseConfigured && supabase && tradeId && fileOrBlob) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        return await supabaseStore.uploadScreenshot(tradeId, session.user.id, fileOrBlob);
+      }
+    }
+    return null;
+  },
+
+  /**
    * Delete trade
    */
   async deleteTrade(id) {
@@ -202,6 +229,7 @@ export const tradeRepository = {
         const dbSettings = await supabaseStore.getSettings(session.user.id);
         if (dbSettings) {
           return {
+            displayName: dbSettings.display_name || '',
             accountBalance: parseFloat(dbSettings.account_balance) || 10000,
             baseCurrency: dbSettings.base_currency || 'USD',
             defaultRiskPct: parseFloat(dbSettings.default_risk_pct) || 1.0,
@@ -221,12 +249,16 @@ export const tradeRepository = {
     if (isSupabaseConfigured && supabase) {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        await supabaseStore.saveSettings(session.user.id, {
+        const payload = {
           account_balance: settings.accountBalance,
           default_risk_pct: settings.defaultRiskPct,
           contract_size: settings.contractSize,
           session_timezone: settings.sessionTimezone,
-        });
+        };
+        if (settings.displayName !== undefined) {
+          payload.display_name = settings.displayName;
+        }
+        await supabaseStore.saveSettings(session.user.id, payload);
       }
     }
     return tradeStore.saveSettings(settings);
@@ -340,6 +372,7 @@ export const tradeRepository = {
       if (session) {
         const cloudPlans = await supabaseStore.getTargetPlans(session.user.id);
         if (cloudPlans && cloudPlans.length > 0) {
+          await tradeStore.savePlans(cloudPlans);
           return cloudPlans;
         }
 
@@ -351,7 +384,10 @@ export const tradeRepository = {
             const added = await supabaseStore.addTargetPlan(lp, session.user.id);
             if (added) seeded.push(added);
           }
-          if (seeded.length > 0) return seeded;
+          if (seeded.length > 0) {
+            await tradeStore.savePlans(seeded);
+            return seeded;
+          }
         }
       }
     }
@@ -377,9 +413,9 @@ export const tradeRepository = {
     if (isSupabaseConfigured && supabase) {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const updated = await supabaseStore.updateTargetPlan(id, updates);
+        const updated = await supabaseStore.updateTargetPlan(id, updates, session.user.id);
         if (updated) {
-          await tradeStore.updatePlan(id, updates);
+          await tradeStore.updatePlan(updated.id, updated);
           return updated;
         }
       }

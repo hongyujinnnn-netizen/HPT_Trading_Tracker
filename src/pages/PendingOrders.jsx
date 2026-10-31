@@ -42,6 +42,7 @@ export function PendingOrders() {
     liveGoldPrice,
     settings,
     tradingAccounts = [],
+    getAccountBalance,
     activeAccountId,
   } = useTrade();
 
@@ -99,8 +100,10 @@ export function PendingOrders() {
     const distanceToEntry = liveGoldPrice ? Math.abs(liveGoldPrice - ep) : null;
     const requiredMargin = (ep * lots * contractSize) / (leverageNum || 500);
 
-    // Broker-style margin info
-    const balance = targetSubAccount ? parseFloat(targetSubAccount.initialBalance) || 0 : 0;
+    // Broker-style margin info (using live sub-account balance)
+    const balance = targetSubAccount
+      ? (getAccountBalance ? getAccountBalance(targetSubAccount.id) : (parseFloat(targetSubAccount.initialBalance) || 0))
+      : 0;
     const freeMargin = balance - requiredMargin;
     const marginLevel = requiredMargin > 0 ? (balance / requiredMargin) * 100 : 0;
 
@@ -123,7 +126,10 @@ export function PendingOrders() {
     const tp = parseFloat(takeProfit);
     const lots = parseFloat(lotSize);
 
-    if (targetSubAccount && targetSubAccount.initialBalance <= 0) {
+    const liveSubBalance = targetSubAccount
+      ? (getAccountBalance ? getAccountBalance(targetSubAccount.id) : targetSubAccount.initialBalance)
+      : 0;
+    if (targetSubAccount && liveSubBalance <= 0) {
       return `Sub-account "${targetSubAccount.name}" balance is $0.00 (Stopped Out). Cannot place orders.`;
     }
 
@@ -261,15 +267,18 @@ export function PendingOrders() {
                 onChange={(e) => setSelectedAccountId(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg text-xs font-semibold terminal-select focus:outline-none"
               >
-                {visibleAccounts.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.name} ({acc.broker} • {acc.leverage} • ${acc.initialBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })})
-                  </option>
-                ))}
+                {visibleAccounts.map((acc) => {
+                  const liveBal = getAccountBalance ? getAccountBalance(acc.id) : acc.initialBalance;
+                  return (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name} ({acc.broker} • {acc.leverage} • ${liveBal.toLocaleString('en-US', { minimumFractionDigits: 2 })})
+                    </option>
+                  );
+                })}
               </select>
               {targetSubAccount && (
                 <div className="flex items-center justify-between text-[10px] mt-1 font-mono" style={{ color: 'var(--color-text-muted)' }}>
-                  <span>Balance: <strong className="text-emerald-600 dark:text-[#3FA88C]">${targetSubAccount.initialBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></span>
+                  <span>Balance: <strong className="text-emerald-600 dark:text-[#3FA88C]">${(getAccountBalance ? getAccountBalance(targetSubAccount.id) : targetSubAccount.initialBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></span>
                   <span>Leverage: <strong className="text-amber-600 dark:text-[#C9A227]">{targetSubAccount.leverage}</strong></span>
                 </div>
               )}

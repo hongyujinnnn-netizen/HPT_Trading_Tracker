@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Download, Upload, AlertTriangle, Filter, Trash2, Eye, Plus, RotateCcw } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, Download, Upload, AlertTriangle, Filter, Trash2, Eye, Plus, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTrade } from '../context/TradeContext';
 import { Pill } from '../components/Pill';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { exportToCSV } from '../utils/csvParser';
 import { STANDARD_STRATEGIES, TRADING_SESSIONS } from '../utils/tradingConstants';
+
+const PAGE_SIZE = 25;
 
 export function TradeHistory() {
   const { trades, filteredTrades: contextFilteredTrades, setSelectedTrade, setIsImportModalOpen, deleteTrade, setActivePage } = useTrade();
@@ -16,6 +18,7 @@ export function TradeHistory() {
   const [selectedStrategy, setSelectedStrategy] = useState('All');
   const [selectedSession, setSelectedSession] = useState('All');
   const [tradePendingDelete, setTradePendingDelete] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Merge standard strategies with any custom strategies logged in the user's trades
   const strategyOptions = useMemo(() => {
@@ -31,6 +34,7 @@ export function TradeHistory() {
     setSelectedStrategy('All');
     setSelectedSession('All');
     setSearch('');
+    setCurrentPage(1);
   };
 
   // Filter Logic (depends on activeTrades so account switching refreshes immediately)
@@ -60,6 +64,17 @@ export function TradeHistory() {
       return true;
     });
   }, [activeTrades, filterTab, selectedStrategy, selectedSession, search]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterTab, selectedStrategy, selectedSession, search, activeTrades.length]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTrades.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedTrades = useMemo(() => {
+    const start = (safePage - 1) * PAGE_SIZE;
+    return filteredTrades.slice(start, start + PAGE_SIZE);
+  }, [filteredTrades, safePage]);
 
   // Export to CSV (revoke Object URL after download to avoid memory leak)
   const handleExportCSV = () => {
@@ -254,7 +269,7 @@ export function TradeHistory() {
         <>
           {/* Mobile Card List (below md) */}
           <div className="md:hidden space-y-2.5">
-            {filteredTrades.map((t) => {
+            {paginatedTrades.map((t) => {
               const rrNum = t.rr != null && Number.isFinite(Number(t.rr)) ? Number(t.rr) : null;
               const pnlNum = Number(t.pnl) || 0;
               return (
@@ -356,7 +371,7 @@ export function TradeHistory() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-[#262B30] font-body">
-                  {filteredTrades.map((t) => {
+                  {paginatedTrades.map((t) => {
                     const rrNum = t.rr != null && Number.isFinite(Number(t.rr)) ? Number(t.rr) : null;
                     const pnlNum = Number(t.pnl) || 0;
                     return (
@@ -429,6 +444,40 @@ export function TradeHistory() {
               </table>
             </div>
           </div>
+
+          {totalPages > 1 && (
+            <div
+              className="terminal-card px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs"
+            >
+              <span style={{ color: 'var(--color-text-muted)' }}>
+                Showing <strong className="font-mono-num" style={{ color: 'var(--color-text-main)' }}>{(safePage - 1) * PAGE_SIZE + 1}</strong>–<strong className="font-mono-num" style={{ color: 'var(--color-text-main)' }}>{Math.min(safePage * PAGE_SIZE, filteredTrades.length)}</strong> of <strong className="font-mono-num" style={{ color: 'var(--color-text-main)' }}>{filteredTrades.length}</strong> trades
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                  className="px-2.5 py-1 rounded-lg border font-semibold flex items-center gap-1 disabled:opacity-40 hover:opacity-80 transition-opacity"
+                  style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)', color: 'var(--color-text-main)' }}
+                >
+                  <ChevronLeft size={13} /> Prev
+                </button>
+                <span className="font-mono-num px-2" style={{ color: 'var(--color-text-muted)' }}>
+                  Page <strong style={{ color: 'var(--color-text-main)' }}>{safePage}</strong> / {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                  className="px-2.5 py-1 rounded-lg border font-semibold flex items-center gap-1 disabled:opacity-40 hover:opacity-80 transition-opacity"
+                  style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)', color: 'var(--color-text-main)' }}
+                >
+                  Next <ChevronRight size={13} />
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
 

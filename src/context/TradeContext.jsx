@@ -5,7 +5,7 @@ import { imageStore } from '../services/imageStore';
 import { INITIAL_TRADES, INITIAL_PENDING_ORDERS, INITIAL_ACCOUNTS } from '../utils/mockData';
 import { createTradingAccount } from '../types/accountSchema';
 import { detectMistakes } from '../utils/mistakeDetector';
-import { calculatePerformanceStats } from '../utils/calculations';
+import { calculatePerformanceStats, calculateAccountBalances, calculateRR } from '../utils/calculations';
 import { isSupabaseConfigured, supabase } from '../services/supabaseClient';
 import { goldPriceService } from '../services/goldPriceService';
 import { orderEngine } from '../services/orderEngine';
@@ -24,6 +24,28 @@ import { createTargetPlan, PLAN_PRESETS } from '../types/planSchema';
 
 const TradeContext = createContext(null);
 
+const VALID_PAGES = new Set([
+  'dashboard',
+  'chart',
+  'add',
+  'pendingorders',
+  'history',
+  'analytics',
+  'strategy',
+  'risk',
+  'targetplan',
+  'news',
+  'mistakes',
+  'profile',
+  'settings',
+]);
+
+function getInitialPageFromHash() {
+  if (typeof window === 'undefined') return 'dashboard';
+  const hash = window.location.hash.replace(/^#\/?/, '').trim().toLowerCase();
+  return VALID_PAGES.has(hash) ? hash : 'dashboard';
+}
+
 export function TradeProvider({ children }) {
   const [trades, setTrades] = useState([]);
   const [tradingAccounts, setTradingAccounts] = useState([]);
@@ -36,8 +58,34 @@ export function TradeProvider({ children }) {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [unmigratedTrades, setUnmigratedTrades] = useState([]);
 
-  const [activePage, setActivePage] = useState('dashboard');
+  const [activePage, setActivePageState] = useState(getInitialPageFromHash);
   const [selectedTrade, setSelectedTrade] = useState(null);
+
+  const setActivePage = useCallback((page) => {
+    const next = VALID_PAGES.has(page) ? page : 'dashboard';
+    setActivePageState(next);
+    if (typeof window !== 'undefined' && window.location.hash !== `#${next}`) {
+      try {
+        window.history.pushState(null, '', `#${next}`);
+      } catch {
+        window.location.hash = next;
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleHashChange = () => {
+      const hashPage = getInitialPageFromHash();
+      setActivePageState(hashPage);
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handleHashChange);
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('popstate', handleHashChange);
+    };
+  }, []);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [userSession, setUserSession] = useState(null);
@@ -309,7 +357,19 @@ export function TradeProvider({ children }) {
       setSettings(loadedSettings);
 
       const accounts = await tradeRepository.getAccounts();
-      setTradingAccounts(accounts || []);
+      const validAccounts = accounts || [];
+      setTradingAccounts(validAccounts);
+
+      // Reset activeAccountId if localStorage holds a stale/deleted or demo account ID
+      const currentSavedAccId = tradeRepository.getActiveAccountId();
+      if (
+        currentSavedAccId &&
+        currentSavedAccId !== 'all' &&
+        !validAccounts.some((a) => a.id === currentSavedAccId)
+      ) {
+        setActiveAccountIdState('all');
+        tradeRepository.setActiveAccountId('all');
+      }
 
       const storedTrades = await tradeRepository.getAllTrades();
       setTrades(storedTrades || []);
@@ -471,17 +531,28 @@ export function TradeProvider({ children }) {
         const triggerPrice = parseFloat(order.triggered_price) || parseFloat(order.entry_price);
         const side = isBuy ? 'Buy' : 'Sell';
         const orderAccountId = order.account_id || order.accountId || null;
+        const slPrice = parseFloat(order.stop_loss) || 0;
+        const tpPrice = parseFloat(order.take_profit) || 0;
+        const lots = parseFloat(order.lot_size) || 0.1;
+        const cs = settings?.contractSize || 100;
+        const rawPnl = isBuy
+          ? (closedPrice - triggerPrice) * lots * cs
+          : (triggerPrice - closedPrice) * lots * cs;
+        const pnl = Math.round(rawPnl * 100) / 100;
+        const rr = calculateRR(side, triggerPrice, slPrice, tpPrice);
 
         // Create the trade record automatically (linked to sub-account)
         const tradeData = {
           side,
           entryPrice: triggerPrice,
           exitPrice: closedPrice,
-          stopLoss: parseFloat(order.stop_loss),
-          takeProfit: parseFloat(order.take_profit),
-          lotSize: parseFloat(order.lot_size),
-          strategy: order.strategy || null,
-          session: order.session || null,
+          stopLoss: slPrice,
+          takeProfit: tpPrice,
+          lotSize: lots,
+          pnl,
+          rr,
+          strategy: order.strategy || 'Breakout',
+          session: order.session || 'London',
           emotion: 'Planned',
           notes: `Auto-executed from pending order (TP hit). ${order.notes || ''}`.trim(),
           timestamp: order.triggered_at || new Date().toISOString(),
@@ -496,23 +567,6 @@ export function TradeProvider({ children }) {
           closed_price: closedPrice,
           resulting_trade_id: savedTrade?.id || null,
         });
-
-        const cs = settings?.contractSize || 100;
-        const pnl = isBuy
-          ? (closedPrice - triggerPrice) * parseFloat(order.lot_size) * cs
-          : (triggerPrice - closedPrice) * parseFloat(order.lot_size) * cs;
-
-        // Update sub-account balance with realized P&L (broker-style)
-        if (orderAccountId) {
-          const acc = tradingAccounts.find(a => a.id === orderAccountId);
-          if (acc) {
-            const newBalance = Math.max(0, (parseFloat(acc.initialBalance) || 0) + pnl);
-            await tradeRepository.updateAccount(orderAccountId, { initialBalance: newBalance });
-            setTradingAccounts(prev => prev.map(a =>
-              a.id === orderAccountId ? { ...a, initialBalance: newBalance } : a
-            ));
-          }
-        }
 
         sendNotification({
           type: 'closed_tp',
@@ -529,16 +583,27 @@ export function TradeProvider({ children }) {
         const triggerPrice = parseFloat(order.triggered_price) || parseFloat(order.entry_price);
         const side = isBuy ? 'Buy' : 'Sell';
         const orderAccountId = order.account_id || order.accountId || null;
+        const slPrice = parseFloat(order.stop_loss) || 0;
+        const tpPrice = parseFloat(order.take_profit) || 0;
+        const lots = parseFloat(order.lot_size) || 0.1;
+        const cs = settings?.contractSize || 100;
+        const rawPnl = isBuy
+          ? (closedPrice - triggerPrice) * lots * cs
+          : (triggerPrice - closedPrice) * lots * cs;
+        const pnl = Math.round(rawPnl * 100) / 100;
+        const rr = calculateRR(side, triggerPrice, slPrice, tpPrice);
 
         const tradeData = {
           side,
           entryPrice: triggerPrice,
           exitPrice: closedPrice,
-          stopLoss: parseFloat(order.stop_loss),
-          takeProfit: parseFloat(order.take_profit),
-          lotSize: parseFloat(order.lot_size),
-          strategy: order.strategy || null,
-          session: order.session || null,
+          stopLoss: slPrice,
+          takeProfit: tpPrice,
+          lotSize: lots,
+          pnl,
+          rr,
+          strategy: order.strategy || 'Breakout',
+          session: order.session || 'London',
           emotion: 'Planned',
           notes: `Auto-executed from pending order (SL hit). ${order.notes || ''}`.trim(),
           timestamp: order.triggered_at || new Date().toISOString(),
@@ -553,23 +618,6 @@ export function TradeProvider({ children }) {
           closed_price: closedPrice,
           resulting_trade_id: savedTrade?.id || null,
         });
-
-        const cs = settings?.contractSize || 100;
-        const pnl = isBuy
-          ? (closedPrice - triggerPrice) * parseFloat(order.lot_size) * cs
-          : (triggerPrice - closedPrice) * parseFloat(order.lot_size) * cs;
-
-        // Update sub-account balance with realized P&L (broker-style)
-        if (orderAccountId) {
-          const acc = tradingAccounts.find(a => a.id === orderAccountId);
-          if (acc) {
-            const newBalance = Math.max(0, (parseFloat(acc.initialBalance) || 0) + pnl);
-            await tradeRepository.updateAccount(orderAccountId, { initialBalance: newBalance });
-            setTradingAccounts(prev => prev.map(a =>
-              a.id === orderAccountId ? { ...a, initialBalance: newBalance } : a
-            ));
-          }
-        }
 
         sendNotification({
           type: 'closed_sl',
@@ -674,8 +722,56 @@ export function TradeProvider({ children }) {
     };
 
     const savedTrade = await tradeRepository.addTrade(newTradeData);
+
+    // Also upload screenshot to Supabase Storage if authenticated
+    if (screenshotDataUrl && savedTrade?.id) {
+      const cloudPath = await tradeRepository.uploadScreenshot(savedTrade.id, screenshotDataUrl);
+      if (cloudPath) {
+        await imageStore.saveImage(cloudPath, screenshotDataUrl);
+        savedTrade.imageId = cloudPath;
+      }
+    }
+
     await refreshData();
     return savedTrade;
+  }, [trades, isDemoMode, refreshData]);
+
+  // Update existing trade
+  const updateTrade = useCallback(async (id, updates, screenshotDataUrl = null) => {
+    const existing = trades.find((t) => t.id === id);
+    if (!existing) return null;
+
+    if (isDemoMode) {
+      const merged = { ...existing, ...updates };
+      merged.mistakes = detectMistakes(merged, trades);
+      setTrades((prev) => prev.map((t) => (t.id === id ? merged : t)));
+      setSelectedTrade((prev) => (prev?.id === id ? merged : prev));
+      return merged;
+    }
+
+    let imageId = updates.imageId !== undefined ? updates.imageId : existing.imageId;
+    if (screenshotDataUrl) {
+      imageId = `img_${Date.now()}`;
+      await imageStore.saveImage(imageId, screenshotDataUrl);
+      const cloudPath = await tradeRepository.uploadScreenshot(id, screenshotDataUrl);
+      if (cloudPath) {
+        await imageStore.saveImage(cloudPath, screenshotDataUrl);
+        imageId = cloudPath;
+      }
+    }
+
+    const candidate = { ...existing, ...updates, imageId };
+    const mistakes = detectMistakes(candidate, trades);
+    const finalUpdates = { ...updates, imageId, mistakes };
+
+    const updatedTrade = await tradeRepository.updateTrade(id, finalUpdates);
+    if (updatedTrade) {
+      setTrades((prev) => prev.map((t) => (t.id === id ? updatedTrade : t)));
+      setSelectedTrade((prev) => (prev?.id === id ? updatedTrade : prev));
+    } else {
+      await refreshData();
+    }
+    return updatedTrade;
   }, [trades, isDemoMode, refreshData]);
 
   // Delete trade permanently
@@ -842,16 +938,41 @@ export function TradeProvider({ children }) {
   // Determine active account object
   const activeAccount = tradingAccounts.find((a) => a.id === activeAccountId) || null;
 
-  // Filter trades and pending orders by active sub-account
-  const filteredTrades = useMemo(() => (activeAccountId === 'all' ? trades : trades.filter((t) => !t.accountId || t.accountId === activeAccountId)), [trades, activeAccountId]);
-  const _unusedFilteredTrades = activeAccountId === 'all'
-    ? trades
-    : trades.filter((t) => !t.accountId || t.accountId === activeAccountId);
+  // Compute live sub-account balances (initialBalance + realizedPnl)
+  const accountBalances = useMemo(
+    () => calculateAccountBalances(tradingAccounts, trades),
+    [tradingAccounts, trades]
+  );
 
-  const filteredPendingOrders = useMemo(() => (activeAccountId === 'all' ? pendingOrders : pendingOrders.filter((o) => !o.accountId || o.accountId === activeAccountId)), [pendingOrders, activeAccountId]);
-  const _unusedPendingOrders = activeAccountId === 'all'
-    ? pendingOrders
-    : pendingOrders.filter((o) => !o.accountId || o.accountId === activeAccountId);
+  const getAccountBalance = useCallback(
+    (accountId) => {
+      if (!accountId || accountId === 'all') {
+        const visible = tradingAccounts.filter((a) => !a.isArchived);
+        if (visible.length === 0) return settings.accountBalance || 10000;
+        return visible.reduce(
+          (sum, a) => sum + (accountBalances[a.id]?.currentBalance ?? (parseFloat(a.initialBalance) || 0)),
+          0
+        );
+      }
+      if (accountBalances[accountId]) {
+        return accountBalances[accountId].currentBalance;
+      }
+      const found = tradingAccounts.find((a) => a.id === accountId);
+      return found ? (parseFloat(found.initialBalance) || 0) : (settings.accountBalance || 10000);
+    },
+    [accountBalances, tradingAccounts, settings.accountBalance]
+  );
+
+  // Filter trades and pending orders by active sub-account
+  const filteredTrades = useMemo(
+    () => (activeAccountId === 'all' ? trades : trades.filter((t) => !t.accountId || t.accountId === activeAccountId)),
+    [trades, activeAccountId]
+  );
+
+  const filteredPendingOrders = useMemo(
+    () => (activeAccountId === 'all' ? pendingOrders : pendingOrders.filter((o) => !o.accountId || o.accountId === activeAccountId)),
+    [pendingOrders, activeAccountId]
+  );
 
   // Compute total base capital
   const visibleAccounts = tradingAccounts.filter((a) => !a.isArchived);
@@ -869,7 +990,7 @@ export function TradeProvider({ children }) {
     ...calculatedStats,
     totalPnl: parseFloat(dbViews.stats.total_pnl) || calculatedStats.totalPnl,
     winRate: parseFloat(dbViews.stats.win_rate_pct) || calculatedStats.winRate,
-    avgRR: parseFloat(dbViews.stats.avg_rr_ratio) || calculatedStats.avgRR,
+    avgRR: parseFloat(dbViews.stats.avg_rr_ratio) > 0 ? parseFloat(dbViews.stats.avg_rr_ratio) : calculatedStats.avgRR,
     closedTrades: dbViews.stats.closed_trades || calculatedStats.totalTrades,
   } : calculatedStats;
 
@@ -917,6 +1038,10 @@ export function TradeProvider({ children }) {
     const updated = await tradeRepository.updateTargetPlan(id, updates);
     if (updated) {
       setTargetPlans((prev) => prev.map((p) => (p.id === id ? updated : p)));
+      if (updated.id !== id) {
+        setActivePlanIdState(updated.id);
+        tradeStore.setActivePlanId(updated.id);
+      }
       addToast('success', `Updated target plan "${updated.name}"`, 'Plan Updated');
     }
     return updated;
@@ -990,6 +1115,8 @@ export function TradeProvider({ children }) {
         trades,
         filteredTrades,
         tradingAccounts,
+        accountBalances,
+        getAccountBalance,
         activeAccountId,
         setActiveAccountId,
         activeAccount,
@@ -1020,6 +1147,7 @@ export function TradeProvider({ children }) {
         isCloudActive: isSupabaseConfigured && Boolean(userSession),
         signOut,
         addTrade,
+        updateTrade,
         deleteTrade,
         importTrades,
         resetAllData,

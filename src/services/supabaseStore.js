@@ -2,6 +2,12 @@ import { supabase } from './supabaseClient';
 import { createTrade } from '../types/tradeSchema';
 import { getActiveSessionName } from '../utils/sessionDetector';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidUuid(val) {
+  return typeof val === 'string' && UUID_REGEX.test(val.trim());
+}
+
 const SESSION_NAME_TO_ID = {
   'asian': 1,
   'asia': 1,
@@ -292,6 +298,28 @@ export const supabaseStore = {
   },
 
   /**
+   * Ensures an accountId is a valid UUID that exists in public.trading_accounts.
+   * Prevents foreign key constraint violations (23503) when a local/demo or deleted
+   * account ID is still cached in localStorage.
+   */
+  async resolveValidAccountId(accountId) {
+    if (!supabase || !accountId || accountId === 'all' || !isValidUuid(accountId)) {
+      return null;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('trading_accounts')
+        .select('id')
+        .eq('id', accountId.trim())
+        .maybeSingle();
+      if (error || !data?.id) return null;
+      return data.id;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
    * Save a new trade to Supabase DB
    */
   async addTrade(tradeData, userId) {
@@ -300,6 +328,7 @@ export const supabaseStore = {
     try {
       const strategyId = await this.getOrCreateStrategyId(userId, tradeData.strategy || 'Breakout');
       const sessionId = await this.getSessionId(tradeData.session || 'London');
+      const validAccountId = await this.resolveValidAccountId(tradeData.accountId);
 
       const dbRow = {
         user_id: userId,
@@ -319,7 +348,7 @@ export const supabaseStore = {
         emotion: mapEmotionToDb(tradeData.emotion),
         reason_for_entry: tradeData.notes || '',
         notes: tradeData.notes || '',
-        account_id: tradeData.accountId || null,
+        account_id: validAccountId,
         pnl: typeof tradeData.pnl === 'number' ? tradeData.pnl : (parseFloat(tradeData.pnl) || 0),
         rr_ratio: typeof tradeData.rr === 'number' ? tradeData.rr : (parseFloat(tradeData.rr) || null),
       };
@@ -348,9 +377,78 @@ export const supabaseStore = {
       if (tradeData.session && (!mapped.session || mapped.session === 'London')) {
         mapped.session = tradeData.session;
       }
+      if (tradeData.imageId && !mapped.imageId) {
+        mapped.imageId = tradeData.imageId;
+      }
       return mapped;
     } catch (e) {
       console.error('Failed to add trade to Supabase:', e);
+      return null;
+    }
+  },
+
+  /**
+   * Update an existing trade in Supabase DB
+   */
+  async updateTrade(id, updates, userId) {
+    if (!supabase || !id) return null;
+    try {
+      const dbUpdates = {
+        updated_at: new Date().toISOString(),
+      };
+
+      if (updates.side !== undefined) dbUpdates.side = String(updates.side).toLowerCase();
+      if (updates.entryPrice !== undefined) dbUpdates.entry_price = parseFloat(updates.entryPrice) || 0;
+      if (updates.exitPrice !== undefined) dbUpdates.exit_price = parseFloat(updates.exitPrice) || 0;
+      if (updates.lotSize !== undefined) dbUpdates.lot_size = parseFloat(updates.lotSize) || 0.1;
+      if (updates.stopLoss !== undefined) dbUpdates.stop_loss = parseFloat(updates.stopLoss) || null;
+      if (updates.takeProfit !== undefined) dbUpdates.take_profit = parseFloat(updates.takeProfit) || null;
+      if (updates.marketCondition !== undefined) dbUpdates.market_condition = mapMarketConditionToDb(updates.marketCondition);
+      if (updates.emotion !== undefined) dbUpdates.emotion = mapEmotionToDb(updates.emotion);
+      if (updates.notes !== undefined) {
+        dbUpdates.notes = updates.notes;
+        dbUpdates.reason_for_entry = updates.notes;
+      }
+      if (updates.accountId !== undefined) {
+        dbUpdates.account_id = await this.resolveValidAccountId(updates.accountId);
+      }
+      if (updates.pnl !== undefined) dbUpdates.pnl = parseFloat(updates.pnl) || 0;
+      if (updates.rr !== undefined) dbUpdates.rr_ratio = parseFloat(updates.rr) || null;
+
+      if (updates.strategy && userId) {
+        const strategyId = await this.getOrCreateStrategyId(userId, updates.strategy);
+        if (strategyId) dbUpdates.strategy_id = strategyId;
+      }
+      if (updates.session) {
+        const sessionId = await this.getSessionId(updates.session);
+        if (sessionId) dbUpdates.session_id = sessionId;
+      }
+
+      const { data, error } = await supabase
+        .from('trades')
+        .update(dbUpdates)
+        .eq('id', id)
+        .select(`
+          *,
+          strategies(name),
+          sessions(name),
+          trade_mistakes(mistake_types(label, code)),
+          trade_screenshots(storage_path)
+        `)
+        .single();
+
+      if (error) {
+        console.error('Supabase updateTrade error:', error);
+        return null;
+      }
+
+      const mapped = mapRowToTrade(data);
+      if (updates.strategy) mapped.strategy = updates.strategy;
+      if (updates.session) mapped.session = updates.session;
+      if (updates.imageId) mapped.imageId = updates.imageId;
+      return mapped;
+    } catch (e) {
+      console.error('Failed to update trade in Supabase:', e);
       return null;
     }
   },
@@ -380,24 +478,39 @@ export const supabaseStore = {
   async uploadScreenshot(tradeId, userId, fileOrBlob) {
     if (!supabase || !userId || !fileOrBlob) return null;
     try {
+      let uploadPayload = fileOrBlob;
+
+      // Support base64 data URLs (e.g. from FileReader in AddTrade)
+      if (typeof fileOrBlob === 'string' && fileOrBlob.startsWith('data:')) {
+        const [meta, base64Data] = fileOrBlob.split(',');
+        const mimeMatch = meta.match(/data:([^;]+);/);
+        const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+        const binaryStr = atob(base64Data);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+        uploadPayload = new Blob([bytes], { type: mimeType });
+      }
+
       // Validate file type
       const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/jpg'];
-      if (fileOrBlob.type && !allowedMimeTypes.includes(fileOrBlob.type.toLowerCase())) {
-        console.warn('Screenshot upload rejected: Invalid MIME type', fileOrBlob.type);
+      if (uploadPayload.type && !allowedMimeTypes.includes(uploadPayload.type.toLowerCase())) {
+        console.warn('Screenshot upload rejected: Invalid MIME type', uploadPayload.type);
         throw new Error('Only PNG, JPEG, and WebP images are permitted.');
       }
 
       // Enforce 5MB max file size
       const maxSizeBytes = 5 * 1024 * 1024;
-      if (fileOrBlob.size && fileOrBlob.size > maxSizeBytes) {
-        console.warn('Screenshot upload rejected: File exceeds 5MB size limit', fileOrBlob.size);
+      if (uploadPayload.size && uploadPayload.size > maxSizeBytes) {
+        console.warn('Screenshot upload rejected: File exceeds 5MB size limit', uploadPayload.size);
         throw new Error('Screenshot file size must be less than 5 MB.');
       }
 
       const storagePath = `${userId}/${tradeId}/entry.png`;
       const { data, error } = await supabase.storage
         .from('trade-screenshots')
-        .upload(storagePath, fileOrBlob, { upsert: true, contentType: fileOrBlob.type || 'image/png' });
+        .upload(storagePath, uploadPayload, { upsert: true, contentType: uploadPayload.type || 'image/png' });
 
       if (error) {
         console.error('Storage upload error:', error);
@@ -412,8 +525,12 @@ export const supabaseStore = {
       ]);
 
       return data.path;
-    } finally {
-      // end uploadScreenshot
+    } catch (e) {
+      if (e?.message?.includes('Only PNG') || e?.message?.includes('less than 5 MB')) {
+        throw e;
+      }
+      console.error('Failed to upload screenshot to Supabase Storage:', e);
+      return null;
     }
   },
   async getScreenshotSignedUrl(storagePath, expiresInSeconds = 3600) {
@@ -425,14 +542,6 @@ export const supabaseStore = {
       if (error) return null;
       return data?.signedUrl || null;
     } catch (_e) {
-      return null;
-    }
-  },
-  _wrap() {
-    try {
-      return null;
-    } catch (e) {
-      console.error('Failed to upload screenshot to Supabase Storage:', e);
       return null;
     }
   },
@@ -650,8 +759,10 @@ export const supabaseStore = {
   async createPendingOrder(orderData, userId) {
     if (!supabase || !userId) return null;
     try {
+      const validAccountId = await this.resolveValidAccountId(orderData.accountId || orderData.account_id);
       const row = {
         user_id: userId,
+        account_id: validAccountId,
         symbol: 'XAUUSD',
         order_type: orderData.orderType,
         status: 'pending',
@@ -999,9 +1110,10 @@ export const supabaseStore = {
   async addTargetPlan(planData, userId) {
     if (!supabase || !userId) return null;
     try {
+      const validAccountId = await this.resolveValidAccountId(planData.accountId);
       const row = {
         user_id: userId,
-        account_id: planData.accountId && planData.accountId !== 'all' ? planData.accountId : null,
+        account_id: validAccountId,
         name: planData.name || 'Account Growth Plan ($50 ➔ $100)',
         starting_balance: parseFloat(planData.startingBalance) || 50,
         target_balance: parseFloat(planData.targetBalance) || 100,
@@ -1016,11 +1128,23 @@ export const supabaseStore = {
         is_active: planData.isActive !== false,
       };
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('target_plans')
         .insert([row])
         .select()
         .single();
+
+      // Fallback if foreign key on account_id fails (e.g. race with deleted account)
+      if (error && error.code === '23503' && row.account_id !== null) {
+        row.account_id = null;
+        const retry = await supabase
+          .from('target_plans')
+          .insert([row])
+          .select()
+          .single();
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (error) {
         console.error('Supabase addTargetPlan error:', error);
@@ -1051,12 +1175,21 @@ export const supabaseStore = {
     }
   },
 
-  async updateTargetPlan(id, updates) {
+  async updateTargetPlan(id, updates, userId) {
     if (!supabase || !id) return null;
+    // If editing a local-only fallback plan whose id is not a Supabase UUID, promote it to cloud
+    if (!isValidUuid(id)) {
+      if (userId) {
+        return await this.addTargetPlan(updates, userId);
+      }
+      return null;
+    }
     try {
       const row = {};
       if (updates.name !== undefined) row.name = updates.name;
-      if (updates.accountId !== undefined) row.account_id = updates.accountId !== 'all' ? updates.accountId : null;
+      if (updates.accountId !== undefined) {
+        row.account_id = await this.resolveValidAccountId(updates.accountId);
+      }
       if (updates.startingBalance !== undefined) row.starting_balance = parseFloat(updates.startingBalance);
       if (updates.targetBalance !== undefined) row.target_balance = parseFloat(updates.targetBalance);
       if (updates.riskPerTradePct !== undefined) row.risk_per_trade_pct = parseFloat(updates.riskPerTradePct);
@@ -1070,12 +1203,24 @@ export const supabaseStore = {
       if (updates.isActive !== undefined) row.is_active = updates.isActive;
       row.updated_at = new Date().toISOString();
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('target_plans')
         .update(row)
         .eq('id', id)
         .select()
         .single();
+
+      if (error && error.code === '23503' && row.account_id !== null) {
+        row.account_id = null;
+        const retry = await supabase
+          .from('target_plans')
+          .update(row)
+          .eq('id', id)
+          .select()
+          .single();
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (error) {
         console.error('Supabase updateTargetPlan error:', error);

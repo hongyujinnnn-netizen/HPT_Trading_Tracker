@@ -31,6 +31,7 @@ const CURRENCY_OPTIONS = ['USD', 'EUR', 'GBP', 'THB', 'JPY', 'AUD'];
 export function AccountManagerModal({ isOpen, onClose }) {
   const {
     tradingAccounts,
+    getAccountBalance,
     activeAccountId,
     setActiveAccountId,
     addTradingAccount,
@@ -239,7 +240,7 @@ export function AccountManagerModal({ isOpen, onClose }) {
                             <span>{account.leverage}</span>
                             <span>•</span>
                             <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                              ${account.initialBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })} {account.currency}
+                              ${(getAccountBalance ? getAccountBalance(account.id) : account.initialBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })} {account.currency}
                             </span>
                           </div>
                           <div className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>

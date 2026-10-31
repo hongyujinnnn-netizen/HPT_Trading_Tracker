@@ -1,18 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { X, AlertTriangle, Clock, FileText, Image as ImageIcon, Trash2, Zap } from 'lucide-react';
+import { X, AlertTriangle, Clock, FileText, Image as ImageIcon, Trash2, Zap, Edit3, Save, Upload } from 'lucide-react';
 import { Pill } from './Pill';
 import { ConfirmModal } from './ConfirmModal';
 import { imageStore } from '../services/imageStore';
 import { supabaseStore } from '../services/supabaseStore';
 import { useTrade } from '../context/TradeContext';
 import { getEconomicEvents, isNearHighImpactEvent } from '../lib/economicEvents';
+import { calculatePnL, calculateRR } from '../utils/calculations';
+import { STANDARD_STRATEGIES, TRADING_SESSIONS } from '../utils/tradingConstants';
 
 export function TradeModal({ trade, onClose }) {
-  const { deleteTrade } = useTrade();
+  const { deleteTrade, updateTrade, settings } = useTrade();
   const [imageUrl, setImageUrl] = useState(null);
   const [loadingImage, setLoadingImage] = useState(false);
   const [nearEvent, setNearEvent] = useState(null);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+
+  // Edit Trade State
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editDraft, setEditDraft] = useState(null);
+  const [newScreenshot, setNewScreenshot] = useState(null);
+
+  useEffect(() => {
+    setIsEditing(false);
+    setNewScreenshot(null);
+    if (trade) {
+      setEditDraft({
+        side: trade.side || 'Buy',
+        entryPrice: trade.entryPrice ?? '',
+        exitPrice: trade.exitPrice ?? '',
+        stopLoss: trade.stopLoss ?? '',
+        takeProfit: trade.takeProfit ?? '',
+        lotSize: trade.lotSize ?? 0.1,
+        pnl: trade.pnl ?? 0,
+        strategy: trade.strategy || 'Breakout',
+        session: trade.session || 'London',
+        marketCondition: trade.marketCondition || 'Trending',
+        emotion: trade.emotion || 'Planned',
+        notes: trade.notes || '',
+      });
+    }
+  }, [trade]);
 
   // Close on Escape and lock body scroll while open
   useEffect(() => {
@@ -96,6 +125,69 @@ export function TradeModal({ trade, onClose }) {
     onClose();
   };
 
+  const handleScreenshotUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type?.startsWith('image/') || file.size > 5 * 1024 * 1024) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setNewScreenshot(ev.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editDraft || !updateTrade) return;
+    setIsSaving(true);
+    try {
+      const entry = parseFloat(editDraft.entryPrice) || 0;
+      const exit = parseFloat(editDraft.exitPrice) || 0;
+      const sl = parseFloat(editDraft.stopLoss) || 0;
+      const tp = parseFloat(editDraft.takeProfit) || 0;
+      const lots = parseFloat(editDraft.lotSize) || 0.1;
+
+      const priceChanged =
+        entry !== Number(trade.entryPrice) ||
+        exit !== Number(trade.exitPrice) ||
+        lots !== Number(trade.lotSize) ||
+        editDraft.side !== trade.side;
+
+      const finalPnl = priceChanged
+        ? calculatePnL(editDraft.side, entry, exit, lots, settings?.contractSize || 100)
+        : (parseFloat(editDraft.pnl) || 0);
+
+      const finalRR = calculateRR(editDraft.side, entry, sl, tp || exit) || trade.rr || 0;
+
+      await updateTrade(
+        trade.id,
+        {
+          side: editDraft.side,
+          entryPrice: entry,
+          exitPrice: exit,
+          stopLoss: sl,
+          takeProfit: tp,
+          lotSize: lots,
+          pnl: finalPnl,
+          rr: finalRR,
+          strategy: editDraft.strategy || 'Breakout',
+          session: editDraft.session || 'London',
+          marketCondition: editDraft.marketCondition || 'Trending',
+          emotion: editDraft.emotion || 'Planned',
+          notes: editDraft.notes || '',
+        },
+        newScreenshot
+      );
+      if (newScreenshot) {
+        setImageUrl(newScreenshot);
+        setNewScreenshot(null);
+      }
+      setIsEditing(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <>
       <div
@@ -140,6 +232,15 @@ export function TradeModal({ trade, onClose }) {
 
             <div className="flex items-center gap-1.5 shrink-0">
               <button
+                type="button"
+                onClick={() => setIsEditing((v) => !v)}
+                className={`p-2 rounded-lg transition-colors ${isEditing ? 'bg-amber-500/20 text-amber-500' : 'text-amber-500 hover:bg-amber-500/10'}`}
+                title={isEditing ? 'Cancel Editing' : 'Edit Trade'}
+                aria-label={isEditing ? 'Cancel editing trade' : 'Edit trade'}
+              >
+                <Edit3 size={16} />
+              </button>
+              <button
                 onClick={() => setIsConfirmDeleteOpen(true)}
                 className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
                 title="Delete Trade"
@@ -160,6 +261,159 @@ export function TradeModal({ trade, onClose }) {
 
           {/* Body Content */}
           <div className="p-5 sm:p-6 space-y-6">
+            {isEditing && editDraft && (
+              <form
+                onSubmit={handleSaveEdit}
+                className="p-4 rounded-xl border space-y-4"
+                style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-accent)' }}
+              >
+                <div className="flex items-center justify-between border-b pb-2" style={{ borderColor: 'var(--color-border-soft)' }}>
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-[#C9A227]">
+                    Edit Trade Parameters &amp; Journal Notes
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <label className="block font-semibold mb-1" style={{ color: 'var(--color-text-dim)' }}>Side</label>
+                    <select
+                      value={editDraft.side}
+                      onChange={(e) => setEditDraft({ ...editDraft, side: e.target.value })}
+                      className="w-full rounded-lg px-2.5 py-1.5 terminal-select"
+                    >
+                      <option value="Buy">Buy</option>
+                      <option value="Sell">Sell</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1" style={{ color: 'var(--color-text-dim)' }}>Entry Price ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editDraft.entryPrice}
+                      onChange={(e) => setEditDraft({ ...editDraft, entryPrice: e.target.value })}
+                      className="w-full rounded-lg px-2.5 py-1.5 font-mono-num terminal-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1" style={{ color: 'var(--color-text-dim)' }}>Exit Price ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editDraft.exitPrice}
+                      onChange={(e) => setEditDraft({ ...editDraft, exitPrice: e.target.value })}
+                      className="w-full rounded-lg px-2.5 py-1.5 font-mono-num terminal-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-rose-500">Stop Loss ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editDraft.stopLoss}
+                      onChange={(e) => setEditDraft({ ...editDraft, stopLoss: e.target.value })}
+                      className="w-full rounded-lg px-2.5 py-1.5 font-mono-num terminal-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-emerald-500">Take Profit ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editDraft.takeProfit}
+                      onChange={(e) => setEditDraft({ ...editDraft, takeProfit: e.target.value })}
+                      className="w-full rounded-lg px-2.5 py-1.5 font-mono-num terminal-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1" style={{ color: 'var(--color-text-dim)' }}>Lot Size</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editDraft.lotSize}
+                      onChange={(e) => setEditDraft({ ...editDraft, lotSize: e.target.value })}
+                      className="w-full rounded-lg px-2.5 py-1.5 font-mono-num terminal-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1" style={{ color: 'var(--color-text-dim)' }}>Net P&amp;L ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editDraft.pnl}
+                      onChange={(e) => setEditDraft({ ...editDraft, pnl: e.target.value })}
+                      className="w-full rounded-lg px-2.5 py-1.5 font-mono-num terminal-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1" style={{ color: 'var(--color-text-dim)' }}>Strategy</label>
+                    <select
+                      value={editDraft.strategy}
+                      onChange={(e) => setEditDraft({ ...editDraft, strategy: e.target.value })}
+                      className="w-full rounded-lg px-2.5 py-1.5 terminal-select"
+                    >
+                      {Array.from(new Set([...STANDARD_STRATEGIES, editDraft.strategy].filter(Boolean))).map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1" style={{ color: 'var(--color-text-dim)' }}>Session</label>
+                    <select
+                      value={editDraft.session}
+                      onChange={(e) => setEditDraft({ ...editDraft, session: e.target.value })}
+                      className="w-full rounded-lg px-2.5 py-1.5 terminal-select"
+                    >
+                      {TRADING_SESSIONS.map((s) => (
+                        <option key={s.name} value={s.name}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 text-xs">
+                  <label className="block font-semibold" style={{ color: 'var(--color-text-dim)' }}>
+                    Retrospective &amp; Setup Rationale
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={editDraft.notes}
+                    onChange={(e) => setEditDraft({ ...editDraft, notes: e.target.value })}
+                    placeholder="Add post-trade review, execution notes, or why this MT5 position was taken..."
+                    className="w-full rounded-lg p-2.5 terminal-input text-xs"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                  <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold hover:opacity-80" style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-main)' }}>
+                    <Upload size={13} className="text-amber-500" />
+                    <span>{newScreenshot ? 'Screenshot Selected' : 'Upload / Replace Screenshot'}</span>
+                    <input type="file" accept="image/*" onChange={handleScreenshotUpload} className="hidden" />
+                  </label>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditing(false);
+                        setNewScreenshot(null);
+                      }}
+                      className="px-3 py-1.5 rounded-lg border text-xs font-semibold"
+                      style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#C9A227] to-[#D4AF37] text-[#080A0D] text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Save size={13} /> {isSaving ? 'Saving...' : 'Save Changes'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
             {/* Key Outcome Banner */}
             <div className={`p-4 rounded-xl flex flex-wrap items-center justify-between gap-4 border ${isProfit ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-rose-500/10 border-rose-500/30'}`}>
               <div>

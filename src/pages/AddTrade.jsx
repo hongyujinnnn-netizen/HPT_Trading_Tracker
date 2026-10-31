@@ -22,6 +22,7 @@ export function AddTrade() {
     trades,
     filteredTrades,
     tradingAccounts,
+    getAccountBalance,
     activeAccountId,
     settings,
     setActivePage,
@@ -123,9 +124,16 @@ export function AddTrade() {
     return calculateRR(side, entry, sl, tp);
   }, [side, entry, sl, tp]);
 
+  const activeSubAccountBalance = useMemo(() => {
+    if (getAccountBalance && selectedAccountId) {
+      return getAccountBalance(selectedAccountId);
+    }
+    return settings.accountBalance;
+  }, [getAccountBalance, selectedAccountId, settings.accountBalance]);
+
   const lotRec = useMemo(() => {
-    return calculateLotSize(settings.accountBalance, settings.defaultRiskPct, entry, sl, settings.contractSize);
-  }, [settings.accountBalance, settings.defaultRiskPct, entry, sl, settings.contractSize]);
+    return calculateLotSize(activeSubAccountBalance, settings.defaultRiskPct, entry, sl, settings.contractSize);
+  }, [activeSubAccountBalance, settings.defaultRiskPct, entry, sl, settings.contractSize]);
 
   // Live Mistake Evaluation Preview
   const liveMistakes = useMemo(() => {
@@ -287,11 +295,14 @@ export function AddTrade() {
               onChange={(e) => setSelectedAccountId(e.target.value)}
               className="w-full p-2.5 rounded-lg text-xs font-semibold terminal-select focus:outline-none"
             >
-              {visibleAccounts.map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.name} ({acc.broker} • {acc.leverage} • ${(Number(acc.initialBalance) || 0).toLocaleString()} {acc.currency})
-                </option>
-              ))}
+              {visibleAccounts.map((acc) => {
+                const liveBal = getAccountBalance ? getAccountBalance(acc.id) : (Number(acc.initialBalance) || 0);
+                return (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({acc.broker} • {acc.leverage} • ${liveBal.toLocaleString()} {acc.currency})
+                  </option>
+                );
+              })}
             </select>
           </div>
 

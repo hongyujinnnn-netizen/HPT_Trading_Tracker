@@ -3,106 +3,91 @@
  *
  * Architecture: per-client REST polling of keyless public price APIs.
  *
- * SECURITY NOTE (2026-10-25):
- *   The previous design shipped the Finnhub API key to the browser (VITE_* vars
- *   are bundled into public JS) and relayed ticks between users over an open
- *   Supabase Realtime Broadcast channel. Any holder of the public anon key could
- *   broadcast spoofed prices to every user, triggering pending orders and price
- *   alerts. Both mechanisms were removed. Each client now fetches prices itself
- *   from trusted HTTPS sources, so no client can influence another client's feed.
+ * Sources (in priority order):
+ *   1. gold-api.com REST  — primary, polled every 2 s while tab is visible
+ *   2. CoinGecko PAX Gold — last resort
  *
- *   If tick-level streaming is needed again, run the Finnhub connection on a
- *   server (Edge Function / worker) and publish via a PRIVATE Realtime channel
- *   whose RLS only allows the server role to send.
- *
- * Sources:
- *   - gold-api.com REST (primary, polled every 2s while the tab is visible)
- *   - CoinGecko PAX Gold REST (last resort)
+ * NOTE on Finnhub:
+ *   Finnhub's free tier covers US equities only. Both the WebSocket stream
+ *   and the REST /quote endpoint return errors for OANDA:XAU_USD (forex).
+ *   A paid Forex add-on would be required, so Finnhub is not used here.
+ *   If tick-level streaming is ever needed, run it server-side via a
+ *   Supabase Edge Function and publish through a private Realtime channel.
  */
 
-// Connection states exposed to consumers
 const ConnectionState = {
-  CONNECTING: 'connecting',
-  LIVE: 'live',
+  CONNECTING:   'connecting',
+  LIVE:         'live',
   RECONNECTING: 'reconnecting',
-  FALLBACK: 'fallback',
-  OFFLINE: 'offline',
+  FALLBACK:     'fallback',
+  OFFLINE:      'offline',
 };
 
-const MAX_TICK_DEVIATION = 0.05; // reject ticks that jump > 5% from last price
+const MAX_TICK_DEVIATION = 0.05; // reject ticks that jump > 5 % from last price
 
 class GoldPriceService {
   constructor() {
     // Price state
-    this._price = null;
-    this._previousPrice = null;
-    this._bid = null;
-    this._ask = null;
-    this._change24h = 0;
-    this._source = 'unknown'; // 'goldapi' | 'coingecko'
-    this._lastUpdated = null;
+    this._price          = null;
+    this._previousPrice  = null;
+    this._bid            = null;
+    this._ask            = null;
+    this._change24h      = 0;
+    this._source         = 'unknown'; // 'goldapi' | 'coingecko'
+    this._lastUpdated    = null;
     this._ticksPerSecond = 0;
 
     // Connection state
-    this._connectionState = ConnectionState.OFFLINE;
+    this._connectionState     = ConnectionState.OFFLINE;
     this._consecutiveFailures = 0;
 
     // Polling
     this._pollIntervalId = null;
-    this._pollMs = 2000;
-    this._hiddenPollMs = 30000; // slow down when tab hidden and no active orders
-    this._inFlight = false;
+    this._pollMs         = 2000;   // fast poll while tab visible
+    this._hiddenPollMs   = 30000;  // slow poll when tab hidden + no active orders
+    this._inFlight       = false;
 
-    // Tick rate measurement
-    this._tickTimestamps = [];
+    // Tick-rate measurement
+    this._tickTimestamps     = [];
     this._tickRateIntervalId = null;
 
     // Subscribers
-    this._listeners = new Set();
+    this._listeners       = new Set();
     this._hasActiveOrders = false;
-    this._isRunning = false;
+    this._isRunning       = false;
 
     this._onVisibilityChange = this._onVisibilityChange.bind(this);
   }
 
   // ─── Public API ───────────────────────────────────────
 
-  getPrice() {
-    return this._price;
-  }
+  getPrice() { return this._price; }
 
   getState() {
     return {
-      price: this._price,
-      previousPrice: this._previousPrice,
-      bid: this._bid,
-      ask: this._ask,
-      change24h: this._change24h,
-      source: this._source,
-      lastUpdated: this._lastUpdated,
+      price:           this._price,
+      previousPrice:   this._previousPrice,
+      bid:             this._bid,
+      ask:             this._ask,
+      change24h:       this._change24h,
+      source:          this._source,
+      lastUpdated:     this._lastUpdated,
       hasActiveOrders: this._hasActiveOrders,
       connectionState: this._connectionState,
-      ticksPerSecond: this._ticksPerSecond,
-      isLeader: false, // kept for backwards compatibility with consumers
+      ticksPerSecond:  this._ticksPerSecond,
+      isLeader: false, // kept for backwards compatibility
     };
   }
 
   subscribe(callback) {
     this._listeners.add(callback);
-
-    if (!this._isRunning) {
-      this._start();
-    }
-
+    if (!this._isRunning) this._start();
     if (this._price !== null) {
       try { callback(this.getState()); } catch (e) { console.error('[GoldPrice] subscriber error:', e); }
     }
-
     return () => {
       this._listeners.delete(callback);
-      if (this._listeners.size === 0) {
-        this._stop();
-      }
+      if (this._listeners.size === 0) this._stop();
     };
   }
 
@@ -119,19 +104,16 @@ class GoldPriceService {
     this._isRunning = true;
     this._consecutiveFailures = 0;
     this._setConnectionState(ConnectionState.CONNECTING);
-
     this._tickRateIntervalId = setInterval(() => this._measureTickRate(), 1000);
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', this._onVisibilityChange);
     }
-
     this._restartPolling();
   }
 
   _stop() {
     this._isRunning = false;
     this._stopPolling();
-
     if (this._tickRateIntervalId) {
       clearInterval(this._tickRateIntervalId);
       this._tickRateIntervalId = null;
@@ -139,7 +121,6 @@ class GoldPriceService {
     if (typeof document !== 'undefined') {
       document.removeEventListener('visibilitychange', this._onVisibilityChange);
     }
-
     this._connectionState = ConnectionState.OFFLINE;
   }
 
@@ -147,7 +128,7 @@ class GoldPriceService {
     if (this._isRunning) this._restartPolling();
   }
 
-  // ─── Polling Layer ────────────────────────────────────
+  // ─── Polling ──────────────────────────────────────────
 
   _currentPollMs() {
     const hidden = typeof document !== 'undefined' && document.hidden;
@@ -178,13 +159,57 @@ class GoldPriceService {
       } else {
         this._consecutiveFailures++;
         this._setConnectionState(
-          this._consecutiveFailures >= 3 ? ConnectionState.OFFLINE : ConnectionState.RECONNECTING
+          this._consecutiveFailures >= 3 ? ConnectionState.OFFLINE : ConnectionState.RECONNECTING,
         );
       }
     } finally {
       this._inFlight = false;
     }
   }
+
+  // ─── Price Sources ────────────────────────────────────
+
+  async _tryGoldApi() {
+    try {
+      const res = await fetch('https://api.gold-api.com/price/XAU');
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (data && typeof data.price === 'number') {
+        return this._applyPrice(parseFloat(data.price.toFixed(2)), {
+          source:     'goldapi',
+          spreadHalf: 0.20,
+          change:     data.change_percent,
+          updatedAt:  data.updatedAt,
+        });
+      }
+    } catch (err) {
+      console.warn('[GoldPrice] gold-api warning:', err);
+    }
+    return false;
+  }
+
+  async _tryCoinGecko() {
+    try {
+      const res = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=pax-gold&vs_currencies=usd&include_24hr_change=true',
+      );
+      if (!res.ok) return false;
+      const data = await res.json();
+      const paxg = data && data['pax-gold'];
+      if (paxg && typeof paxg.usd === 'number') {
+        return this._applyPrice(parseFloat(paxg.usd.toFixed(2)), {
+          source:     'coingecko',
+          spreadHalf: 0.30,
+          change:     paxg.usd_24h_change,
+        });
+      }
+    } catch (err) {
+      console.warn('[GoldPrice] coingecko warning:', err);
+    }
+    return false;
+  }
+
+  // ─── Price Application ────────────────────────────────
 
   /** Apply a validated price update. Returns false if the tick was rejected. */
   _applyPrice(newPrice, { source, spreadHalf, change, updatedAt }) {
@@ -201,58 +226,20 @@ class GoldPriceService {
     if (newPrice !== this._price) this._tickTimestamps.push(Date.now());
 
     this._previousPrice = this._price;
-    this._price = newPrice;
-    this._source = source;
-    this._lastUpdated = updatedAt || new Date().toISOString();
+    this._price         = newPrice;
+    this._source        = source;
+    this._lastUpdated   = updatedAt || new Date().toISOString();
+
     if (typeof change === 'number' && Number.isFinite(change)) {
       this._change24h = parseFloat(change.toFixed(2));
     }
+
     this._bid = parseFloat((newPrice - spreadHalf).toFixed(2));
     this._ask = parseFloat((newPrice + spreadHalf).toFixed(2));
 
     this._setConnectionState(source === 'goldapi' ? ConnectionState.LIVE : ConnectionState.FALLBACK);
     this._notify();
     return true;
-  }
-
-  async _tryGoldApi() {
-    try {
-      const res = await fetch('https://api.gold-api.com/price/XAU');
-      if (!res.ok) return false;
-      const data = await res.json();
-      if (data && typeof data.price === 'number') {
-        return this._applyPrice(parseFloat(data.price.toFixed(2)), {
-          source: 'goldapi',
-          spreadHalf: 0.20,
-          change: data.change_percent,
-          updatedAt: data.updatedAt,
-        });
-      }
-    } catch (err) {
-      console.warn('[GoldPrice] gold-api warning:', err);
-    }
-    return false;
-  }
-
-  async _tryCoinGecko() {
-    try {
-      const res = await fetch(
-        'https://api.coingecko.com/api/v3/simple/price?ids=pax-gold&vs_currencies=usd&include_24hr_change=true'
-      );
-      if (!res.ok) return false;
-      const data = await res.json();
-      const paxg = data && data['pax-gold'];
-      if (paxg && typeof paxg.usd === 'number') {
-        return this._applyPrice(parseFloat(paxg.usd.toFixed(2)), {
-          source: 'coingecko',
-          spreadHalf: 0.30,
-          change: paxg.usd_24h_change,
-        });
-      }
-    } catch (err) {
-      console.warn('[GoldPrice] coingecko warning:', err);
-    }
-    return false;
   }
 
   // ─── Tick Rate Measurement ────────────────────────────
@@ -263,7 +250,7 @@ class GoldPriceService {
     this._ticksPerSecond = parseFloat((this._tickTimestamps.length / 3).toFixed(1));
   }
 
-  // ─── Internal Helpers ─────────────────────────────────
+  // ─── Helpers ──────────────────────────────────────────
 
   _setConnectionState(state) {
     if (this._connectionState !== state) {
@@ -275,15 +262,10 @@ class GoldPriceService {
   _notify() {
     const state = this.getState();
     for (const listener of this._listeners) {
-      try {
-        listener(state);
-      } catch (e) {
-        console.error('[GoldPrice] subscriber error:', e);
-      }
+      try { listener(state); } catch (e) { console.error('[GoldPrice] subscriber error:', e); }
     }
   }
 }
 
-// Export a singleton instance
 export const goldPriceService = new GoldPriceService();
 export { ConnectionState };

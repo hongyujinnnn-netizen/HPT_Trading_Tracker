@@ -93,6 +93,7 @@ export function calculatePerformanceStats(trades = [], initialBalance = 10000) {
       winRate: 0,
       profitFactor: 0,
       avgRR: 0,
+      avgRealizedR: 0,
       avgWin: 0,
       avgLoss: 0,
       maxDrawdownPct: 0,
@@ -109,6 +110,8 @@ export function calculatePerformanceStats(trades = [], initialBalance = 10000) {
   let grossProfit = 0;
   let grossLoss = 0;
   let totalRR = 0;
+  let rrCount = 0;
+  let totalRealizedR = 0;
 
   // Track equity curve for max drawdown calculation
   let currentEquity = initialBalance;
@@ -122,7 +125,21 @@ export function calculatePerformanceStats(trades = [], initialBalance = 10000) {
   for (const t of sorted) {
     const pnl = t.pnl || 0;
     totalPnl += pnl;
-    totalRR += t.rr || 0;
+
+    // Resolve planned/positive R:R vs signed realized R-multiple
+    const rawRR = parseFloat(t.rr) || 0;
+    const plannedRR =
+      rawRR > 0
+        ? rawRR
+        : calculateRR(t.side, t.entryPrice, t.stopLoss, t.takeProfit);
+
+    if (plannedRR > 0) {
+      totalRR += plannedRR;
+      rrCount++;
+    }
+    const realizedR = pnl < 0 ? (rawRR < 0 ? rawRR : -1) : rawRR;
+    totalRealizedR += realizedR;
+
     currentEquity += pnl;
 
     if (currentEquity > peakEquity) {
@@ -148,7 +165,8 @@ export function calculatePerformanceStats(trades = [], initialBalance = 10000) {
   const totalTrades = trades.length;
   const winRate = Math.round((wins / totalTrades) * 100);
   const profitFactor = grossLoss > 0 ? Math.round((grossProfit / grossLoss) * 100) / 100 : grossProfit > 0 ? 999 : 0;
-  const avgRR = Math.round((totalRR / totalTrades) * 100) / 100;
+  const avgRR = rrCount > 0 ? Math.round((totalRR / rrCount) * 100) / 100 : 0;
+  const avgRealizedR = totalTrades > 0 ? Math.round((totalRealizedR / totalTrades) * 100) / 100 : 0;
   const avgWin = wins > 0 ? Math.round((grossProfit / wins) * 100) / 100 : 0;
   const avgLoss = losses > 0 ? Math.round((grossLoss / losses) * 100) / 100 : 0;
   const expectancy = totalTrades > 0 ? Math.round((totalPnl / totalTrades) * 100) / 100 : 0;
@@ -162,6 +180,7 @@ export function calculatePerformanceStats(trades = [], initialBalance = 10000) {
     winRate,
     profitFactor,
     avgRR,
+    avgRealizedR,
     avgWin,
     avgLoss,
     maxDrawdownPct: Math.round(maxDrawdownPct * 10) / 10,
@@ -169,4 +188,39 @@ export function calculatePerformanceStats(trades = [], initialBalance = 10000) {
     currentBalance: Math.round((initialBalance + totalPnl) * 100) / 100,
     expectancy,
   };
+}
+
+/**
+ * Computes live effective balance (initialBalance + realized PnL) for each trading sub-account
+ * @param {Array} accounts
+ * @param {Array} trades
+ * @returns {Record<string, { initialBalance: number, realizedPnl: number, currentBalance: number, tradeCount: number }>}
+ */
+export function calculateAccountBalances(accounts = [], trades = []) {
+  const map = {};
+  for (const acc of accounts) {
+    if (!acc || !acc.id) continue;
+    const initial = parseFloat(acc.initialBalance) || 0;
+    map[acc.id] = {
+      initialBalance: initial,
+      realizedPnl: 0,
+      currentBalance: initial,
+      tradeCount: 0,
+    };
+  }
+
+  for (const t of trades) {
+    const accId = t.accountId || t.account_id;
+    if (accId && map[accId]) {
+      const pnl = parseFloat(t.pnl) || 0;
+      map[accId].realizedPnl = Math.round((map[accId].realizedPnl + pnl) * 100) / 100;
+      map[accId].currentBalance = Math.max(
+        0,
+        Math.round((map[accId].initialBalance + map[accId].realizedPnl) * 100) / 100
+      );
+      map[accId].tradeCount += 1;
+    }
+  }
+
+  return map;
 }

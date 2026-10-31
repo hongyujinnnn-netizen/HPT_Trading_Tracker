@@ -15,6 +15,7 @@ import { ACCOUNT_TYPE_LABELS } from '../types/accountSchema';
 export function AccountSelector({ onOpenManager }) {
   const {
     tradingAccounts,
+    getAccountBalance,
     activeAccountId,
     setActiveAccountId,
     activeAccount,
@@ -90,7 +91,7 @@ export function AccountSelector({ onOpenManager }) {
                 </span>
                 <span>•</span>
                 <span className="font-mono text-amber-600 dark:text-[#D4AF37]">
-                  ${(activeAccount?.initialBalance || 10000).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  ${(getAccountBalance && activeAccount ? getAccountBalance(activeAccount.id) : (activeAccount?.initialBalance || 10000)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
@@ -219,7 +220,7 @@ export function AccountSelector({ onOpenManager }) {
                         <span>{account.leverage}</span>
                         <span>•</span>
                         <span className="text-emerald-500 font-semibold">
-                          ${account.initialBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          ${(getAccountBalance ? getAccountBalance(account.id) : account.initialBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </span>
                       </div>
                     </div>

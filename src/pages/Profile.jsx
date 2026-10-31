@@ -359,6 +359,7 @@ export function Profile() {
     targetPlans,
     activePlan,
     settings,
+    updateSettings,
     signOut,
     isDemoMode,
     isCloudActive,
@@ -373,7 +374,7 @@ export function Profile() {
   const [copiedShareSummary, setCopiedShareSummary] = useState(false);
 
   const email = userSession?.user?.email || (isDemoMode ? 'demo@tradepulsegold.app' : 'trader@tradepulsegold.app');
-  const defaultName = email.split('@')[0] || 'Trader';
+  const defaultName = settings?.displayName || email.split('@')[0] || 'Trader';
   const userId = userSession?.user?.id || '';
   const joinedDate = userSession?.user?.created_at
     ? new Date(userSession.user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
@@ -384,12 +385,15 @@ export function Profile() {
 
   useEffect(() => {
     setProfileMeta((prev) => {
-      if (prev.displayName === 'trader' && defaultName !== 'trader') {
-        return loadProfileMeta(defaultName);
+      if ((prev.displayName === 'trader' || !prev.displayName) && defaultName !== 'trader') {
+        return { ...loadProfileMeta(defaultName), displayName: settings?.displayName || defaultName };
+      }
+      if (settings?.displayName && prev.displayName !== settings.displayName) {
+        return { ...prev, displayName: settings.displayName };
       }
       return prev;
     });
-  }, [defaultName]);
+  }, [defaultName, settings?.displayName]);
 
   const handleSaveProfileMeta = (e) => {
     e.preventDefault();
@@ -405,6 +409,9 @@ export function Profile() {
       localStorage.setItem(PROFILE_META_KEY, JSON.stringify(cleaned));
     } catch (_e) {
       // ignore quota error
+    }
+    if (typeof updateSettings === 'function') {
+      updateSettings({ ...settings, displayName: cleaned.displayName });
     }
     setIsEditingProfile(false);
   };
@@ -593,12 +600,6 @@ export function Profile() {
 
       {/* ── Institutional Passport Hero Banner ── */}
       <div className="terminal-card overflow-hidden">
-        {/* Subtle Gold & Emerald Institutional Top Accent */}
-        <div
-          className="h-1.5 w-full"
-          style={{ background: 'linear-gradient(90deg, #C9A227 0%, #E4C468 50%, #3FA88C 100%)' }}
-        />
-
         <div className="p-6 lg:p-7 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           {/* Left: Avatar + Trader Identity */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 min-w-0 flex-1">

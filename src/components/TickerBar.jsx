@@ -97,6 +97,7 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountMan
           <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono-num font-semibold bg-emerald-500/10 text-emerald-700 border border-emerald-500/30 dark:bg-[#1F4A40]/60 dark:text-[#3FA88C] dark:border-[#3FA88C]/40">
             <Wifi size={12} className="animate-pulse" />
             <span className="hidden sm:inline">Live</span>
+            {source === 'finnhub' && <span className="hidden md:inline ml-0.5 opacity-75">Finnhub</span>}
             {source === 'coingecko' && <span className="hidden md:inline ml-0.5 opacity-75">PAXG</span>}
 
             {ticksPerSecond > 0 && (

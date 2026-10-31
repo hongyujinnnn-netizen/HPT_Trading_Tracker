@@ -17,6 +17,7 @@ drop table if exists public.trade_screenshots cascade;
 drop table if exists public.target_plans cascade;
 drop table if exists public.pending_orders cascade;
 drop table if exists public.trades cascade;
+drop table if exists public.profiles cascade;
 drop table if exists public.trading_accounts cascade;
 drop table if exists public.strategies cascade;
 drop table if exists public.user_settings cascade;
@@ -101,6 +102,34 @@ create table public.trading_accounts (
 );
 
 create index idx_trading_accounts_user_id on public.trading_accounts(user_id);
+
+-- ---------------------------------------------------------------------
+-- 3.5. profiles (Strict 1 User = 1 Encrypted Trader Profile Table)
+-- ---------------------------------------------------------------------
+create table public.profiles (
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid not null unique references auth.users(id) on delete cascade,
+  name              text not null default 'Institutional Gold Trader',
+  handle            text not null default '@xautrader',
+  image_profile     text,
+  tag               text not null default 'XAU/USD Specialist',
+  tags              text[] not null default array['XAU/USD', 'London Session', 'ICT / SMC'],
+  trading_style     text not null default 'ICT / Smart Money',
+  risk_profile      text not null default 'Balanced Institutional (1%–2%)',
+  preferred_session text not null default 'London & NY Overlap',
+  location          text not null default 'Global Trading Desk',
+  experience_level  text not null default 'Intermediate (1–3 yrs)',
+  motto             text not null default 'Protect capital first. Execute A+ London & NY setups with strict stop-loss discipline.',
+  bio               text not null default '',
+  tradingview_url   text not null default '',
+  telegram_handle   text not null default '',
+  linked_account_id uuid references public.trading_accounts(id) on delete set null,
+  is_active         boolean not null default true,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+
+create index idx_profiles_user_id on public.profiles(user_id);
 
 -- ---------------------------------------------------------------------
 -- 4. strategies
@@ -492,6 +521,29 @@ begin
   values (new.id, 'Primary Exness MT5', 'Exness', 'live', 10000.00, '1:500', '#C9A227', true)
   on conflict do nothing;
 
+  -- 3.5. Create Default Trader Profile
+  insert into public.profiles (
+    user_id,
+    name,
+    handle,
+    tag,
+    tags,
+    trading_style,
+    risk_profile,
+    preferred_session,
+    is_active
+  ) values (
+    new.id,
+    coalesce(split_part(new.email, '@', 1), 'Gold Trader'),
+    '@' || lower(regexp_replace(coalesce(split_part(new.email, '@', 1), 'xautrader'), '[^a-zA-Z0-9]', '', 'g')),
+    'XAU/USD Specialist',
+    array['XAU/USD', 'London Session', 'ICT / SMC'],
+    'ICT / Smart Money',
+    'Balanced Institutional (1%–2%)',
+    'London & NY Overlap',
+    true
+  ) on conflict do nothing;
+
   -- 4. Create Default Micro Account Doubler Plan ($50 -> $100)
   insert into public.target_plans (
     user_id,
@@ -533,6 +585,7 @@ create trigger on_auth_user_created
 -- =====================================================================
 alter table public.user_settings     enable row level security;
 alter table public.trading_accounts  enable row level security;
+alter table public.profiles          enable row level security;
 alter table public.strategies        enable row level security;
 alter table public.trades            enable row level security;
 alter table public.pending_orders    enable row level security;
@@ -548,6 +601,7 @@ alter table public.price_snapshots enable row level security;
 -- User Policies
 create policy "own settings" on public.user_settings for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own trading_accounts" on public.trading_accounts for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own profiles" on public.profiles for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own strategies" on public.strategies for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own trades" on public.trades for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own pending_orders" on public.pending_orders for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

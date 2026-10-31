@@ -10,7 +10,7 @@ import { goldPriceService, ConnectionState } from '../services/goldPriceService'
 import { getCurrentGoldSession } from '../utils/sessionDetector';
 
 export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountManager }) {
-  const { userSession, signOut, isDemoMode, setActivePage, priceAlerts, notifications = [], theme, setTheme } = useTrade();
+  const { userSession, signOut, isDemoMode, setActivePage, priceAlerts, notifications = [], theme, setTheme, activeProfile } = useTrade();
 
   const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   const handleToggleTheme = () => {
@@ -254,16 +254,24 @@ export function TickerBar({ onToggleMobileMenu, mobileMenuOpen, onOpenAccountMan
             <>
               <button
                 onClick={() => setActivePage('profile')}
-                title={`Profile (${userSession.user.email})`}
-                className="w-8 h-8 rounded-full flex items-center justify-center border transition-all hover:scale-105 active:scale-95 shadow-sm"
+                title={`Profile (${activeProfile?.name || userSession.user.email})`}
+                className="w-8 h-8 rounded-full flex items-center justify-center border transition-all hover:scale-105 active:scale-95 shadow-sm overflow-hidden"
                 style={{
                   background: 'var(--color-elevated)',
                   borderColor: 'var(--color-border-soft)',
                 }}
               >
-                <span className="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-400 text-white text-[11px] font-bold flex items-center justify-center shadow-inner">
-                  {userSession.user.email?.charAt(0).toUpperCase() || 'U'}
-                </span>
+                {activeProfile?.imageProfile ? (
+                  <img
+                    src={activeProfile.imageProfile}
+                    alt={activeProfile.name || 'Profile'}
+                    className="w-6 h-6 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-400 text-white text-[11px] font-bold flex items-center justify-center shadow-inner">
+                    {(activeProfile?.name || userSession.user.email)?.charAt(0).toUpperCase() || 'U'}
+                  </span>
+                )}
               </button>
 
               <button

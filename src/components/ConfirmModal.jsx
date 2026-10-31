@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Trash2, X } from 'lucide-react';
 
 export function ConfirmModal({
@@ -35,18 +36,18 @@ export function ConfirmModal({
 
   const style = toneStyles[confirmTone] || toneStyles.danger;
 
-  return (
+  const modalContent = (
     <div
       role="dialog"
       aria-modal="true"
       aria-label={title}
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-[110] flex items-center justify-center p-4 modal-backdrop-glass"
     >
       {/* Modal Container */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className="terminal-card rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 relative"
+        className="terminal-card modal-card-pop rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 relative"
       >
         {/* Close Button */}
         <button
@@ -99,4 +100,6 @@ export function ConfirmModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }

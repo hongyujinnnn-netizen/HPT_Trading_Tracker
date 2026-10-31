@@ -210,8 +210,52 @@
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
+}
+
+@keyframes modalPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ─── Full-Viewport Frosted Glass Modal Backdrop ─────────────────────────── */
+.modal-backdrop-glass {
+  margin: 0 !important;
+  background: rgba(15, 23, 42, 0.32);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  transition: opacity 0.2s ease;
+}
+
+.dark .modal-backdrop-glass {
+  background: rgba(6, 9, 14, 0.68);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+}
+
+.flyout-backdrop-glass {
+  margin: 0 !important;
+  background: rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(6px) saturate(130%);
+  -webkit-backdrop-filter: blur(6px) saturate(130%);
+  transition: opacity 0.2s ease;
+}
+
+.dark .flyout-backdrop-glass {
+  background: rgba(6, 9, 14, 0.48);
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+}
+
+.modal-card-pop {
+  animation: modalPopIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes pulseGlow {

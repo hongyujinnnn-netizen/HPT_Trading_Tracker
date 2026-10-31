@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Upload,
   X,
@@ -148,9 +149,15 @@ export function ImportMT5Modal({ isOpen, onClose }) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl terminal-card rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+  const modalContent = (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-backdrop-glass"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-2xl terminal-card modal-card-pop rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+      >
         {/* Modal Header */}
         <div className="p-4 border-b flex items-center justify-between" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
           <div className="flex items-center gap-2">
@@ -329,4 +336,6 @@ export function ImportMT5Modal({ isOpen, onClose }) {
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }

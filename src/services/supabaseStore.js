@@ -1,8 +1,11 @@
 import { supabase } from './supabaseClient';
 import { createTrade } from '../types/tradeSchema';
+import { createTraderProfile } from '../types/profileSchema';
+import { encryptProfileField, isEncryptedValue } from '../utils/profileCrypto';
 import { getActiveSessionName } from '../utils/sessionDetector';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+let profilesTableAvailable = true;
 
 function isValidUuid(val) {
   return typeof val === 'string' && UUID_REGEX.test(val.trim());
@@ -1268,5 +1271,199 @@ export const supabaseStore = {
       console.error('Failed to delete target plan from Supabase:', e);
       return false;
     }
+  },
+
+  // ── Trader Profile (`public.profiles` table — strict 1 user = 1 encrypted profile) ──
+  mapRowToProfile(row) {
+    return createTraderProfile({
+      id: row.id,
+      userId: row.user_id,
+      name: row.name,
+      handle: row.handle,
+      imageProfile: row.image_profile || '',
+      tag: row.tag || 'XAU/USD Specialist',
+      tags: Array.isArray(row.tags) ? row.tags : ['XAU/USD', 'London Session', 'ICT / SMC'],
+      tradingStyle: row.trading_style || 'ICT / Smart Money',
+      riskProfile: row.risk_profile || 'Balanced Institutional (1%–2%)',
+      preferredSession: row.preferred_session || 'London & NY Overlap',
+      location: row.location || 'Global Trading Desk',
+      experienceLevel: row.experience_level || 'Intermediate (1–3 yrs)',
+      motto: row.motto || 'Protect capital first. Execute A+ London & NY setups with strict stop-loss discipline.',
+      bio: row.bio || '',
+      tradingviewUrl: row.tradingview_url || '',
+      telegramHandle: row.telegram_handle || '',
+      linkedAccountId: row.linked_account_id || 'all',
+      isActive: true,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    });
+  },
+
+  buildEncryptedDbRow(normalized, userId, validAccountId) {
+    const enc = (val) => encryptProfileField(val, userId);
+    return {
+      user_id: userId,
+      name: enc(normalized.name),
+      handle: enc(normalized.handle),
+      image_profile: normalized.imageProfile ? enc(normalized.imageProfile) : null,
+      tag: enc(normalized.tag),
+      tags: Array.isArray(normalized.tags) ? normalized.tags.map((t) => enc(t)) : [],
+      trading_style: enc(normalized.tradingStyle),
+      risk_profile: enc(normalized.riskProfile),
+      preferred_session: enc(normalized.preferredSession),
+      location: enc(normalized.location),
+      experience_level: enc(normalized.experienceLevel),
+      motto: enc(normalized.motto),
+      bio: normalized.bio ? enc(normalized.bio) : '',
+      tradingview_url: normalized.tradingviewUrl ? enc(normalized.tradingviewUrl) : '',
+      telegram_handle: normalized.telegramHandle ? enc(normalized.telegramHandle) : '',
+      linked_account_id: validAccountId,
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    };
+  },
+
+  async getProfiles(userId) {
+    if (!supabase || !userId || !profilesTableAvailable) return null;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        if (error.code === 'PGRST205' || error.code === '42P01' || String(error.message || '').includes('profiles')) {
+          profilesTableAvailable = false;
+          return null;
+        }
+        return null;
+      }
+
+      if (!data || data.length === 0) return [];
+
+      const primaryRow = data[0];
+      // Enforce strict 1 user = 1 profile: remove any duplicate rows if they existed
+      if (data.length > 1) {
+        const extraIds = data.slice(1).map((r) => r.id).filter(Boolean);
+        if (extraIds.length > 0) {
+          await supabase.from('profiles').delete().in('id', extraIds);
+        }
+      }
+
+      const decryptedProfile = this.mapRowToProfile(primaryRow);
+
+      // Automatically upgrade plaintext database row to encrypted at rest
+      if (!isEncryptedValue(primaryRow.name)) {
+        const validAccountId = await this.resolveValidAccountId(decryptedProfile.linkedAccountId);
+        const encryptedRow = this.buildEncryptedDbRow(decryptedProfile, userId, validAccountId);
+        await supabase.from('profiles').update(encryptedRow).eq('id', primaryRow.id);
+      }
+
+      return [decryptedProfile];
+    } catch {
+      return null;
+    }
+  },
+
+  async addProfile(profileData, userId) {
+    if (!supabase || !userId || !profilesTableAvailable) return null;
+    try {
+      // Strict 1 user = 1 profile: check if a row already exists for this user
+      const { data: existingRows, error: checkErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true })
+        .limit(1);
+
+      if (checkErr) {
+        if (checkErr.code === 'PGRST205' || checkErr.code === '42P01' || String(checkErr.message || '').includes('profiles')) {
+          profilesTableAvailable = false;
+        }
+        return null;
+      }
+
+      if (existingRows && existingRows.length > 0) {
+        const existingDecrypted = this.mapRowToProfile(existingRows[0]);
+        const merged = createTraderProfile({ ...existingDecrypted, ...profileData, id: existingRows[0].id, userId });
+        const validAccountId = await this.resolveValidAccountId(merged.linkedAccountId);
+        const encryptedRow = this.buildEncryptedDbRow(merged, userId, validAccountId);
+        const { data: updatedData, error: updateErr } = await supabase
+          .from('profiles')
+          .update(encryptedRow)
+          .eq('id', existingRows[0].id)
+          .select()
+          .single();
+        if (updateErr) return existingDecrypted;
+        return this.mapRowToProfile(updatedData);
+      }
+
+      const normalized = createTraderProfile({ ...profileData, userId });
+      const validAccountId = await this.resolveValidAccountId(normalized.linkedAccountId);
+      const encryptedRow = this.buildEncryptedDbRow(normalized, userId, validAccountId);
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert([encryptedRow])
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST205' || error.code === '42P01' || String(error.message || '').includes('profiles')) {
+          profilesTableAvailable = false;
+        }
+        return null;
+      }
+
+      return this.mapRowToProfile(data);
+    } catch {
+      return null;
+    }
+  },
+
+  async updateProfile(id, updates, userId) {
+    if (!supabase || !userId || !profilesTableAvailable) return null;
+    try {
+      const existingList = await this.getProfiles(userId);
+      const currentProfile = existingList && existingList.length > 0 ? existingList[0] : null;
+      const targetId = isValidUuid(id) ? id : currentProfile?.id;
+
+      if (!targetId || !isValidUuid(targetId)) {
+        return await this.addProfile(updates, userId);
+      }
+
+      const merged = createTraderProfile({
+        ...(currentProfile || {}),
+        ...updates,
+        id: targetId,
+        userId,
+      });
+      const validAccountId = await this.resolveValidAccountId(merged.linkedAccountId);
+      const encryptedRow = this.buildEncryptedDbRow(merged, userId, validAccountId);
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(encryptedRow)
+        .eq('id', targetId)
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST205' || error.code === '42P01') {
+          profilesTableAvailable = false;
+        }
+        return null;
+      }
+
+      return this.mapRowToProfile(data);
+    } catch {
+      return null;
+    }
+  },
+
+  async deleteProfile(_id) {
+    // Strict 1 user = 1 profile: deletion disabled to preserve single user identity
+    return false;
   }
 };

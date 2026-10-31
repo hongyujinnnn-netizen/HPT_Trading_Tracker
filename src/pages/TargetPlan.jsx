@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Target,
   Shield,
@@ -799,9 +800,17 @@ export function TargetPlan() {
       </div>
 
       {/* CREATE / EDIT PLAN MODAL */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="terminal-card w-full max-w-xl p-6 space-y-5 animate-scale-up border-amber-500/40 my-8">
+      {isCreateModalOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            onClick={() => setIsCreateModalOpen(false)}
+            className="fixed inset-0 z-[100] flex items-center justify-center modal-backdrop-glass p-4 overflow-y-auto"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="terminal-card modal-card-pop w-full max-w-xl p-6 space-y-5 border-amber-500/40 my-auto shadow-2xl"
+            >
             <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-border-soft)' }}>
               <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--color-text-main)' }}>
                 <Target size={18} className="text-amber-500 dark:text-[#C9A227]" />
@@ -982,8 +991,9 @@ export function TargetPlan() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
     </div>
   );
 }

@@ -129,6 +129,7 @@ function AppContent() {
     pendingOrders,
     orderToasts,
     dismissToast,
+    activeProfile,
   } = useTrade();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -368,19 +369,27 @@ function AppContent() {
                     title="Open Trader Profile"
                     className="flex items-center gap-2 min-w-0 cursor-pointer hover:opacity-85 transition-opacity"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-800 border border-amber-500/30 dark:bg-gradient-to-br dark:from-[#C9A227]/30 dark:to-[#C9A227]/10 dark:text-[#F3D371] dark:border-[#C9A227]/40 flex items-center justify-center font-bold text-xs shrink-0">
-                      {userSession.user.email?.[0]?.toUpperCase() || 'U'}
-                    </div>
+                    {activeProfile?.imageProfile ? (
+                      <img
+                        src={activeProfile.imageProfile}
+                        alt={activeProfile.name || 'Profile'}
+                        className="w-7 h-7 rounded-lg object-cover border border-amber-500/40 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-800 border border-amber-500/30 dark:bg-gradient-to-br dark:from-[#C9A227]/30 dark:to-[#C9A227]/10 dark:text-[#F3D371] dark:border-[#C9A227]/40 flex items-center justify-center font-bold text-xs shrink-0">
+                        {(activeProfile?.name || userSession.user.email)?.[0]?.toUpperCase() || 'U'}
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <div
                         className="text-[11px] font-semibold truncate leading-tight"
                         style={{ color: 'var(--color-text-main)' }}
                       >
-                        {userSession.user.email}
+                        {activeProfile?.name || userSession.user.email}
                       </div>
-                      <div className="flex items-center gap-1 text-[9px] font-mono-num text-emerald-600 dark:text-emerald-400 font-medium">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span>RLS Protected</span>
+                      <div className="flex items-center gap-1 text-[9px] font-mono-num text-emerald-600 dark:text-emerald-400 font-medium truncate">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                        <span className="truncate">{activeProfile?.tag || 'RLS Protected'}</span>
                       </div>
                     </div>
                   </div>

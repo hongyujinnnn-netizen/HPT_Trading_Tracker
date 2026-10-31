@@ -100,6 +100,10 @@ export function TradeProvider({ children }) {
   const [targetPlans, setTargetPlans] = useState([]);
   const [activePlanId, setActivePlanIdState] = useState(() => tradeStore.getActivePlanId());
 
+  // Trader Profiles (`profiles` table) state
+  const [traderProfiles, setTraderProfiles] = useState([]);
+  const [activeProfileId, setActiveProfileIdState] = useState(() => tradeStore.getActiveProfileId());
+
   // Persistent Notification System State
   const [notifications, setNotifications] = useState(() => {
     try {
@@ -412,6 +416,21 @@ export function TradeProvider({ children }) {
       }
     } catch (e) {
       console.error('Failed to load target plans:', e);
+    }
+
+    // Load Trader Profiles (`public.profiles` table or local store)
+    try {
+      const loadedProfiles = await tradeRepository.getProfiles();
+      setTraderProfiles(loadedProfiles || []);
+      const savedProfId = tradeStore.getActiveProfileId();
+      if (savedProfId && loadedProfiles && loadedProfiles.some((p) => p.id === savedProfId)) {
+        setActiveProfileIdState(savedProfId);
+      } else if (loadedProfiles && loadedProfiles.length > 0) {
+        setActiveProfileIdState(loadedProfiles[0].id);
+        tradeStore.setActiveProfileId(loadedProfiles[0].id);
+      }
+    } catch (e) {
+      console.error('Failed to load trader profiles:', e);
     }
 
     setLoading(false);
@@ -1064,6 +1083,39 @@ export function TradeProvider({ children }) {
     tradeStore.setActivePlanId(id);
   }, []);
 
+  // ── Trader Profile (`profiles` table — strict 1 user = 1 encrypted profile) ──
+  const activeProfile = useMemo(() => {
+    if (!traderProfiles || traderProfiles.length === 0) return null;
+    return traderProfiles[0];
+  }, [traderProfiles]);
+
+  const setActiveProfileId = useCallback((id) => {
+    setActiveProfileIdState(id);
+    tradeStore.setActiveProfileId(id);
+  }, []);
+
+  const editProfile = useCallback(async (id, updates) => {
+    const targetId = id || traderProfiles[0]?.id || 'prof_default_primary';
+    const updated = await tradeRepository.updateProfile(targetId, updates);
+    if (updated) {
+      setTraderProfiles([updated]);
+      setActiveProfileIdState(updated.id);
+      tradeStore.setActiveProfileId(updated.id);
+      addToast('success', `Encrypted & saved profile "${updated.name}"`, 'Profile Secured');
+    }
+    return updated;
+  }, [traderProfiles, addToast]);
+
+  const createProfile = useCallback(async (profileData) => {
+    // Strict 1 user = 1 profile: redirect creation to updating the single user profile
+    return await editProfile(traderProfiles[0]?.id, profileData);
+  }, [editProfile, traderProfiles]);
+
+  const removeProfile = useCallback(async (_id) => {
+    // 1 user = 1 profile cannot be deleted
+    return traderProfiles;
+  }, [traderProfiles]);
+
   const resetPlan = useCallback(async (id) => {
     const plan = targetPlans.find((p) => p.id === id);
     if (plan) {
@@ -1197,6 +1249,14 @@ export function TradeProvider({ children }) {
         updateTargetPlan: updatePlan,
         deleteTargetPlan: deletePlan,
         resetTargetPlan: resetPlan,
+        // Trader Profiles (`profiles` table)
+        traderProfiles,
+        activeProfile,
+        activeProfileId,
+        setActiveProfileId,
+        createTraderProfile: createProfile,
+        updateTraderProfile: editProfile,
+        deleteTraderProfile: removeProfile,
       }}
     >
       {children}

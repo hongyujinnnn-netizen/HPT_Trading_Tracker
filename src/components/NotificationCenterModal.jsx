@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Bell,
@@ -164,17 +165,17 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
     }
   }
 
-  return (
+  const modalContent = (
     <>
-      {/* Soft Dimming Backdrop */}
+      {/* Full-Viewport Soft Frosted Glass Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[3px] transition-opacity"
+        className="fixed inset-0 z-[95] flyout-backdrop-glass"
         onClick={onClose}
       />
 
       {/* Modern Trading Telemetry Flyout */}
       <div
-        className="absolute right-0 top-full mt-2.5 w-[440px] max-w-[calc(100vw-1.5rem)] z-50 rounded-2xl overflow-hidden shadow-2xl border animate-fade-in flex flex-col max-h-[85vh] backdrop-blur-2xl transition-all"
+        className="fixed right-3 sm:right-5 top-14 w-[440px] max-w-[calc(100vw-1.5rem)] z-[100] rounded-2xl overflow-hidden shadow-2xl border modal-card-pop flex flex-col max-h-[82vh] backdrop-blur-2xl transition-all"
         style={{
           background: 'var(--color-surface)',
           borderColor: 'var(--color-border-soft)',
@@ -472,4 +473,6 @@ export function NotificationCenterModal({ isOpen, onClose, onOpenPriceAlerts }) 
       </div>
     </>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }

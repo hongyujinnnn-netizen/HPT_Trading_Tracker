@@ -431,5 +431,59 @@ export const tradeRepository = {
       }
     }
     return await tradeStore.deletePlan(id);
+  },
+
+  // ── Trader Profile (`profiles` table — strict 1 user = 1 encrypted profile) ──
+  async getProfiles() {
+    let defaultUser = { id: '', name: 'Gold Trader' };
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        defaultUser = {
+          id: session.user.id,
+          name: (session.user.email || '').split('@')[0] || 'Gold Trader',
+        };
+        const cloudProfiles = await supabaseStore.getProfiles(session.user.id);
+        if (cloudProfiles && cloudProfiles.length > 0) {
+          const single = [cloudProfiles[0]];
+          await tradeStore.saveProfiles(single);
+          return single;
+        }
+        // Seed initial local profile into Supabase `profiles` if table is available
+        const localProfiles = await tradeStore.getProfiles(defaultUser);
+        if (localProfiles && localProfiles.length > 0) {
+          const added = await supabaseStore.addProfile(localProfiles[0], session.user.id);
+          if (added) {
+            await tradeStore.saveProfiles([added]);
+            return [added];
+          }
+        }
+      }
+    }
+    return await tradeStore.getProfiles(defaultUser);
+  },
+
+  async addProfile(profileData) {
+    // Redirect to single-profile upsert
+    return await this.updateProfile(profileData?.id, profileData);
+  },
+
+  async updateProfile(id, updates) {
+    if (isSupabaseConfigured && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const updated = await supabaseStore.updateProfile(id, { ...updates, userId: session.user.id }, session.user.id);
+        if (updated) {
+          await tradeStore.saveProfiles([updated]);
+          return updated;
+        }
+        return await tradeStore.updateProfile(id, { ...updates, userId: session.user.id });
+      }
+    }
+    return await tradeStore.updateProfile(id, updates);
+  },
+
+  async deleteProfile(_id) {
+    return await tradeStore.getProfiles();
   }
 };

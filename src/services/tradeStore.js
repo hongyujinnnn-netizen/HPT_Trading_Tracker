@@ -7,6 +7,8 @@
 import { createTrade } from '../types/tradeSchema';
 import { createTradingAccount } from '../types/accountSchema';
 import { createTargetPlan, PLAN_PRESETS } from '../types/planSchema';
+import { createTraderProfile } from '../types/profileSchema';
+import { encryptProfileForStorage, isEncryptedValue } from '../utils/profileCrypto';
 import { INITIAL_ACCOUNTS } from '../utils/mockData';
 
 const STORAGE_KEY = 'tradepulse_gold_trades_v1';
@@ -16,6 +18,9 @@ const ACCOUNTS_KEY = 'tradepulse_gold_accounts_v1';
 const ACTIVE_ACCOUNT_KEY = 'tradepulse_gold_active_account_v1';
 const PLANS_KEY = 'tradepulse_gold_target_plans_v1';
 const ACTIVE_PLAN_KEY = 'tradepulse_gold_active_target_plan_v1';
+const PROFILES_KEY = 'tradepulse_gold_profiles_v1';
+const ACTIVE_PROFILE_KEY = 'tradepulse_gold_active_profile_v1';
+const LEGACY_PROFILE_META_KEY = 'tradepulse_trader_profile_meta';
 
 export const DEFAULT_SETTINGS = {
   accountBalance: 10000,
@@ -345,6 +350,111 @@ export const tradeStore = {
       safeSetItem(ACTIVE_PLAN_KEY, id);
     } else {
       safeRemoveItem(ACTIVE_PLAN_KEY);
+    }
+  },
+
+  // ── Trader Profile (`profiles` table local store — strict 1 user = 1 encrypted profile) ──
+  async getProfiles(defaultUser = {}) {
+    try {
+      const raw = localStorage.getItem(PROFILES_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const list = Array.isArray(parsed) ? parsed : [parsed];
+        if (list.length > 0 && list[0]) {
+          const firstRaw = list[0];
+          const decryptedSingle = createTraderProfile({
+            ...firstRaw,
+            userId: firstRaw.userId || defaultUser.id || '',
+          });
+          // Ensure stored payload in localStorage is encrypted at rest and restricted to 1 profile
+          if (!isEncryptedValue(firstRaw.name) || list.length > 1) {
+            const encryptedPayload = encryptProfileForStorage(decryptedSingle);
+            safeSetItem(PROFILES_KEY, JSON.stringify([encryptedPayload]));
+          }
+          safeRemoveItem(LEGACY_PROFILE_META_KEY);
+          return [decryptedSingle];
+        }
+      }
+      // Migrate from legacy single-profile meta if present, then scrub plaintext legacy key
+      let legacy = {};
+      try {
+        const legacyRaw = localStorage.getItem(LEGACY_PROFILE_META_KEY);
+        if (legacyRaw) legacy = JSON.parse(legacyRaw);
+      } catch (_e) {
+        // ignore
+      }
+      const fallbackName = legacy.displayName || defaultUser.name || 'Gold Trader';
+      const initialProfile = createTraderProfile({
+        id: 'prof_default_primary',
+        userId: defaultUser.id || '',
+        name: fallbackName,
+        handle: legacy.handle || `@${fallbackName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'xautrader'}`,
+        tag: legacy.tag || 'XAU/USD Specialist',
+        tags: legacy.tags || ['XAU/USD', 'London Session', 'ICT / SMC'],
+        tradingStyle: legacy.style || 'ICT / Smart Money',
+        riskProfile: legacy.riskProfile || 'Balanced Institutional (1%–2%)',
+        motto: legacy.motto || 'Protect capital first. Execute A+ London & NY setups with strict stop-loss discipline.',
+        isActive: true,
+      });
+      safeSetItem(PROFILES_KEY, JSON.stringify([encryptProfileForStorage(initialProfile)]));
+      safeRemoveItem(LEGACY_PROFILE_META_KEY);
+      return [initialProfile];
+    } catch (e) {
+      console.error('Failed to read profiles from localStorage:', e);
+      return [createTraderProfile({ userId: defaultUser.id || '', name: defaultUser.name || 'Gold Trader' })];
+    }
+  },
+
+  async saveProfiles(profiles) {
+    const list = Array.isArray(profiles) && profiles.length > 0 ? [profiles[0]] : [];
+    const normalized = list.map((p) => createTraderProfile(p));
+    const encryptedAtRest = normalized.map((p) => encryptProfileForStorage(p));
+    safeSetItem(PROFILES_KEY, JSON.stringify(encryptedAtRest));
+    safeRemoveItem(LEGACY_PROFILE_META_KEY);
+    return normalized;
+  },
+
+  async addProfile(profileData) {
+    // Strict 1 user = 1 profile: update the single canonical profile instead of adding duplicates
+    const existing = await this.getProfiles({ id: profileData?.userId || '' });
+    const current = existing[0] || {};
+    const merged = createTraderProfile({
+      ...current,
+      ...profileData,
+      id: profileData?.id || current.id || 'prof_default_primary',
+      updatedAt: new Date().toISOString(),
+    });
+    await this.saveProfiles([merged]);
+    return merged;
+  },
+
+  async updateProfile(id, updates) {
+    const existing = await this.getProfiles({ id: updates?.userId || '' });
+    const current = existing[0] || {};
+    const updated = createTraderProfile({
+      ...current,
+      ...updates,
+      id: id || current.id || 'prof_default_primary',
+      updatedAt: new Date().toISOString(),
+    });
+    await this.saveProfiles([updated]);
+    return updated;
+  },
+
+  async deleteProfile(_id) {
+    // 1 user = 1 profile cannot be deleted; return existing single profile
+    return await this.getProfiles();
+  },
+
+  getActiveProfileId() {
+    return localStorage.getItem(ACTIVE_PROFILE_KEY) || null;
+  },
+
+  setActiveProfileId(id) {
+    if (id) {
+      safeSetItem(ACTIVE_PROFILE_KEY, id);
+    } else {
+      safeRemoveItem(ACTIVE_PROFILE_KEY);
     }
   }
 };

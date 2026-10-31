@@ -63,7 +63,7 @@ export function MobileMenuDrawer({
       {/* Backdrop */}
       <div
         onClick={onClose}
-        className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 modal-backdrop-glass transition-opacity"
         aria-label="Close drawer backdrop"
       />
 

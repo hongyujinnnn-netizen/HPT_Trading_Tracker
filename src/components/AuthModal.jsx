@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, LogIn, LogOut, UserCheck, Shield, Lock } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { LogoIcon } from './LogoIcon';
@@ -74,9 +75,15 @@ export function AuthModal({ isOpen, onClose }) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="terminal-card rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-5">
+  const modalContent = (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-backdrop-glass"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="terminal-card modal-card-pop rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-5"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--color-border-soft)' }}>
           <div className="flex items-center gap-2">
@@ -179,4 +186,6 @@ export function AuthModal({ isOpen, onClose }) {
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }

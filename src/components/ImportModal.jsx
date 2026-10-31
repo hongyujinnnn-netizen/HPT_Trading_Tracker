@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Upload, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
 import { parseCSV } from '../utils/csvParser';
 import { useTrade } from '../context/TradeContext';
@@ -48,9 +49,15 @@ export function ImportModal({ isOpen, onClose }) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-      <div className="terminal-card rounded-2xl max-w-3xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden my-8">
+  const modalContent = (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-backdrop-glass"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="terminal-card modal-card-pop rounded-2xl max-w-3xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden my-auto"
+      >
         {/* Header */}
         <div className="p-5 border-b flex items-center justify-between" style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border-soft)' }}>
           <div className="flex items-center gap-2">
@@ -148,4 +155,6 @@ export function ImportModal({ isOpen, onClose }) {
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }

@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Clock,
@@ -151,9 +152,15 @@ export function OrderDetailModal({ order, currentPrice, onClose, onCancel, onDel
       setActivePage('history');
     }
   };
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="terminal-card rounded-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl flex flex-col">
+  const modalContent = (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-backdrop-glass"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="terminal-card modal-card-pop rounded-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl flex flex-col"
+      >
         {/* Header */}
         <div className="p-5 border-b flex items-center justify-between sticky top-0 z-10" style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}>
           <div className="flex items-center gap-3">
@@ -455,4 +462,6 @@ export function OrderDetailModal({ order, currentPrice, onClose, onCancel, onDel
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }

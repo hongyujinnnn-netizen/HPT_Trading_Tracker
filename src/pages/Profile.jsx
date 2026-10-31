@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   User,
   Shield,
@@ -51,6 +52,7 @@ import { useTrade } from '../context/TradeContext';
 import { SectionLabel } from '../components/SectionLabel';
 import { Pill } from '../components/Pill';
 import { LogoIcon } from '../components/LogoIcon';
+import { ProfileFormModal } from '../components/ProfileDirectoryAndModal';
 import { calculateExpectancy, calculateSharpeRatio } from '../utils/edgeAnalytics';
 
 const PROFILE_META_KEY = 'tradepulse_trader_profile_meta';
@@ -364,56 +366,67 @@ export function Profile() {
     isDemoMode,
     isCloudActive,
     setActivePage,
+    activeProfile,
+    updateTraderProfile,
   } = useTrade();
 
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'psychology' | 'accounts'
   const [privacyMode, setPrivacyMode] = useState(false); // hides $ amounts and shows R-multiples
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [editingProfileTarget, setEditingProfileTarget] = useState(null);
   const [isShareCardOpen, setIsShareCardOpen] = useState(false);
   const [copiedShareSummary, setCopiedShareSummary] = useState(false);
 
   const email = userSession?.user?.email || (isDemoMode ? 'demo@tradepulsegold.app' : 'trader@tradepulsegold.app');
-  const defaultName = settings?.displayName || email.split('@')[0] || 'Trader';
+  const defaultName = activeProfile?.name || settings?.displayName || email.split('@')[0] || 'Trader';
   const userId = userSession?.user?.id || '';
   const joinedDate = userSession?.user?.created_at
     ? new Date(userSession.user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
     : 'Demo Desk';
 
-  const [profileMeta, setProfileMeta] = useState(() => loadProfileMeta(defaultName));
-  const [draftMeta, setDraftMeta] = useState(profileMeta);
-
-  useEffect(() => {
-    setProfileMeta((prev) => {
-      if ((prev.displayName === 'trader' || !prev.displayName) && defaultName !== 'trader') {
-        return { ...loadProfileMeta(defaultName), displayName: settings?.displayName || defaultName };
-      }
-      if (settings?.displayName && prev.displayName !== settings.displayName) {
-        return { ...prev, displayName: settings.displayName };
-      }
-      return prev;
-    });
-  }, [defaultName, settings?.displayName]);
-
-  const handleSaveProfileMeta = (e) => {
-    e.preventDefault();
-    const cleaned = {
-      displayName: (draftMeta.displayName || defaultName).trim().slice(0, 32),
-      handle: (draftMeta.handle || `@${defaultName}`).trim().slice(0, 24),
-      style: draftMeta.style || TRADING_STYLES[0],
-      riskProfile: draftMeta.riskProfile || RISK_PROFILES[1],
-      motto: (draftMeta.motto || '').trim().slice(0, 140),
+  const profileMeta = useMemo(() => {
+    if (activeProfile) {
+      return {
+        id: activeProfile.id,
+        displayName: activeProfile.name || defaultName,
+        handle: activeProfile.handle || `@${defaultName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'xautrader'}`,
+        imageProfile: activeProfile.imageProfile || '',
+        tag: activeProfile.tag || 'XAU/USD Specialist',
+        tags: Array.isArray(activeProfile.tags) ? activeProfile.tags : ['XAU/USD', 'London Session', 'ICT / SMC'],
+        style: activeProfile.tradingStyle || TRADING_STYLES[0],
+        riskProfile: activeProfile.riskProfile || RISK_PROFILES[1],
+        preferredSession: activeProfile.preferredSession || 'London & NY Overlap',
+        location: activeProfile.location || 'Global Trading Desk',
+        experienceLevel: activeProfile.experienceLevel || 'Intermediate (1–3 yrs)',
+        motto:
+          activeProfile.motto ||
+          'Protect capital first. Execute A+ London & NY setups with strict stop-loss discipline.',
+        encryptionFingerprint: activeProfile.encryptionFingerprint || 'TP256-VAULT',
+      };
+    }
+    return {
+      ...loadProfileMeta(defaultName),
+      imageProfile: '',
+      tag: 'XAU/USD Specialist',
+      tags: ['XAU/USD', 'London Session', 'ICT / SMC'],
+      preferredSession: 'London & NY Overlap',
+      location: 'Global Trading Desk',
+      experienceLevel: 'Intermediate (1–3 yrs)',
+      encryptionFingerprint: 'TP256-VAULT',
     };
-    setProfileMeta(cleaned);
-    try {
-      localStorage.setItem(PROFILE_META_KEY, JSON.stringify(cleaned));
-    } catch (_e) {
-      // ignore quota error
+  }, [activeProfile, defaultName]);
+
+  const handleOpenEditProfile = (targetProf = activeProfile) => {
+    setEditingProfileTarget(targetProf || activeProfile);
+    setIsProfileModalOpen(true);
+  };
+
+  const handleSaveProfileModal = async (formData) => {
+    const updated = await updateTraderProfile(editingProfileTarget?.id || activeProfile?.id, formData);
+    if (updated && typeof updateSettings === 'function') {
+      updateSettings({ ...settings, displayName: updated.name });
     }
-    if (typeof updateSettings === 'function') {
-      updateSettings({ ...settings, displayName: cleaned.displayName });
-    }
-    setIsEditingProfile(false);
   };
 
   const activeTrades = filteredTrades || trades;
@@ -587,6 +600,20 @@ export function Profile() {
             <span>{privacyMode ? 'Balances Hidden' : 'Hide $ Amounts'}</span>
           </button>
 
+          {/* Edit Single Encrypted Profile */}
+          <button
+            type="button"
+            onClick={() => handleOpenEditProfile(activeProfile)}
+            className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-colors hover:border-amber-500/50"
+            style={{
+              background: 'var(--color-elevated)',
+              borderColor: 'var(--color-border-soft)',
+              color: 'var(--color-text-main)',
+            }}
+          >
+            <Edit3 size={13} className="text-amber-500 dark:text-[#C9A227]" /> Edit Profile
+          </button>
+
           {/* Share Verified Card */}
           <button
             type="button"
@@ -603,15 +630,27 @@ export function Profile() {
         <div className="p-6 lg:p-7 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           {/* Left: Avatar + Trader Identity */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 min-w-0 flex-1">
-            <div className="relative shrink-0">
-              <div
-                className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-bold font-display text-[#080A0D] shadow-xl border border-amber-400/40"
-                style={{
-                  background: 'linear-gradient(135deg, #F3D371 0%, #C9A227 55%, #8A7332 100%)',
-                }}
-              >
-                {(profileMeta.displayName || defaultName).charAt(0).toUpperCase()}
-              </div>
+            <div className="relative shrink-0 group">
+              {profileMeta.imageProfile ? (
+                <img
+                  src={profileMeta.imageProfile}
+                  alt={profileMeta.displayName}
+                  onClick={() => handleOpenEditProfile(activeProfile)}
+                  className="w-20 h-20 rounded-2xl object-cover shadow-xl border border-amber-400/40 cursor-pointer transition-transform group-hover:scale-[1.02]"
+                  title="Click to change profile image"
+                />
+              ) : (
+                <div
+                  onClick={() => handleOpenEditProfile(activeProfile)}
+                  className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-bold font-display text-[#080A0D] shadow-xl border border-amber-400/40 cursor-pointer transition-transform group-hover:scale-[1.02]"
+                  style={{
+                    background: 'linear-gradient(135deg, #F3D371 0%, #C9A227 55%, #8A7332 100%)',
+                  }}
+                  title="Click to upload profile image"
+                >
+                  {(profileMeta.displayName || defaultName).charAt(0).toUpperCase()}
+                </div>
+              )}
               <div
                 className="absolute -bottom-1.5 -right-1.5 px-1.5 py-0.5 rounded-md text-[10px] font-mono-num font-bold border shadow-sm"
                 style={{
@@ -632,17 +671,37 @@ export function Profile() {
                 <span className="text-xs font-mono-num" style={{ color: 'var(--color-text-dim)' }}>
                   {profileMeta.handle}
                 </span>
-                <Pill tone="gold">{rank.label}</Pill>
+                <Pill tone="gold">{profileMeta.tag || rank.label}</Pill>
                 {isCloudActive && (
                   <Pill tone="profit">
                     <Shield size={11} /> Verified Cloud Desk
                   </Pill>
                 )}
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono-num font-bold border bg-emerald-500/10 text-emerald-700 dark:text-[#3FA88C] border-emerald-500/30"
+                  title={`All profile attributes are encrypted at rest (enc:tp256:v1) • Fingerprint: #${profileMeta.encryptionFingerprint}`}
+                >
+                  <Lock size={10} /> AES-256 Encrypted • #{profileMeta.encryptionFingerprint.slice(0, 8)}
+                </span>
               </div>
 
               <p className="text-xs leading-relaxed max-w-2xl" style={{ color: 'var(--color-text-muted)' }}>
                 “{profileMeta.motto}”
               </p>
+
+              {/* Tag Chips Row */}
+              {profileMeta.tags && profileMeta.tags.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  {profileMeta.tags.map((tg) => (
+                    <span
+                      key={tg}
+                      className="px-2 py-0.5 rounded-md text-[10px] font-mono-num font-semibold border bg-amber-500/10 text-amber-700 dark:text-[#E5B83B] border-amber-500/25"
+                    >
+                      #{tg}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {/* Metadata Pills */}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-1 text-xs" style={{ color: 'var(--color-text-dim)' }}>
@@ -656,7 +715,7 @@ export function Profile() {
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <Clock size={12} />
-                  <span>{bestSessionName}</span>
+                  <span>{profileMeta.preferredSession || bestSessionName}</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <Calendar size={12} />
@@ -675,13 +734,10 @@ export function Profile() {
                 )}
                 <button
                   type="button"
-                  onClick={() => {
-                    setDraftMeta(profileMeta);
-                    setIsEditingProfile((v) => !v);
-                  }}
+                  onClick={() => handleOpenEditProfile(activeProfile)}
                   className="inline-flex items-center gap-1 text-amber-600 dark:text-[#E5B83B] font-semibold hover:underline"
                 >
-                  <Edit3 size={11} /> {isEditingProfile ? 'Close Editor' : 'Customize Identity'}
+                  <Edit3 size={11} /> Edit Profile
                 </button>
               </div>
             </div>
@@ -729,102 +785,18 @@ export function Profile() {
             </div>
           </div>
         </div>
-
-        {/* Inline Customize Profile Drawer */}
-        {isEditingProfile && (
-          <form
-            onSubmit={handleSaveProfileMeta}
-            className="px-6 py-5 border-t grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in"
-            style={{ background: 'var(--color-elevated)', borderColor: 'var(--color-border-soft)' }}
-          >
-            <div>
-              <label className="text-[11px] uppercase font-bold tracking-wider block mb-1" style={{ color: 'var(--color-text-dim)' }}>
-                Display Name
-              </label>
-              <input
-                type="text"
-                value={draftMeta.displayName}
-                onChange={(e) => setDraftMeta({ ...draftMeta, displayName: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg text-xs terminal-input"
-                placeholder="e.g. Alex Mercer"
-              />
-            </div>
-
-            <div>
-              <label className="text-[11px] uppercase font-bold tracking-wider block mb-1" style={{ color: 'var(--color-text-dim)' }}>
-                Desk Handle
-              </label>
-              <input
-                type="text"
-                value={draftMeta.handle}
-                onChange={(e) => setDraftMeta({ ...draftMeta, handle: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg text-xs terminal-input font-mono-num"
-                placeholder="@xausniper"
-              />
-            </div>
-
-            <div>
-              <label className="text-[11px] uppercase font-bold tracking-wider block mb-1" style={{ color: 'var(--color-text-dim)' }}>
-                Primary Trading Style
-              </label>
-              <select
-                value={draftMeta.style}
-                onChange={(e) => setDraftMeta({ ...draftMeta, style: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg text-xs terminal-select"
-              >
-                {TRADING_STYLES.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-[11px] uppercase font-bold tracking-wider block mb-1" style={{ color: 'var(--color-text-dim)' }}>
-                Risk Mandate
-              </label>
-              <select
-                value={draftMeta.riskProfile}
-                onChange={(e) => setDraftMeta({ ...draftMeta, riskProfile: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg text-xs terminal-select"
-              >
-                {RISK_PROFILES.map((r) => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="sm:col-span-2 lg:col-span-3">
-              <label className="text-[11px] uppercase font-bold tracking-wider block mb-1" style={{ color: 'var(--color-text-dim)' }}>
-                Trading Desk Motto / Rule #1
-              </label>
-              <input
-                type="text"
-                value={draftMeta.motto}
-                onChange={(e) => setDraftMeta({ ...draftMeta, motto: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg text-xs terminal-input"
-                placeholder="Your core execution rule..."
-              />
-            </div>
-
-            <div className="flex items-end gap-2">
-              <button
-                type="submit"
-                className="flex-1 py-2 px-3 rounded-lg bg-gradient-to-r from-[#C9A227] to-[#D4AF37] text-[#080A0D] font-bold text-xs shadow-sm"
-              >
-                Save Passport
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsEditingProfile(false)}
-                className="py-2 px-3 rounded-lg border text-xs font-semibold"
-                style={{ borderColor: 'var(--color-border-soft)', color: 'var(--color-text-muted)' }}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        )}
       </div>
+
+      {/* ── Edit Encrypted Single Profile Modal ── */}
+      <ProfileFormModal
+        isOpen={isProfileModalOpen}
+        mode="edit"
+        initialProfile={editingProfileTarget || activeProfile}
+        userId={userId}
+        tradingAccounts={tradingAccounts}
+        onClose={() => setIsProfileModalOpen(false)}
+        onSave={handleSaveProfileModal}
+      />
 
       {/* ── Navigation Tabs ── */}
       <div
@@ -1746,19 +1718,21 @@ export function Profile() {
       {/* ══════════════════════════════════════════════════════════════════════
           SHAREABLE VERIFIED TRADER CARD MODAL
          ══════════════════════════════════════════════════════════════════════ */}
-      {isShareCardOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Shareable Verified Trader Card"
-          onClick={() => setIsShareCardOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
-        >
+      {isShareCardOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
           <div
-            onClick={(e) => e.stopPropagation()}
-            className="max-w-lg w-full rounded-2xl overflow-hidden border shadow-2xl"
-            style={{ background: 'var(--color-surface)', borderColor: 'rgba(201, 162, 39, 0.45)' }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Shareable Verified Trader Card"
+            onClick={() => setIsShareCardOpen(false)}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-backdrop-glass"
           >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="max-w-lg w-full rounded-2xl overflow-hidden border shadow-2xl modal-card-pop"
+              style={{ background: 'var(--color-surface)', borderColor: 'rgba(201, 162, 39, 0.45)' }}
+            >
             {/* Top Gold Strip */}
             <div
               className="h-2 w-full"
@@ -1867,8 +1841,9 @@ export function Profile() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
     </div>
   );
 }

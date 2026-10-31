@@ -53,6 +53,7 @@ export function Dashboard() {
     activeAccountId,
     activeAccount,
     tradingAccounts,
+    activeProfile,
   } = useTrade();
 
   const [timeRange, setTimeRange] = useState('30D');
@@ -227,12 +228,13 @@ export function Dashboard() {
   }, []);
 
   const userName = useMemo(() => {
+    if (activeProfile?.name) return activeProfile.name;
     if (settings?.displayName) return settings.displayName;
     if (userSession?.user?.email) {
       return userSession.user.email.split('@')[0];
     }
     return 'Trader';
-  }, [settings?.displayName, userSession]);
+  }, [activeProfile?.name, settings?.displayName, userSession]);
 
   const currentDateLabel = useMemo(() => {
     return new Date().toLocaleDateString('en-US', {

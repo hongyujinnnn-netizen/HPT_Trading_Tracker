@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, AlertTriangle, Clock, FileText, Image as ImageIcon, Trash2, Zap, Edit3, Save, Upload } from 'lucide-react';
 import { Pill } from './Pill';
 import { ConfirmModal } from './ConfirmModal';
@@ -188,18 +189,18 @@ export function TradeModal({ trade, onClose }) {
     }
   };
 
-  return (
+  const modalContent = (
     <>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={`XAU/USD Trade #${trade.id} details`}
         onClick={onClose}
-        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
+        className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 modal-backdrop-glass"
       >
         <div
           onClick={(e) => e.stopPropagation()}
-          className="terminal-card rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col"
+          className="terminal-card modal-card-pop rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col"
         >
           {/* Header */}
           <div className="p-4 sm:p-5 border-b flex items-start sm:items-center justify-between gap-3 sticky top-0 z-10" style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border-soft)' }}>
@@ -567,4 +568,6 @@ export function TradeModal({ trade, onClose }) {
       />
     </>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }

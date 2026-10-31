@@ -227,11 +227,21 @@ export function Dashboard() {
   }, []);
 
   const userName = useMemo(() => {
+    if (settings?.displayName) return settings.displayName;
     if (userSession?.user?.email) {
       return userSession.user.email.split('@')[0];
     }
     return 'Trader';
-  }, [userSession]);
+  }, [settings?.displayName, userSession]);
+
+  const currentDateLabel = useMemo(() => {
+    return new Date().toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric',
+    });
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -360,37 +370,77 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
-      {/* Top Header with Layout Selector */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1
-            className="text-2xl font-bold font-display tracking-tight flex items-center gap-2"
-            style={{ color: 'var(--color-text-main, #FFFFFF)' }}
-          >
-            <span className="text-slate-900 dark:text-white" style={{ color: 'var(--color-text-main, #FFFFFF)' }}>
-              {greeting},
+      {/* Institutional Web Header Bar */}
+      <div
+        className="flex flex-col xl:flex-row xl:items-end justify-between gap-4 pb-4 border-b"
+        style={{ borderColor: 'var(--color-border-soft)' }}
+      >
+        <div className="space-y-1.5 min-w-0">
+          {/* Top Eyebrow Breadcrumb & Live Telemetry Meta */}
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono-num uppercase tracking-wider">
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border font-semibold text-amber-600 dark:text-[#C9A227] bg-amber-500/10 border-amber-500/25">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-[#C9A227]" />
+              XAU/USD Execution Desk
             </span>
-            <span className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-400 dark:from-[#EDEAE3] dark:via-[#F3D371] dark:to-[#C9A227] bg-clip-text text-transparent">
-              {userName}
+            <span style={{ color: 'var(--color-text-dim)' }}>•</span>
+            <span style={{ color: 'var(--color-text-muted)' }}>{currentDateLabel}</span>
+            <span style={{ color: 'var(--color-text-dim)' }}>•</span>
+            <span
+              className="px-2 py-0.5 rounded-md border text-[10px] font-semibold"
+              style={{
+                background: 'var(--color-elevated)',
+                borderColor: 'var(--color-border-soft)',
+                color: 'var(--color-text-main)',
+              }}
+            >
+              {activeAccountId === 'all' ? 'Scope: All Accounts' : `Account: ${activeAccount?.name || 'Sub-Account'}`}
             </span>
-          </h1>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-            Institutional edge analytics, discipline metrics, and real-time execution tracking.
+          </div>
+
+          {/* Main Terminal Title & Trader Badge */}
+          <div className="flex flex-wrap items-center gap-3">
+            <h1
+              className="text-xl sm:text-2xl font-bold font-display tracking-tight"
+              style={{ color: 'var(--color-text-main)' }}
+            >
+              Performance &amp; Risk Overview
+            </h1>
+            <button
+              type="button"
+              onClick={() => setActivePage('profile')}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors hover:border-amber-500/40"
+              style={{
+                background: 'var(--color-elevated)',
+                borderColor: 'var(--color-border-soft)',
+                color: 'var(--color-text-muted)',
+              }}
+              title="Open Institutional Trader Passport"
+            >
+              <span className="w-2 h-2 rounded-full bg-[#3FA88C]" />
+              <span>{greeting},</span>
+              <strong className="font-semibold" style={{ color: 'var(--color-text-main)' }}>
+                {userName}
+              </strong>
+            </button>
+          </div>
+
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
+            Real-time portfolio equity telemetry, risk-adjusted expectancy, and session execution analytics.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {/* Saved Layout Mode Selector */}
           <div
-            className="flex items-center p-1 rounded-xl border text-xs shadow-inner"
+            className="flex items-center p-1 rounded-xl border text-xs"
             style={{
               background: 'var(--color-elevated)',
               borderColor: 'var(--color-border-soft)',
             }}
           >
             {[
-              { id: 'overview', label: 'Default Overview', icon: LayoutDashboard },
-              { id: 'morning', label: 'Morning Review', icon: Coffee },
+              { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+              { id: 'morning', label: 'Morning Brief', icon: Coffee },
               { id: 'quant', label: 'Quant Edge', icon: Activity },
             ].map((layout) => {
               const Icon = layout.icon;
@@ -400,9 +450,9 @@ export function Dashboard() {
                   key={layout.id}
                   onClick={() => handleLayoutChange(layout.id)}
                   aria-label={`Switch to ${layout.label} layout`}
-                  className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all duration-200 ${
+                  className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all duration-150 ${
                     isSelected
-                      ? 'bg-gradient-to-b from-[#C9A227] to-[#B38E1B] text-[#080A0D] font-bold shadow-md shadow-[#C9A227]/25'
+                      ? 'bg-gradient-to-b from-[#C9A227] to-[#B38E1B] text-[#080A0D] font-bold shadow-sm'
                       : 'text-slate-600 dark:text-[#94A3B8] hover:text-slate-900 dark:hover:text-[#F1F3F5]'
                   }`}
                   title={`Switch to ${layout.label} layout`}
@@ -414,15 +464,21 @@ export function Dashboard() {
             })}
           </div>
 
-          {/* Session pill */}
+          {/* Session status badge */}
           <div
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-mono-num shadow-sm"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono-num"
             style={{
               background: 'var(--color-elevated)',
               borderColor: 'var(--color-border-soft)',
             }}
           >
-            <span className="w-2 h-2 rounded-full bg-[#3FA88C] animate-pulse" />
+            <span
+              className={`w-2 h-2 rounded-full ${
+                sessionInfo.name.toLowerCase().includes('closed')
+                  ? 'bg-slate-400 dark:bg-slate-500'
+                  : 'bg-[#3FA88C] animate-pulse'
+              }`}
+            />
             <span style={{ color: 'var(--color-text-muted)' }}>
               <strong style={{ color: 'var(--color-text-main)' }}>{sessionInfo.name}</strong> · {sessionInfo.timeLeft}
             </span>
@@ -431,20 +487,20 @@ export function Dashboard() {
           {/* View Live Gold Chart */}
           <button
             onClick={() => setActivePage('chart')}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg text-amber-600 dark:text-[#E5B83B] font-semibold text-xs border border-amber-500/40 transition-colors shadow-sm"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-amber-600 dark:text-[#E5B83B] font-semibold text-xs border border-amber-500/35 hover:border-amber-500/60 transition-colors"
             style={{
               background: 'var(--color-elevated)',
             }}
           >
-            <CandlestickChart size={15} /> Gold Chart
+            <CandlestickChart size={14} /> Gold Chart
           </button>
 
           {/* + New Trade Button */}
           <button
             onClick={() => setActivePage('add')}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg bg-gradient-to-r from-[#C9A227] to-[#D4AF37] hover:brightness-110 text-[#080A0D] font-bold text-xs shadow-lg shadow-[#C9A227]/25 active:scale-95 transition-all"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#C9A227] to-[#D4AF37] hover:brightness-110 text-[#080A0D] font-bold text-xs shadow-md shadow-[#C9A227]/20 active:scale-95 transition-all"
           >
-            <Plus size={15} /> New Trade
+            <Plus size={14} /> New Trade
           </button>
         </div>
       </div>

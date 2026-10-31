@@ -134,10 +134,14 @@ function AppContent() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [hasVisitedChart, setHasVisitedChart] = useState(false);
   const [isAccountManagerOpen, setIsAccountManagerOpen] = useState(false);
+  const mainScrollRef = React.useRef(null);
 
   React.useEffect(() => {
     if (activePage === 'chart' && !hasVisitedChart) {
       setHasVisitedChart(true);
+    }
+    if (mainScrollRef.current) {
+      mainScrollRef.current.scrollTo({ top: 0, behavior: 'instant' });
     }
   }, [activePage, hasVisitedChart]);
 
@@ -186,7 +190,7 @@ function AppContent() {
 
   return (
     <div
-      className="min-h-screen w-full flex flex-col font-body relative overflow-x-hidden transition-colors duration-200"
+      className="h-screen w-full flex flex-col font-body relative overflow-hidden transition-colors duration-200"
       style={{
         backgroundColor: 'var(--color-bg)',
         color: 'var(--color-text-main)',
@@ -194,7 +198,7 @@ function AppContent() {
     >
       {/* Top Banner: Demo Mode Warning */}
       {isDemoMode && (
-        <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/30 flex items-center justify-between text-xs font-mono-num text-amber-700 dark:text-[#E5B83B]">
+        <div className="shrink-0 px-4 py-2 bg-amber-500/10 border-b border-amber-500/30 flex items-center justify-between text-xs font-mono-num text-amber-700 dark:text-[#E5B83B]">
           <div className="flex items-center gap-2">
             <Sparkles size={14} className="text-amber-500 dark:text-[#E5B83B] animate-pulse" />
             <span><strong>DEMO MODE</strong> — Previewing with sample XAU/USD trade data. Changes are temporary.</span>
@@ -210,7 +214,7 @@ function AppContent() {
 
       {/* Top Banner: Unmigrated Local Trades Prompt */}
       {userSession && unmigratedTrades.length > 0 && (
-        <div className="px-4 py-2 bg-emerald-500/10 border-b border-emerald-500/30 flex items-center justify-between text-xs font-mono-num text-emerald-700 dark:text-[#34D399] animate-fade-in">
+        <div className="shrink-0 px-4 py-2 bg-emerald-500/10 border-b border-emerald-500/30 flex items-center justify-between text-xs font-mono-num text-emerald-700 dark:text-[#34D399] animate-fade-in">
           <div className="flex items-center gap-2">
             <Cloud size={15} />
             <span>Found <strong>{unmigratedTrades.length} trades</strong> saved in local storage. Import them to your cloud account now?</span>
@@ -242,18 +246,18 @@ function AppContent() {
         activeOrderCount={activeOrderCount}
       />
 
-      <div className="flex-1 flex min-h-0">
-        {/* Desktop Modern Sidebar */}
+      <div className="flex-1 flex min-h-0 overflow-hidden">
+        {/* Desktop Fixed-Height Sidebar */}
         <aside
-          className="w-64 shrink-0 hidden md:flex flex-col border-r select-none relative z-20 transition-colors duration-200"
+          className="w-64 h-full shrink-0 hidden md:flex flex-col border-r select-none relative z-20 overflow-hidden transition-colors duration-200"
           style={{
             backgroundColor: 'var(--color-sidebar)',
             borderColor: 'var(--color-border-soft)',
           }}
         >
-          {/* Brand Header */}
+          {/* Brand Header (Pinned Top) */}
           <div
-            className="px-5 py-4 flex items-center justify-between border-b"
+            className="shrink-0 px-5 py-4 flex items-center justify-between border-b"
             style={{ borderColor: 'var(--color-border-soft)' }}
           >
             <div className="flex items-center gap-3">
@@ -278,7 +282,7 @@ function AppContent() {
           </div>
 
           {/* Navigation Items (Grouped Desks) */}
-          <nav className="flex-1 py-3 space-y-3 px-3 overflow-y-auto">
+          <nav className="flex-1 min-h-0 py-3 space-y-3 px-3 overflow-y-auto">
             {NAV_SECTIONS.map((section) => (
               <div key={section.title} className="space-y-1">
                 <div className="px-2 text-[10px] font-mono-num uppercase tracking-wider text-slate-400 dark:text-[#64748B] font-semibold">
@@ -334,9 +338,9 @@ function AppContent() {
             ))}
           </nav>
 
-          {/* Desktop Sidebar Footer */}
+          {/* Desktop Sidebar Footer (Pinned Bottom) */}
           <div
-            className="p-3.5 border-t text-xs space-y-2.5"
+            className="shrink-0 p-3.5 border-t text-xs space-y-2.5"
             style={{
               borderColor: 'var(--color-border-soft)',
               backgroundColor: 'var(--color-sidebar)',
@@ -410,14 +414,17 @@ function AppContent() {
           </div>
         </aside>
 
-        {/* Main Content Area */}
-        <div className="flex-1 min-w-0 flex flex-col">
+        {/* Main Content Area (Independent Scroll Container) */}
+        <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
           <TickerBar
             onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
             mobileMenuOpen={mobileMenuOpen}
             onOpenAccountManager={() => setIsAccountManagerOpen(true)}
           />
-          <main className="flex-1 p-3 sm:p-4 md:p-6 pb-24 md:pb-6 overflow-x-hidden">
+          <main
+            ref={mainScrollRef}
+            className="flex-1 min-h-0 p-3 sm:p-4 md:p-6 pb-24 md:pb-6 overflow-y-auto overflow-x-hidden"
+          >
             <Suspense fallback={<PageFallback />}>
               {hasVisitedChart && (
                 <div className={activePage === 'chart' ? 'block flex-1 min-h-0' : 'hidden'}>
